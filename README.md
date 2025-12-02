@@ -48,7 +48,7 @@
 
 <div align="center">
   <img src="scrape-evals.png" alt="Teracrawl achieves #1 coverage at 82.1%" width="700">
-  <p><strong>Teracrawl</strong> achieves <strong>#1 coverage (82.1%)</strong> across 14 scraping providers on the <a href="https://github.com/firecrawl/scrape-evals">scrape-evals</a> benchmark, an open evaluation framework that tests web scrapers against 1,000 diverse URLs for success rate and content quality.</p>
+  <p><strong>Teracrawl</strong> achieves <strong>#1 coverage (84.2%)</strong> across 14 scraping providers on the <a href="https://github.com/firecrawl/scrape-evals">scrape-evals</a> benchmark, an open evaluation framework that tests web scrapers against 1,000 diverse URLs for success rate and content quality.</p>
 </div>
 
 ---
@@ -250,14 +250,15 @@ curl http://localhost:8085/health
 
 ### Server & Infrastructure
 
-| Variable           | Default                 | Description                                        |
-| :----------------- | :---------------------- | :------------------------------------------------- |
-| `BROWSER_API_KEY`  | **Required**            | Your Browser.cash API key.                         |
-| `PORT`             | `8085`                  | Port for the API server.                           |
-| `HOST`             | `0.0.0.0`               | Host to bind to.                                   |
-| `SERP_SERVICE_URL` | `http://localhost:8080` | URL of the upstream SERP/Search service.           |
-| `POOL_SIZE`        | `1`                     | Number of concurrent browser sessions to maintain. |
-| `DEBUG_LOG`        | `false`                 | Enable verbose logging for debugging.              |
+| Variable           | Default                 | Description                                                           |
+| :----------------- | :---------------------- | :-------------------------------------------------------------------- |
+| `BROWSER_API_KEY`  | **Required**            | Your Browser.cash API key.                                            |
+| `PORT`             | `8085`                  | Port for the API server.                                              |
+| `HOST`             | `0.0.0.0`               | Host to bind to.                                                      |
+| `SERP_SERVICE_URL` | `http://localhost:8080` | URL of the upstream SERP/Search service.                              |
+| `POOL_SIZE`        | `1`                     | Number of concurrent browser sessions to maintain.                    |
+| `DEBUG_LOG`        | `false`                 | Enable verbose logging for debugging.                                 |
+| `DATALAB_API_KEY`  | _Optional_              | [Datalab](https://datalab.to) API key for PDF-to-Markdown conversion. |
 
 ### Crawler Tuning
 
