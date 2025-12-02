@@ -1,25 +1,37 @@
 {
-  "name": "serp-firebase-clone",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@browsercash/crawler",
+  "version": "1.0.0",
+  "description": "High-performance web crawler powered by Browser.cash remote browsers",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
   },
+  "keywords": [
+    "crawler",
+    "scraper",
+    "browser",
+    "playwright",
+    "markdown"
+  ],
+  "license": "MIT",
   "dependencies": {
+    "@browsercash/pool": "git+https://github.com/Mega-Tera/browser-pool.git",
     "@browsercash/sdk": "^0.4.0",
     "@fastify/cors": "^10.0.1",
-    "@types/turndown": "^5.0.6",
     "dotenv": "^16.4.5",
     "fastify": "^5.0.0",
-    "playwright-core": "^1.57.0",
-    "turndown": "^7.2.2"
+    "node-html-markdown": "^1.3.0",
+    "playwright-core": "^1.57.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

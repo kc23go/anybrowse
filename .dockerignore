@@ -2,5 +2,7 @@ node_modules
 dist
 .env
 *.log
-.DS_Store
-coverage
+.git
+.gitignore
+README.md
+
