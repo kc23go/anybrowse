@@ -48,7 +48,7 @@
 
 <div align="center">
   <img src="scrape-evals.png" alt="Teracrawl achieves #1 coverage at 82.1%" width="700">
-  <p><strong>Teracrawl</strong> achieves <strong>#1 coverage (84.2%)</strong> across 14 scraping providers on the <a href="https://github.com/firecrawl/scrape-evals">scrape-evals</a> benchmark, an open evaluation framework that tests web scrapers against 1,000 diverse URLs for success rate and content quality.</p>
+  <p><strong>Teracrawl</strong> achieves <strong>#1 coverage (84.2%)</strong> across 14 scraping providers on the <a href="https://github.com/firecrawl/scrape-evals/pull/13">scrape-evals</a> benchmark, an open evaluation framework that tests web scrapers against 1,000 diverse URLs for success rate and content quality.</p>
 </div>
 
 ---
