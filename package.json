@@ -1,7 +1,7 @@
 {
-  "name": "@browsercash/crawler",
+  "name": "anybrowse",
   "version": "1.0.0",
-  "description": "High-performance web crawler powered by Browser.cash remote browsers",
+  "description": "Autonomous web browsing agent — converts any URL to clean, LLM-ready Markdown via x402 micropayments",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -10,21 +10,29 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
-    "crawler",
+    "agent",
+    "autonomous",
+    "web-browsing",
     "scraper",
-    "browser",
-    "playwright",
-    "markdown"
+    "markdown",
+    "x402",
+    "a2a"
   ],
   "license": "MIT",
   "dependencies": {
     "@browsercash/pool": "git+https://github.com/Mega-Tera/browser-pool.git",
     "@browsercash/sdk": "^0.4.0",
+    "@farcaster/core": "^0.18.10",
     "@fastify/cors": "^10.0.1",
+    "@neynar/nodejs-sdk": "^3.137.0",
     "dotenv": "^16.4.5",
     "fastify": "^5.0.0",
+    "fastify-plugin": "^5.1.0",
     "node-html-markdown": "^1.3.0",
-    "playwright-core": "^1.57.0"
+    "playwright-core": "^1.57.0",
+    "viem": "^2.46.2",
+    "x402": "^1.1.0",
+    "x402-express": "^1.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

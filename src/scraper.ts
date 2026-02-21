@@ -2,6 +2,9 @@ import type { Browser, Page, BrowserContext } from 'playwright-core';
 import { loadEnvNumber } from './env.js';
 import { parseHtmlToMarkdown } from './markdown.js';
 import { isPdfUrl, convertPdfToMarkdown, isPdfSupportEnabled } from './pdf.js';
+import { validateUrl } from './url-guard.js';
+import { intelligence } from './autonomy/intelligence.js';
+import { stats } from './stats.js';
 
 // Re-export PDF utilities for direct access
 export { isPdfUrl, convertPdfToMarkdown, isPdfSupportEnabled } from './pdf.js';
@@ -277,10 +280,26 @@ export async function scrapeUrlSlow(browser: Browser, url: string): Promise<Craw
 export async function scrapeUrlWithFallback(browser: Browser, url: string): Promise<CrawlResult> {
   const startTime = performance.now();
 
+  // SSRF protection: block internal/private IPs
+  try {
+    await validateUrl(url);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logPerf('SSRF BLOCKED', url, startTime, { error: message });
+    return {
+      url,
+      title: '',
+      markdown: '',
+      status: 'error',
+      error: `URL blocked: ${message}`,
+    };
+  }
+
   // Handle PDF URLs with Datalab Marker API
   if (isPdfUrl(url)) {
     if (!isPdfSupportEnabled()) {
       logPerf('PDF REJECTED', url, startTime, { reason: 'no_api_key' });
+      intelligence.recordCapabilityGap('PDF processing requires DATALAB_API_KEY');
       return {
         url,
         title: '',
@@ -295,16 +314,60 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string): Prom
     return pdfResult;
   }
 
-  const fast = await scrapeUrlFast(browser, url);
-  if (fast.status === 'success') {
-    logPerf('WITH FALLBACK', url, startTime, { method: 'fast', status: 'success' });
-    return fast;
+  // Check if domain intelligence recommends skipping fast scrape
+  const skipFast = intelligence.shouldSlowScrape(url);
+
+  let result: CrawlResult;
+  let method: 'fast' | 'slow';
+
+  if (skipFast) {
+    // Domain known to fail fast scrape — go straight to slow
+    logPerf('INTEL SKIP FAST', url, startTime, { reason: 'domain prefers slow' });
+    result = await scrapeUrlSlow(browser, url);
+    method = 'slow';
+    intelligence.recordScrape(url, 'slow', result.status === 'success', performance.now() - startTime);
+  } else {
+    // Try fast first
+    const fast = await scrapeUrlFast(browser, url);
+    const fastDuration = performance.now() - startTime;
+    intelligence.recordScrape(url, 'fast', fast.status === 'success', fastDuration);
+
+    if (fast.status === 'success') {
+      logPerf('WITH FALLBACK', url, startTime, { method: 'fast', status: 'success' });
+      // Score content quality and track domain
+      intelligence.scoreContent(fast.markdown);
+      recordDomainStats(url, true);
+      return fast;
+    }
+
+    // Fall back to slow scraper
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Fast scrape incomplete, trying slow method: ${url}`);
+    result = await scrapeUrlSlow(browser, url);
+    method = 'slow';
+    intelligence.recordScrape(url, 'slow', result.status === 'success', performance.now() - startTime);
   }
 
-  // Try slow scraper as fallback
-  console.log(`\x1b[35m[SCRAPER]\x1b[0m Fast scrape incomplete, trying slow method: ${url}`);
-  const slow = await scrapeUrlSlow(browser, url);
-  logPerf('WITH FALLBACK', url, startTime, { method: 'slow', status: slow.status });
+  logPerf('WITH FALLBACK', url, startTime, { method, status: result.status });
 
-  return slow;
+  // Score content quality on success
+  if (result.status === 'success') {
+    intelligence.scoreContent(result.markdown);
+  }
+
+  // Track domain success/failure in stats
+  recordDomainStats(url, result.status === 'success');
+
+  return result;
+}
+
+/**
+ * Record domain-level stats for the stats module
+ */
+function recordDomainStats(url: string, success: boolean): void {
+  try {
+    const domain = new URL(url).hostname;
+    stats.recordDomain(domain, success);
+  } catch {
+    // Invalid URL, skip
+  }
 }

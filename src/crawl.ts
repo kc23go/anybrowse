@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Browser } from 'playwright-core';
 import { loadEnvNumber } from './env.js';
 import { runSerpQuery } from './serp.js';
-import { getPool } from './pool.js';
+import { acquireSession, releaseSession, getPoolStats } from './pool.js';
 import { CrawlResult, scrapeUrlWithFallback, isPdfUrl, isPdfSupportEnabled } from './scraper.js';
 import { createPerfLogger } from './perf.js';
 
@@ -75,10 +75,9 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
 
       const indexedQueue = urls.map((url, index) => ({ url, index }));
       const results: CrawlResult[] = new Array(urls.length);
-      const pool = getPool();
+      const { maxSize } = getPoolStats();
 
       while (indexedQueue.length > 0) {
-        const { maxSize } = pool.stats();
         const sessionsNeeded = Math.min(
           maxSize,
           Math.ceil(indexedQueue.length / Math.max(1, CRAWL_TABS_PER_SESSION))
@@ -94,7 +93,7 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
 
         // Acquire sessions for this batch
         const sessions = await Promise.all(
-          Array.from({ length: sessionsNeeded }, () => pool.acquire())
+          Array.from({ length: sessionsNeeded }, () => acquireSession())
         );
 
         try {
@@ -122,7 +121,7 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
           // Release all sessions
           const hadErrors = results.some((r) => r?.status === 'error');
           for (const session of sessions) {
-            pool.release(session, hadErrors);
+            releaseSession(session, hadErrors);
           }
         }
       }
@@ -159,7 +158,7 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
 
   /**
    * POST /scrape
-   * Scrape a single URL to Markdown (for testing)
+   * Scrape a single URL to Markdown
    */
   app.post('/scrape', async (req: FastifyRequest, reply: FastifyReply) => {
     const perf = createPerfLogger();
@@ -176,14 +175,13 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
     if (isPdfUrl(url) && !isPdfSupportEnabled()) {
       perf.event('PDF rejected - no API key');
       perf.summary();
-      return reply.status(400).send({ 
+      return reply.status(400).send({
         error: 'pdf_not_supported',
         message: 'PDF URLs require DATALAB_API_KEY to be configured',
       });
     }
 
-    const pool = getPool();
-    const session = await pool.acquire();
+    const session = await acquireSession();
     let hadError = false;
 
     try {
@@ -207,8 +205,7 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
         message,
       });
     } finally {
-      pool.release(session, hadError);
+      releaseSession(session, hadError);
     }
   });
 }
-
