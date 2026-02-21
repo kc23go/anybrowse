@@ -333,7 +333,7 @@ const LANDING_JSON = {
 };
 
 async function buildServer() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: "127.0.0.1" });
   await app.register(cors, { origin: true });
 
   // x402 payment gate (returns 402 for paid routes without X-PAYMENT header)

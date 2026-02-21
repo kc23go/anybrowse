@@ -288,7 +288,7 @@ export async function registerMcpRoute(app: FastifyInstance): Promise<void> {
     }
 
     // Get client IP (from nginx X-Real-IP or direct connection)
-    const clientIp = (req.headers["x-real-ip"] as string) || req.ip || "unknown";
+    const clientIp = req.ip || "unknown";
     const body = req.body;
 
     // Handle batch requests (limit batch size to 10)

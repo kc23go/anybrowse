@@ -1,6 +1,6 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { randomBytes } from "crypto";
+import { randomBytes, timingSafeEqual } from "crypto";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { getConfig } from "./autonomy/optimizer.js";
 
@@ -26,6 +26,21 @@ const USDC_EIP712 = {
 
 // Internal bypass token — regenerated every startup, used by MCP handler
 export const INTERNAL_BYPASS_TOKEN = randomBytes(32).toString("hex");
+const BYPASS_TOKEN_BUF = Buffer.from(INTERNAL_BYPASS_TOKEN, "hex");
+
+// Payment replay protection — track recently settled payment hashes
+const SETTLED_PAYMENTS = new Set<string>();
+
+function getPaymentHash(payment: any): string {
+  return Buffer.from(JSON.stringify(payment)).toString("base64").slice(0, 64);
+}
+
+// Clean up old entries periodically
+setInterval(() => {
+  if (SETTLED_PAYMENTS.size > 1000) {
+    SETTLED_PAYMENTS.clear();
+  }
+}, 5 * 60 * 1000);
 
 interface PaymentEvent {
   timestamp: string;
@@ -54,8 +69,21 @@ function recordPayment(event: PaymentEvent): void {
   }
 }
 
+/**
+ * Timing-safe comparison for the bypass token
+ */
+function isValidBypassToken(candidate: string | undefined): boolean {
+  if (!candidate) return false;
+  try {
+    const candidateBuf = Buffer.from(candidate, "hex");
+    if (candidateBuf.length !== BYPASS_TOKEN_BUF.length) return false;
+    return timingSafeEqual(candidateBuf, BYPASS_TOKEN_BUF);
+  } catch {
+    return false;
+  }
+}
+
 export default fp(async function paymentGate(app: FastifyInstance) {
-  // Import x402 verify module dynamically
   const { useFacilitator } = await import("x402/verify");
   const facilitator = useFacilitator({
     url: FACILITATOR_URL as `${string}://${string}`,
@@ -99,8 +127,8 @@ export default fp(async function paymentGate(app: FastifyInstance) {
     async (req: FastifyRequest, reply: FastifyReply) => {
       const path = req.url.split("?")[0];
 
-      // Skip payment for internal MCP tool calls (verified by secret token)
-      if (req.headers["x-internal-token"] === INTERNAL_BYPASS_TOKEN) return;
+      // Skip payment for internal MCP tool calls (timing-safe comparison)
+      if (isValidBypassToken(req.headers["x-internal-token"] as string)) return;
 
       const amount = getCurrentPrice(path);
       if (!amount) return;
@@ -137,7 +165,20 @@ export default fp(async function paymentGate(app: FastifyInstance) {
         return;
       }
 
-      // Verify payment with facilitator (internal, no TLS overhead)
+      // Replay protection — reject duplicate payment payloads
+      const paymentHash = getPaymentHash(decodedPayment);
+      if (SETTLED_PAYMENTS.has(paymentHash)) {
+        console.log(`[payment-gate] Replay rejected: ${paymentHash.slice(0, 16)}...`);
+        reply.status(402).send({
+          x402Version: 1,
+          error: "Payment already used",
+          accepts: [paymentRequirements],
+          facilitator: PUBLIC_FACILITATOR,
+        });
+        return;
+      }
+
+      // Verify payment with facilitator
       try {
         const verifyResult = await facilitator.verify(
           decodedPayment,
@@ -172,9 +213,9 @@ export default fp(async function paymentGate(app: FastifyInstance) {
         return;
       }
 
-      // Store payment data for settlement after response
       (req as any).x402Payment = decodedPayment;
       (req as any).x402Requirements = paymentRequirements;
+      (req as any).x402PaymentHash = paymentHash;
     },
   );
 
@@ -187,12 +228,12 @@ export default fp(async function paymentGate(app: FastifyInstance) {
     ) => {
       const decodedPayment = (req as any).x402Payment;
       const paymentRequirements = (req as any).x402Requirements;
+      const paymentHash = (req as any).x402PaymentHash as string | undefined;
       if (!decodedPayment || !paymentRequirements) return payload;
 
       const path = req.url.split("?")[0];
       const amount = getCurrentPrice(path) || 0;
 
-      // Don't settle on error responses
       if (reply.statusCode >= 400) {
         console.log(
           `[payment-gate] Skipping settlement — response ${reply.statusCode}`,
@@ -200,7 +241,6 @@ export default fp(async function paymentGate(app: FastifyInstance) {
         return payload;
       }
 
-      // Settle the payment on-chain (internal, no TLS overhead)
       try {
         const settleResult = await facilitator.settle(
           decodedPayment,
@@ -231,6 +271,11 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           `[payment-gate] Settled! tx=${settleResult.transaction} payer=${settleResult.payer}`,
         );
 
+        // Mark payment as used (replay protection)
+        if (paymentHash) {
+          SETTLED_PAYMENTS.add(paymentHash);
+        }
+
         recordPayment({
           timestamp: new Date().toISOString(),
           endpoint: path,
@@ -241,7 +286,6 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           status: "settled",
         });
 
-        // Return settlement proof
         const proof = Buffer.from(
           JSON.stringify(settleResult),
         ).toString("base64");

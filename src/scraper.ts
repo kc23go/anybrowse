@@ -2,7 +2,7 @@ import type { Browser, Page, BrowserContext } from 'playwright-core';
 import { loadEnvNumber } from './env.js';
 import { parseHtmlToMarkdown } from './markdown.js';
 import { isPdfUrl, convertPdfToMarkdown, isPdfSupportEnabled } from './pdf.js';
-import { validateUrl } from './url-guard.js';
+import { validateUrl, installSsrfRouteBlock } from './url-guard.js';
 import { intelligence } from './autonomy/intelligence.js';
 import { stats } from './stats.js';
 
@@ -165,6 +165,7 @@ export async function scrapeUrlFast(browser: Browser, url: string): Promise<Craw
     }
 
     await ensureRouteBlocking(context, true);
+    installSsrfRouteBlock(context);
     page = await context.newPage();
     logPerf('Page created', url, contextStart);
 
@@ -219,6 +220,7 @@ export async function scrapeUrlSlow(browser: Browser, url: string): Promise<Craw
     const contextStart = performance.now();
     context = await browser.newContext();
     await ensureRouteBlocking(context, false);
+    installSsrfRouteBlock(context);
     page = await context.newPage();
     logPerf('Context created', url, contextStart);
 

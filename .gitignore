@@ -6,3 +6,15 @@ dist
 coverage
 *.pem
 *.bak
+*.pem
+*.bak
+
+# Sensitive scripts with hardcoded keys
+fc-retry*.js
+fc-retry*.cjs
+neynar-setup.mjs
+fund-test-wallet.mjs
+test-payment.mjs
+test-external-payment.mjs
+generate-signer.mjs
+register-signer.mjs
