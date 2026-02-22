@@ -2,12 +2,12 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "dev.anybrowse/anybrowse",
   "title": "AnyBrowse",
-  "description": "Convert any URL to LLM-ready Markdown via real Chrome browsers with x402 payments.",
+  "description": "Convert any URL to LLM-ready Markdown via real Chrome browsers. Free MCP + x402.",
   "repository": {
     "url": "https://github.com/kc23go/anybrowse",
     "source": "github"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "remotes": [
     {
       "type": "streamable-http",
