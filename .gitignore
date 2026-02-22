@@ -18,3 +18,4 @@ test-payment.mjs
 test-external-payment.mjs
 generate-signer.mjs
 register-signer.mjs
+__pycache__

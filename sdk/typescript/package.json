@@ -1,0 +1,30 @@
+{
+  "name": "@anybrowse/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Anybrowse web scraping and search API with x402 micropayment support",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "anybrowse",
+    "scraping",
+    "search",
+    "crawl",
+    "x402",
+    "micropayments"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
