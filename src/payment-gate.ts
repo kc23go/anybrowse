@@ -1,15 +1,21 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { randomBytes, timingSafeEqual } from "crypto";
+import { randomBytes, timingSafeEqual, createPrivateKey, sign } from "crypto";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { getConfig } from "./autonomy/optimizer.js";
 
 const PAY_TO = "0x8D76E8FB38541d70dF74b14660c39b4c5d737088";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const NETWORK = "base" as const;
-const FACILITATOR_URL = process.env.FACILITATOR_URL || "http://127.0.0.1:8080";
-const PUBLIC_FACILITATOR = "https://anybrowse.dev/facilitator";
 const PAYMENTS_LEDGER = "/agent/data/payments.json";
+
+// CDP Facilitator (Coinbase-hosted, production) or fallback to self-hosted
+const CDP_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402";
+const SELF_HOSTED_FACILITATOR_URL = "http://127.0.0.1:8080";
+const FACILITATOR_URL = process.env.FACILITATOR_URL || CDP_FACILITATOR_URL;
+const PUBLIC_FACILITATOR = FACILITATOR_URL === SELF_HOSTED_FACILITATOR_URL
+  ? "https://anybrowse.dev/facilitator"
+  : CDP_FACILITATOR_URL;
 
 const DEFAULT_PRICES: Record<string, number> = {
   "/scrape": 3000,
@@ -28,14 +34,13 @@ const USDC_EIP712 = {
 export const INTERNAL_BYPASS_TOKEN = randomBytes(32).toString("hex");
 const BYPASS_TOKEN_BUF = Buffer.from(INTERNAL_BYPASS_TOKEN, "hex");
 
-// Payment replay protection — track recently settled payment hashes
+// Payment replay protection
 const SETTLED_PAYMENTS = new Set<string>();
 
 function getPaymentHash(payment: any): string {
   return Buffer.from(JSON.stringify(payment)).toString("base64").slice(0, 64);
 }
 
-// Clean up old entries periodically
 setInterval(() => {
   if (SETTLED_PAYMENTS.size > 1000) {
     SETTLED_PAYMENTS.clear();
@@ -69,9 +74,6 @@ function recordPayment(event: PaymentEvent): void {
   }
 }
 
-/**
- * Timing-safe comparison for the bypass token
- */
 function isValidBypassToken(candidate: string | undefined): boolean {
   if (!candidate) return false;
   try {
@@ -83,14 +85,112 @@ function isValidBypassToken(candidate: string | undefined): boolean {
   }
 }
 
-export default fp(async function paymentGate(app: FastifyInstance) {
-  const { useFacilitator } = await import("x402/verify");
-  const facilitator = useFacilitator({
-    url: FACILITATOR_URL as `${string}://${string}`,
-  });
+/**
+ * Generate a CDP JWT for a specific API action.
+ * Uses Ed25519 signing (EdDSA) — replaces @coinbase/cdp-sdk/auth to avoid
+ * its ESM "Octal escape sequences" bug in Node 22 + pm2.
+ */
+function generateCdpJwt(
+  keyId: string,
+  privateKey: ReturnType<typeof createPrivateKey>,
+  method: string,
+  path: string,
+): string {
+  const now = Math.floor(Date.now() / 1000);
 
-  console.log(`[payment-gate] Internal facilitator: ${FACILITATOR_URL}`);
-  console.log(`[payment-gate] Public facilitator:   ${PUBLIC_FACILITATOR}`);
+  const header = {
+    alg: "EdDSA",
+    kid: keyId,
+    typ: "JWT",
+    nonce: randomBytes(16).toString("hex"),
+  };
+
+  const payload = {
+    sub: keyId,
+    iss: "cdp",
+    aud: ["cdp_service"],
+    nbf: now,
+    exp: now + 120,
+    uris: [`${method} api.cdp.coinbase.com${path}`],
+  };
+
+  const headerB64 = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  const signature = sign(null, Buffer.from(signingInput), privateKey);
+  return `${signingInput}.${signature.toString("base64url")}`;
+}
+
+/**
+ * Build a createAuthHeaders callback for HTTPFacilitatorClient.
+ * Returns undefined if CDP keys are not configured.
+ */
+function createCdpAuthHeadersFn(): (() => Promise<{ verify: Record<string, string>; settle: Record<string, string>; supported: Record<string, string> }>) | undefined {
+  const keyId = process.env.CDP_API_KEY_ID;
+  const keySecret = process.env.CDP_API_KEY_SECRET;
+  if (!keyId || !keySecret) return undefined;
+
+  // Decode the Ed25519 private key (64 bytes: 32-byte seed + 32-byte public)
+  let privateKey: ReturnType<typeof createPrivateKey>;
+  try {
+    const rawKey = Buffer.from(keySecret, "base64");
+    const seed = rawKey.subarray(0, 32);
+    // Wrap in PKCS8 DER envelope for Ed25519
+    const pkcs8Header = Buffer.from("302e020100300506032b657004220420", "hex");
+    const pkcs8Der = Buffer.concat([pkcs8Header, seed]);
+    privateKey = createPrivateKey({ key: pkcs8Der, format: "der", type: "pkcs8" });
+    console.log("[payment-gate] CDP Ed25519 key loaded successfully");
+  } catch (err: any) {
+    console.error("[payment-gate] Failed to load CDP key:", err.message);
+    return undefined;
+  }
+
+  return async () => ({
+    verify:    { Authorization: `Bearer ${generateCdpJwt(keyId, privateKey, "POST", "/platform/v2/x402/verify")}` },
+    settle:    { Authorization: `Bearer ${generateCdpJwt(keyId, privateKey, "POST", "/platform/v2/x402/settle")}` },
+    supported: { Authorization: `Bearer ${generateCdpJwt(keyId, privateKey, "GET",  "/platform/v2/x402/supported")}` },
+  });
+}
+
+
+export default fp(async function paymentGate(app: FastifyInstance) {
+  let facilitatorUrl = FACILITATOR_URL;
+  let publicFacilitator = PUBLIC_FACILITATOR;
+
+  // Try CDP facilitator first, fall back to self-hosted
+  const cdpAuthFn = createCdpAuthHeadersFn();
+  const useCdp = cdpAuthFn && facilitatorUrl === CDP_FACILITATOR_URL;
+
+  if (useCdp) {
+    console.log("[payment-gate] Using CDP facilitator (Coinbase-hosted)");
+  } else if (facilitatorUrl === CDP_FACILITATOR_URL && !cdpAuthFn) {
+    // CDP keys not set or key load failed, fall back to self-hosted
+    facilitatorUrl = SELF_HOSTED_FACILITATOR_URL;
+    publicFacilitator = "https://anybrowse.dev/facilitator";
+    console.log("[payment-gate] CDP keys not configured, falling back to self-hosted facilitator");
+  }
+
+  // Use @x402/core HTTPFacilitatorClient for CDP, else old x402 package for self-hosted
+  let facilitator: { verify: Function; settle: Function };
+
+  if (useCdp) {
+    const { HTTPFacilitatorClient } = await import("@x402/core/server");
+    const client = new HTTPFacilitatorClient({
+      url: facilitatorUrl,
+      createAuthHeaders: cdpAuthFn,
+    });
+    facilitator = client;
+    console.log(`[payment-gate] CDP facilitator: ${facilitatorUrl}`);
+  } else {
+    const { useFacilitator } = await import("x402/verify");
+    facilitator = useFacilitator({
+      url: facilitatorUrl as `${string}://${string}`,
+    });
+    console.log(`[payment-gate] Self-hosted facilitator: ${facilitatorUrl}`);
+  }
+
+  console.log(`[payment-gate] Public facilitator:   ${publicFacilitator}`);
   console.log(`[payment-gate] Payment ledger:       ${PAYMENTS_LEDGER}`);
 
   function getCurrentPrice(path: string): number | undefined {
@@ -126,18 +226,12 @@ export default fp(async function paymentGate(app: FastifyInstance) {
     "preHandler",
     async (req: FastifyRequest, reply: FastifyReply) => {
       const path = req.url.split("?")[0];
-
-      // Skip payment for internal MCP tool calls (timing-safe comparison)
       if (isValidBypassToken(req.headers["x-internal-token"] as string)) return;
 
       const amount = getCurrentPrice(path);
       if (!amount) return;
 
-      const paymentRequirements = buildPaymentRequirements(
-        path,
-        req.method,
-        amount,
-      );
+      const paymentRequirements = buildPaymentRequirements(path, req.method, amount);
       const xPayment = req.headers["x-payment"] as string | undefined;
 
       if (!xPayment) {
@@ -145,12 +239,11 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           x402Version: 1,
           error: "X-PAYMENT header is required",
           accepts: [paymentRequirements],
-          facilitator: PUBLIC_FACILITATOR,
+          facilitator: publicFacilitator,
         });
         return;
       }
 
-      // Decode the base64-encoded payment payload
       let decodedPayment: any;
       try {
         const decoded = Buffer.from(xPayment, "base64").toString("utf-8");
@@ -160,12 +253,11 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           x402Version: 1,
           error: "Invalid X-PAYMENT header — expected base64 JSON",
           accepts: [paymentRequirements],
-          facilitator: PUBLIC_FACILITATOR,
+          facilitator: publicFacilitator,
         });
         return;
       }
 
-      // Replay protection — reject duplicate payment payloads
       const paymentHash = getPaymentHash(decodedPayment);
       if (SETTLED_PAYMENTS.has(paymentHash)) {
         console.log(`[payment-gate] Replay rejected: ${paymentHash.slice(0, 16)}...`);
@@ -173,42 +265,31 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           x402Version: 1,
           error: "Payment already used",
           accepts: [paymentRequirements],
-          facilitator: PUBLIC_FACILITATOR,
+          facilitator: publicFacilitator,
         });
         return;
       }
 
-      // Verify payment with facilitator
       try {
-        const verifyResult = await facilitator.verify(
-          decodedPayment,
-          paymentRequirements,
-        );
+        const verifyResult = await facilitator.verify(decodedPayment, paymentRequirements);
         if (!verifyResult.isValid) {
-          console.log(
-            `[payment-gate] Verification failed: ${verifyResult.invalidReason}`,
-          );
+          console.log(`[payment-gate] Verification failed: ${verifyResult.invalidReason}`);
           reply.status(402).send({
             x402Version: 1,
             error: `Payment verification failed: ${verifyResult.invalidReason}`,
             accepts: [paymentRequirements],
-            facilitator: PUBLIC_FACILITATOR,
+            facilitator: publicFacilitator,
           });
           return;
         }
-        console.log(
-          `[payment-gate] Payment verified from ${verifyResult.payer}`,
-        );
+        console.log(`[payment-gate] Payment verified from ${verifyResult.payer}`);
       } catch (err: any) {
-        console.error(
-          `[payment-gate] Verify error:`,
-          err.message || err,
-        );
+        console.error(`[payment-gate] Verify error:`, err.message || err);
         reply.status(402).send({
           x402Version: 1,
           error: "Payment verification error — try again",
           accepts: [paymentRequirements],
-          facilitator: PUBLIC_FACILITATOR,
+          facilitator: publicFacilitator,
         });
         return;
       }
@@ -221,11 +302,7 @@ export default fp(async function paymentGate(app: FastifyInstance) {
 
   app.addHook(
     "onSend",
-    async (
-      req: FastifyRequest,
-      reply: FastifyReply,
-      payload: unknown,
-    ) => {
+    async (req: FastifyRequest, reply: FastifyReply, payload: unknown) => {
       const decodedPayment = (req as any).x402Payment;
       const paymentRequirements = (req as any).x402Requirements;
       const paymentHash = (req as any).x402PaymentHash as string | undefined;
@@ -235,21 +312,14 @@ export default fp(async function paymentGate(app: FastifyInstance) {
       const amount = getCurrentPrice(path) || 0;
 
       if (reply.statusCode >= 400) {
-        console.log(
-          `[payment-gate] Skipping settlement — response ${reply.statusCode}`,
-        );
+        console.log(`[payment-gate] Skipping settlement — response ${reply.statusCode}`);
         return payload;
       }
 
       try {
-        const settleResult = await facilitator.settle(
-          decodedPayment,
-          paymentRequirements,
-        );
+        const settleResult = await facilitator.settle(decodedPayment, paymentRequirements);
         if (!settleResult.success) {
-          console.error(
-            `[payment-gate] Settlement failed: ${settleResult.errorReason}`,
-          );
+          console.error(`[payment-gate] Settlement failed: ${settleResult.errorReason}`);
           recordPayment({
             timestamp: new Date().toISOString(),
             endpoint: path,
@@ -267,14 +337,8 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           });
         }
 
-        console.log(
-          `[payment-gate] Settled! tx=${settleResult.transaction} payer=${settleResult.payer}`,
-        );
-
-        // Mark payment as used (replay protection)
-        if (paymentHash) {
-          SETTLED_PAYMENTS.add(paymentHash);
-        }
+        console.log(`[payment-gate] Settled! tx=${settleResult.transaction} payer=${settleResult.payer}`);
+        if (paymentHash) SETTLED_PAYMENTS.add(paymentHash);
 
         recordPayment({
           timestamp: new Date().toISOString(),
@@ -286,15 +350,10 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           status: "settled",
         });
 
-        const proof = Buffer.from(
-          JSON.stringify(settleResult),
-        ).toString("base64");
+        const proof = Buffer.from(JSON.stringify(settleResult)).toString("base64");
         reply.header("X-PAYMENT-RESPONSE", proof);
       } catch (err: any) {
-        console.error(
-          `[payment-gate] Settle error:`,
-          err.message || err,
-        );
+        console.error(`[payment-gate] Settle error:`, err.message || err);
         recordPayment({
           timestamp: new Date().toISOString(),
           endpoint: path,
@@ -306,10 +365,7 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           error: err.message || String(err),
         });
         reply.status(402);
-        return JSON.stringify({
-          x402Version: 1,
-          error: "Payment settlement error",
-        });
+        return JSON.stringify({ x402Version: 1, error: "Payment settlement error" });
       }
 
       return payload;

@@ -22,9 +22,12 @@
   "dependencies": {
     "@browsercash/pool": "git+https://github.com/Mega-Tera/browser-pool.git",
     "@browsercash/sdk": "^0.4.0",
+    "@coinbase/cdp-sdk": "^1.44.1",
     "@farcaster/core": "^0.18.10",
     "@fastify/cors": "^10.0.1",
     "@neynar/nodejs-sdk": "^3.137.0",
+    "@x402/core": "^2.4.0",
+    "@x402/evm": "^2.4.0",
     "dotenv": "^16.4.5",
     "fastify": "^5.7.4",
     "fastify-plugin": "^5.1.0",
