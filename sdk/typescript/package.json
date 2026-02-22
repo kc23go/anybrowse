@@ -1,0 +1,37 @@
+{
+  "name": "@anybrowse/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the anybrowse agent-to-agent registry",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test dist/**/*.test.js",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "anybrowse",
+    "mcp",
+    "ai-agent",
+    "registry",
+    "tool-discovery"
+  ],
+  "author": "anybrowse",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anybrowse/anybrowse-typescript.git"
+  }
+}

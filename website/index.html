@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>anybrowse — MCP Registry for AI Agents | Let Agents Browse Agents</title>
+    <meta name="description" content="The Model Context Protocol registry enabling AI agents to discover, share, and compose tools. Build composable AI that gets smarter together.">
+    <meta name="keywords" content="MCP, Model Context Protocol, AI agents, agent registry, tool discovery, multi-agent systems, agent economy, composable AI">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6B46C1;
+            --primary-light: #805AD5;
+            --secondary: #38B2AC;
+            --accent: #4299E1;
+            --bg-dark: #0F1115;
+            --bg-card: #1A1D23;
+            --bg-card-hover: #232731;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0AEC0;
+            --text-muted: #718096;
+            --border: #2D3748;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Gradient background effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(107, 70, 193, 0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 50%, rgba(56, 178, 172, 0.08), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Navigation */
+        nav {
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(107, 70, 193, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 120px 0 100px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+        }
+
+        .hero-badge span {
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .hero h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .hero-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .hero-secondary a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .hero-secondary a:hover {
+            color: var(--primary-light);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-header h2 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .feature-card:nth-child(1) .feature-icon {
+            background: rgba(107, 70, 193, 0.2);
+        }
+
+        .feature-card:nth-child(2) .feature-icon {
+            background: rgba(56, 178, 172, 0.2);
+        }
+
+        .feature-card:nth-child(3) .feature-icon {
+            background: rgba(66, 153, 225, 0.2);
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* Use Cases Section */
+        .use-cases {
+            padding: 100px 0;
+            background: linear-gradient(180deg, transparent, rgba(107, 70, 193, 0.05), transparent);
+        }
+
+        .use-cases-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .use-case-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+
+        .use-case-card:hover {
+            border-color: var(--primary);
+        }
+
+        .use-case-icon {
+            font-size: 32px;
+            margin-bottom: 16px;
+        }
+
+        .use-case-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .use-case-card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .use-case-example {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-left: 3px solid var(--primary);
+        }
+
+        .use-case-example strong {
+            color: var(--secondary);
+        }
+
+        /* How It Works Section */
+        .how-it-works {
+            padding: 100px 0;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+            margin-top: 64px;
+        }
+
+        .step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 32px;
+            right: -16px;
+            width: 32px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), transparent);
+        }
+
+        .step-number {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 auto 24px;
+        }
+
+        .step h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .step p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* SDK/Docs Section */
+        .sdk-section {
+            padding: 100px 0;
+            background: var(--bg-card);
+        }
+
+        .sdk-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+
+        .sdk-text h2 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .sdk-text > p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 32px;
+        }
+
+        .code-block {
+            background: #0D1117;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .code-dot:nth-child(1) { background: #FF5F56; }
+        .code-dot:nth-child(2) { background: #FFBD2E; }
+        .code-dot:nth-child(3) { background: #27C93F; }
+
+        pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        code {
+            color: var(--text-primary);
+        }
+
+        .code-keyword { color: #FF7B72; }
+        .code-string { color: #A5D6FF; }
+        .code-function { color: #D2A8FF; }
+        .code-comment { color: #8B949E; }
+        .code-decorator { color: #FFA657; }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 120px 0;
+            text-align: center;
+            background: linear-gradient(180deg, transparent, rgba(107, 70, 193, 0.1), transparent);
+        }
+
+        .cta-section h2 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .cta-section > p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Footer */
+        footer {
+            padding: 64px 0 32px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+
+        .footer-brand p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 16px;
+            line-height: 1.6;
+        }
+
+        .footer-links h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        .footer-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 16px;
+        }
+
+        .footer-social a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-social a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .use-cases-grid {
+                grid-template-columns: 1fr;
+            }
+            .sdk-content {
+                grid-template-columns: 1fr;
+            }
+            .steps {
+                grid-template-columns: 1fr;
+            }
+            .step:not(:last-child)::after {
+                display: none;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 40px;
+            }
+            .nav-links {
+                display: none;
+            }
+            .hero-ctas {
+                flex-direction: column;
+                align-items: center;
+            }
+            .cta-section h2 {
+                font-size: 32px;
+            }
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+            .footer-bottom {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav>
+            <div class="logo">anybrowse</div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#use-cases">Use Cases</a>
+                <a href="#docs">Documentation</a>
+                <a href="#docs" class="btn btn-primary btn-small">Get Started</a>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-badge">
+                <span>NEW</span> MCP 1.0 Native Registry Now Live
+            </div>
+            <h1>Let Your Agents<br>Browse Agents</h1>
+            <p class="hero-subtitle">The MCP registry and networking protocol that enables AI agents to discover, share, and compose tools from each other. Stop rebuilding. Start composing.</p>
+            <div class="hero-ctas">
+                <a href="#docs" class="btn btn-primary">Get Started — Free</a>
+                <a href="#docs" class="btn btn-secondary">View Documentation</a>
+            </div>
+            <div class="hero-secondary">
+                <a href="https://github.com/anybrowse/anybrowse" target="_blank">★ Star on GitHub ↗</a>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features" id="features">
+            <div class="section-header">
+                <h2>Built for the Agent Economy</h2>
+                <p>Three powerful primitives that transform how agents interact</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📦</div>
+                    <h3>MCP Native Registry</h3>
+                    <p><strong>Publish Once, Use Everywhere</strong><br><br>Register your agent's capabilities using the Model Context Protocol. Semantic descriptions, structured schemas, and usage examples—all in one standardized format. No custom integrations. No documentation drift.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔍</div>
+                    <h3>Agent Discovery</h3>
+                    <p><strong>Find the Right Tool, Instantly</strong><br><br>Your agents query the registry using natural language. "I need to check SSL certificates" returns the best-available security agent. Smart matching based on capability descriptions, reputation scores, and compatibility.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Direct Agent Networking</h3>
+                    <p><strong>Composable Intelligence</strong><br><br>Agents communicate directly. Structured requests, typed responses, secure channels. Build complex workflows by composing specialized agents—scheduling agents calling calendar agents calling notification agents. All seamless.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Use Cases Section -->
+        <section class="use-cases" id="use-cases">
+            <div class="section-header">
+                <h2>Who Benefits from anybrowse?</h2>
+                <p>From solo developers to enterprise teams, composable AI is for everyone</p>
+            </div>
+            <div class="use-cases-grid">
+                <div class="use-case-card">
+                    <div class="use-case-icon">🤖</div>
+                    <h3>Agent Developers</h3>
+                    <p>Stop reinventing common tools. Focus on your core differentiation. Tap into a growing ecosystem of ready-to-use capabilities.</p>
+                    <div class="use-case-example">
+                        <strong>Example:</strong> Building a travel agent? Discover flight search, hotel booking, and local guide agents already in the registry.
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">🏢</div>
+                    <h3>Enterprise Teams</h3>
+                    <p>Integrate specialized AI into your workflows without building everything in-house. Deploy departmental agents that compose enterprise-wide capabilities.</p>
+                    <div class="use-case-example">
+                        <strong>Example:</strong> Your HR agent discovers and uses a payroll agent, a benefits agent, and a compliance agent—seamlessly.
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">🧪</div>
+                    <h3>AI Researchers</h3>
+                    <p>Experiment with multi-agent systems without the plumbing. Focus on coordination strategies, not integration headaches.</p>
+                    <div class="use-case-example">
+                        <strong>Example:</strong> Test emergent behaviors by connecting agents with different specialties and observing how they collaborate.
+                    </div>
+                </div>
+                <div class="use-case-card">
+                    <div class="use-case-icon">🛠️</div>
+                    <h3>Tool Builders</h3>
+                    <p>Monetize your specialized capabilities. Build once, distribute to thousands of agents. Become infrastructure for the agent economy.</p>
+                    <div class="use-case-example">
+                        <strong>Example:</strong> Build the best-in-class sentiment analysis agent. Every customer service agent in the network can discover and use it.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="how-it-works">
+            <div class="section-header">
+                <h2>How It Works</h2>
+                <p>From registration to composition in three simple steps</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Register</h3>
+                    <p>Publish your agent's MCP tools to the anybrowse registry. Describe what they do, what they need, and what they return.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Discover</h3>
+                    <p>Other agents query the registry to find exactly the capabilities they need. Natural language search + structured filtering.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Compose</h3>
+                    <p>Agents call each other directly. Build complex workflows by composing specialized agents like LEGO blocks.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SDK/Docs Section -->
+        <section class="sdk-section" id="docs">
+            <div class="container">
+                <div class="sdk-content">
+                    <div class="sdk-text">
+                        <h2>Get Started in Minutes</h2>
+                        <p>Install the SDK, define your tools with MCP, and publish to the registry. Your capabilities become discoverable by thousands of agents instantly.</p>
+                        <a href="https://github.com/anybrowse/anybrowse" class="btn btn-primary">View Full Documentation</a>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                            <div class="code-dot"></div>
+                        </div>
+                        <pre><code><span class="code-comment"># Install the SDK</span>
+$ <span class="code-function">pip</span> install anybrowse
+
+<span class="code-comment"># Define and register your tools</span>
+<span class="code-keyword">from</span> anybrowse <span class="code-keyword">import</span> Registry, Tool
+
+<span class="code-decorator">@Tool.register</span>(
+    description=<span class="code-string">"Get current weather for a location"</span>,
+    inputs={<span class="code-string">"location"</span>: <span class="code-string">"string"</span>},
+    outputs={<span class="code-string">"temperature"</span>: <span class="code-string">"number"</span>}
+)
+<span class="code-keyword">def</span> <span class="code-function">get_weather</span>(location: <span class="code-keyword">str</span>):
+    <span class="code-keyword">return</span> {<span class="code-string">"temperature"</span>: 72, <span class="code-string">"condition"</span>: <span class="code-string">"sunny"</span>}
+
+<span class="code-comment"># Publish to registry</span>
+registry = Registry(api_key=<span class="code-string">"your_key"</span>)
+registry.publish_tools()</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="cta-section">
+            <h2>Join the Agent Economy</h2>
+            <p>Start building composable AI today. The registry is open. The protocol is standard. The future is interconnected.</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/anybrowse/anybrowse" class="btn btn-primary">Get Started — Free</a>
+                <a href="#docs" class="btn btn-secondary">Read the Docs</a>
+                <a href="https://discord.gg/anybrowse" class="btn btn-secondary">Join Discord</a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">anybrowse</div>
+                    <p>The MCP registry and networking protocol enabling AI agents to discover, share, and compose tools from each other.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#docs">Documentation</a></li>
+                        <li><a href="#">Changelog</a></li>
+                        <li><a href="#">Roadmap</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://github.com/anybrowse/anybrowse">GitHub</a></li>
+                        <li><a href="#">SDK Reference</a></li>
+                        <li><a href="#">API Docs</a></li>
+                        <li><a href="#">Examples</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Community</h4>
+                    <ul>
+                        <li><a href="https://discord.gg/anybrowse">Discord</a></li>
+                        <li><a href="https://twitter.com/anybrowse">Twitter</a></li>
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Newsletter</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 anybrowse. All rights reserved.</p>
+                <div class="footer-social">
+                    <a href="https://github.com/anybrowse/anybrowse">GitHub</a>
+                    <a href="https://twitter.com/anybrowse">Twitter</a>
+                    <a href="https://discord.gg/anybrowse">Discord</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

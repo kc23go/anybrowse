@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation — anybrowse</title>
+    <meta name="description" content="Complete documentation for the anybrowse MCP registry and SDK.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6B46C1;
+            --primary-light: #805AD5;
+            --secondary: #38B2AC;
+            --accent: #4299E1;
+            --bg-dark: #0F1115;
+            --bg-card: #1A1D23;
+            --bg-card-hover: #232731;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0AEC0;
+            --text-muted: #718096;
+            --border: #2D3748;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(107, 70, 193, 0.1), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+        /* Navigation */
+        nav {
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+
+        .nav-links { display: flex; gap: 32px; align-items: center; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; }
+        .nav-links a:hover { color: var(--text-primary); }
+
+        /* Layout */
+        .docs-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 48px;
+            padding: 48px 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 24px;
+            height: calc(100vh - 48px);
+            overflow-y: auto;
+        }
+
+        .sidebar-section { margin-bottom: 32px; }
+        .sidebar-section h4 {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .sidebar-section ul { list-style: none; }
+        .sidebar-section li { margin-bottom: 8px; }
+        .sidebar-section a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            display: block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .sidebar-section a:hover, .sidebar-section a.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        /* Content */
+        .content { max-width: 720px; }
+        .content h1 {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .content > p:first-of-type {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+        }
+
+        .content h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 48px 0 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 32px 0 12px;
+            color: var(--secondary);
+        }
+
+        .content p { color: var(--text-secondary); margin-bottom: 16px; font-size: 15px; line-height: 1.7; }
+        .content strong { color: var(--text-primary); font-weight: 600; }
+
+        .content ul, .content ol {
+            color: var(--text-secondary);
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        .content li { margin-bottom: 8px; font-size: 15px; }
+
+        /* Code blocks */
+        .code-block {
+            background: #0D1117;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 24px 0;
+        }
+
+        .code-header {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .code-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .code-dot:nth-child(1) { background: #FF5F56; }
+        .code-dot:nth-child(2) { background: #FFBD2E; }
+        .code-dot:nth-child(3) { background: #27C93F; }
+
+        pre {
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        code { color: var(--text-primary); }
+        .code-keyword { color: #FF7B72; }
+        .code-string { color: #A5D6FF; }
+        .code-function { color: #D2A8FF; }
+        .code-comment { color: #8B949E; }
+        .code-decorator { color: #FFA657; }
+        .code-number { color: #79C0FF; }
+
+        /* Info boxes */
+        .info-box {
+            background: var(--bg-card);
+            border-left: 4px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+            padding: 20px 24px;
+            margin: 24px 0;
+        }
+
+        .info-box.tip { border-left-color: var(--secondary); }
+        .info-box.warning { border-left-color: #F59E0B; }
+
+        .info-box h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .info-box p { margin: 0; font-size: 14px; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-weight: 600;
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+
+        td { color: var(--text-secondary); }
+        code.inline {
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', monospace;
+            font-size: 12px;
+            color: var(--secondary);
+        }
+
+        /* Quick facts */
+        .quick-facts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 32px 0;
+        }
+
+        .fact { display: flex; flex-direction: column; }
+        .fact-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .fact-value { font-size: 15px; color: var(--text-primary); font-weight: 500; margin-top: 4px; }
+
+        @media (max-width: 1024px) {
+            .docs-layout { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <a href="index.html" class="logo">anybrowse</a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="docs.html" style="color: var(--text-primary);">Documentation</a>
+                <a href="blog.html">Blog</a>
+                <a href="https://github.com/anybrowse/anybrowse">GitHub</a>
+            </div>
+        </nav>
+
+        <div class="docs-layout">
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h4>Getting Started</h4>
+                    <ul>
+                        <li><a href="#overview" class="active">Overview</a></li>
+                        <li><a href="#installation">Installation</a></li>
+                        <li><a href="#quickstart">Quick Start</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <h4>Core Concepts</h4>
+                    <ul>
+                        <li><a href="#mcp">Model Context Protocol</a></li>
+                        <li><a href="#registry">Registry</a></li>
+                        <li><a href="#discovery">Discovery</a></li>
+                        <li><a href="#networking">Direct Networking</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <h4>SDK Reference</h4>
+                    <ul>
+                        <li><a href="#python-sdk">Python SDK</a></li>
+                        <li><a href="#typescript-sdk">TypeScript SDK</a></li>
+                        <li><a href="#authentication">Authentication</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#faq">FAQ</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <main class="content">
+                <h1>Documentation</h1>
+                <p>Complete guide to the anybrowse MCP registry and agent networking protocol. Build composable AI that gets smarter together.</p>
+
+                <h2 id="overview">Overview</h2>
+                <p><strong>anybrowse</strong> is the discovery layer for the autonomous agent economy. We provide an open registry and networking protocol based on the Model Context Protocol (MCP) that enables AI agents to discover, share, and compose tools and capabilities from one another.</p>
+                
+                <p>Instead of every developer rebuilding the same integrations—weather APIs, calendar systems, payment processors—agents publish their capabilities once and any other agent can discover and use them instantly.</p>
+
+                <div class="quick-facts">
+                    <div class="fact">
+                        <span class="fact-label">Protocol</span>
+                        <span class="fact-value">Model Context Protocol (MCP)</span>
+                    </div>
+                    <div class="fact">
+                        <span class="fact-label">License</span>
+                        <span class="fact-value">MIT (Registry), Apache 2.0 (SDK)</span>
+                    </div>
+                    <div class="fact">
+                        <span class="fact-label">Languages</span>
+                        <span class="fact-value">Python, TypeScript, Rust, Go</span>
+                    </div>
+                    <div class="fact">
+                        <span class="fact-label">Deployment</span>
+                        <span class="fact-value">Cloud or Self-Hosted</span>
+                    </div>
+                </div>
+
+                <h2 id="installation">Installation</h2>
+                <h3>Python</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code>$ <span class="code-function">pip</span> install anybrowse</code></pre>
+                </div>
+
+                <h3>TypeScript / Node.js</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code>$ <span class="code-function">npm</span> install @anybrowse/sdk
+<span class="code-comment"># or</span>
+$ <span class="code-function">yarn</span> add @anybrowse/sdk</code></pre>
+                </div>
+
+                <h3>Rust</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-comment"># Add to Cargo.toml</span>
+[dependencies]
+anybrowse = <span class="code-string">"0.1.0"</span></code></pre>
+                </div>
+
+                <h3>Go</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code>$ <span class="code-function">go</span> get github.com/anybrowse/anybrowse-go</code></pre>
+                </div>
+
+                <h2 id="quickstart">Quick Start</h2>
+                
+                <h3>Step 1: Define Your Tools</h3>
+                <p>Create tools using the MCP-compatible decorator:</p>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-keyword">from</span> anybrowse <span class="code-keyword">import</span> Registry, Tool
+
+<span class="code-decorator">@Tool.register</span>(
+    description=<span class="code-string">"Get current weather for a location"</span>,
+    inputs={<span class="code-string">"location"</span>: <span class="code-string">"string"</span>, <span class="code-string">"units"</span>: <span class="code-string">"string"</span>},
+    outputs={<span class="code-string">"temperature"</span>: <span class="code-string">"number"</span>, <span class="code-string">"condition"</span>: <span class="code-string">"string"</span>}
+)
+<span class="code-keyword">def</span> <span class="code-function">get_weather</span>(location: <span class="code-keyword">str</span>, units: <span class="code-keyword">str</span> = <span class="code-string">"celsius"</span>):
+    <span class="code-comment"># Your implementation here</span>
+    <span class="code-keyword">return</span> {
+        <span class="code-string">"temperature"</span>: <span class="code-number">22</span>,
+        <span class="code-string">"condition"</span>: <span class="code-string">"sunny"</span>
+    }</code></pre>
+                </div>
+
+                <h3>Step 2: Publish to Registry</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-comment"># Initialize registry with your API key</span>
+registry = Registry(api_key=<span class="code-string">"your_key"</span>)
+
+<span class="code-comment"># Publish all registered tools</span>
+registry.publish_tools()</code></pre>
+                </div>
+
+                <h3>Step 3: Discover & Use</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-comment"># Query for tools using natural language</span>
+results = registry.discover(<span class="code-string">"I need weather data for San Francisco"</span>)
+
+<span class="code-comment"># Call discovered agent</span>
+tool = results[<span class="code-number">0</span>]
+response = tool.call(location=<span class="code-string">"San Francisco"</span>)
+<span class="code-function">print</span>(response)  <span class="code-comment"># { "temperature": 22, "condition": "sunny" }</span></code></pre>
+                </div>
+
+                <h2 id="mcp">Model Context Protocol</h2>
+                <p>The Model Context Protocol (MCP) is an open standard for connecting AI assistants to systems where data lives. anybrowse extends MCP to enable agent-to-agent communication.</p>
+
+                <h3>Key Components</h3>
+                <ul>
+                    <li><strong>Tools:</strong> Functions that agents can call</li>
+                    <li><strong>Resources:</strong> Data sources agents can access</li>
+                    <li><strong>Prompts:</strong> Reusable templates for agent interactions</li>
+                    <li><strong>Semantic Descriptions:</strong> Natural language explanations of capabilities</li>
+                </ul>
+
+                <h2 id="registry">The Registry</h2>
+                <p>The anybrowse registry is a decentralized catalog of agent capabilities. When you publish a tool:</p>
+                <ol>
+                    <li>Your tool's metadata is indexed</li>
+                    <li>Semantic descriptions enable natural language search</li>
+                    <li>Schema information ensures type safety</li>
+                    <li>Reputation scores help agents choose the best tools</li>
+                </ol>
+
+                <div class="info-box tip">
+                    <h4>💡 Pro Tip</h4>
+                    <p>Write detailed, semantic descriptions for your tools. The better you describe what your tool does, the more likely other agents will discover and use it.</p>
+                </div>
+
+                <h2 id="discovery">Discovery</h2>
+                <p>Agents discover tools through natural language queries. The registry uses semantic matching to find the most relevant capabilities.</p>
+
+                <h3>Query Examples</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-comment"># Natural language queries</span>
+registry.discover(<span class="code-string">"check SSL certificates"</span>)
+registry.discover(<span class="code-string">"book a flight to Tokyo"</span>)
+registry.discover(<span class="code-string">"analyze sentiment of customer feedback"</span>)
+
+<span class="code-comment"># Structured filtering</span>
+registry.discover(
+    query=<span class="code-string">"payment processing"</span>,
+    filters={
+        <span class="code-string">"category"</span>: <span class="code-string">"finance"</span>,
+        <span class="code-string">"min_rating"</span>: <span class="code-number">4.5</span>
+    }
+)</code></pre>
+                </div>
+
+                <h2 id="networking">Direct Agent Networking</h2>
+                <p>Once an agent discovers a tool, they communicate directly. This enables:</p>
+                <ul>
+                    <li><strong>Low latency:</strong> No proxy or middleman</li>
+                    <li><strong>End-to-end encryption:</strong> Secure channels between agents</li>
+                    <li><strong>Composable workflows:</strong> Agents calling agents calling agents</li>
+                    <li><strong>Type safety:</strong> Structured requests and responses</li>
+                </ul>
+
+                <div class="info-box warning">
+                    <h4>⚠️ Security Note</h4>
+                    <p>Always validate inputs and sanitize outputs when accepting calls from other agents. Use authentication tokens and rate limiting to protect your agents.</p>
+                </div>
+
+                <h2 id="python-sdk">Python SDK Reference</h2>
+                <h3>Registry Class</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code class="inline">Registry(api_key)</code></td>
+                            <td>Initialize registry connection</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">publish_tools()</code></td>
+                            <td>Publish all @Tool.register decorated functions</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">discover(query, filters)</code></td>
+                            <td>Search for tools by natural language</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">call(tool_id, **kwargs)</code></td>
+                            <td>Execute a discovered tool</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Tool Decorator</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code class="inline">description</code></td>
+                            <td>str</td>
+                            <td>Natural language description of what the tool does</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">inputs</code></td>
+                            <td>dict</td>
+                            <td>Input parameter schema</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">outputs</code></td>
+                            <td>dict</td>
+                            <td>Output schema</td>
+                        </tr>
+                        <tr>
+                            <td><code class="inline">examples</code></td>
+                            <td>list</td>
+                            <td>Usage examples</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2 id="typescript-sdk">TypeScript SDK Reference</h2>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-keyword">import</span> { Registry, tool } <span class="code-keyword">from</span> <span class="code-string">'@anybrowse/sdk'</span>;
+
+<span class="code-keyword">const</span> registry = <span class="code-keyword">new</span> Registry({ apiKey: <span class="code-string">'your_key'</span> });
+
+<span class="code-decorator">@tool</span>({
+  description: <span class="code-string">'Get current weather for a location'</span>,
+  inputs: { location: <span class="code-string">'string'</span> },
+  outputs: { temperature: <span class="code-string">'number'</span> }
+})
+<span class="code-keyword">async function</span> <span class="code-function">getWeather</span>(location: <span class="code-keyword">string</span>) {
+  <span class="code-comment">// Implementation</span>
+  <span class="code-keyword">return</span> { temperature: <span class="code-number">72</span> };
+}
+
+<span class="code-comment">// Publish tools</span>
+<span class="code-keyword">await</span> registry.publishTools();
+
+<span class="code-comment">// Discover and call</span>
+<span class="code-keyword">const</span> results = <span class="code-keyword">await</span> registry.discover(<span class="code-string">'weather data'</span>);
+<span class="code-keyword">const</span> response = <span class="code-keyword">await</span> results[<span class="code-number">0</span>].call({ location: <span class="code-string">'NYC'</span> });</code></pre>
+                </div>
+
+                <h2 id="authentication">Authentication</h2>
+                <p>All registry interactions require an API key. Generate keys from your dashboard:</p>
+                <div class="code-block">
+                    <div class="code-header">
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                        <div class="code-dot"></div>
+                    </div>
+                    <pre><code><span class="code-comment"># Set via environment variable (recommended)</span>
+<span class="code-keyword">export</span> ANYBROWSE_API_KEY=<span class="code-string">"your_api_key_here"</span>
+
+<span class="code-comment"># Or pass directly to Registry</span>
+registry = Registry(api_key=<span class="code-string">"your_api_key_here"</span>)</code></pre>
+                </div>
+
+                <h2 id="faq">FAQ</h2>
+                <h3>Is anybrowse free?</h3>
+                <p>Yes! The core registry and SDKs are open source (MIT/Apache 2.0). We offer managed hosting and enterprise features for teams that need them.</p>
+
+                <h3>Can I self-host?</h3>
+                <p>Absolutely. The registry is designed to be self-hosted. Deploy on your own infrastructure for complete control.</p>
+
+                <h3>What languages are supported?</h3>
+                <p>We currently have official SDKs for Python, TypeScript, Rust, and Go. Community SDKs are available for other languages.</p>
+
+                <h3>How is this different from function calling?</h3>
+                <p>Traditional function calling requires you to define tools locally. anybrowse lets agents discover and use tools from other agents dynamically, enabling a composable ecosystem.</p>
+
+                <h2 id="contact">Contact</h2>
+                <ul>
+                    <li><strong>General:</strong> hello@anybrowse.dev</li>
+                    <li><strong>Enterprise:</strong> enterprise@anybrowse.dev</li>
+                    <li><strong>Security:</strong> security@anybrowse.dev</li>
+                </ul>
+                <p>Join our community on <a href="https://discord.gg/anybrowse" style="color: var(--secondary);">Discord</a> and follow us on <a href="https://twitter.com/anybrowse" style="color: var(--secondary);">Twitter</a>.</p>
+            </main>
+        </div>
+    </div>
+</body>
+</html>
