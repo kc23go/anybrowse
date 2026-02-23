@@ -15,6 +15,44 @@ const SERVER_NAME = "anybrowse";
 const SERVER_VERSION = "1.0.0";
 const PROTOCOL_VERSION = "2025-03-26";
 
+// --- Rate Limiting for Tool Discovery ---
+// Prevents enumeration attacks while keeping MCP public
+const DISCOVERY_RATE_LIMIT = 10; // requests per minute per IP
+const discoveryRateLimits = new Map<string, number[]>();
+
+function checkDiscoveryRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const windowStart = now - 60000; // 1 minute window
+  
+  let calls = discoveryRateLimits.get(ip) || [];
+  calls = calls.filter(t => t > windowStart);
+  
+  if (calls.length >= DISCOVERY_RATE_LIMIT) {
+    const oldest = calls[0];
+    return { 
+      allowed: false, 
+      retryAfter: Math.ceil((oldest + 60000 - now) / 1000)
+    };
+  }
+  
+  calls.push(now);
+  discoveryRateLimits.set(ip, calls);
+  return { allowed: true };
+}
+
+// Cleanup old entries every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, calls] of discoveryRateLimits) {
+    const recent = calls.filter(t => now - t < 60000);
+    if (recent.length === 0) {
+      discoveryRateLimits.delete(ip);
+    } else {
+      discoveryRateLimits.set(ip, recent);
+    }
+  }
+}, 600000);
+
 // --- MCP Rate Limiting ---
 // Prevents unlimited free scraping via the MCP endpoint
 const MCP_CALLS_PER_MINUTE = 5;
@@ -180,8 +218,18 @@ async function handleRequest(
     case "notifications/initialized":
       return null;
 
-    case "tools/list":
+    case "tools/list": {
+      // Rate limit tool discovery (not tool calls)
+      const rateCheck = checkDiscoveryRateLimit(clientIp);
+      if (!rateCheck.allowed) {
+        console.log(`[mcp] Discovery rate limited ${clientIp}`);
+        return makeError(id, -32000, 
+          `Rate limit exceeded for tool discovery. Retry after ${rateCheck.retryAfter}s`, {
+          retryAfter: rateCheck.retryAfter
+        });
+      }
       return makeResult(id, { tools: TOOLS });
+    }
 
     case "tools/call": {
       // Rate limit tool calls (actual scraping) — not metadata requests

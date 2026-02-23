@@ -12,6 +12,12 @@ import { intelligence } from "./autonomy/intelligence.js";
 import { startPromoter, stopPromoter, getPromotionStatus } from "./autonomy/promoter.js";
 import { startAdvertiser, stopAdvertiser, getAdvertiseStatus } from "./autonomy/advertise.js";
 import { registerMcpRoute } from "./mcp-transport.js";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const DEBUG_LOG =
   process.env.DEBUG_LOG === "1" || process.env.DEBUG_LOG === "true";
@@ -442,6 +448,28 @@ async function buildServer() {
   await registerSerpRoutes(app);
   await registerCrawlRoutes(app);
   await registerMcpRoute(app);
+
+  // Documentation page (public)
+  app.get("/docs", async (req, reply) => {
+    try {
+      const docsPath = join(__dirname, "static", "docs.html");
+      const docsHtml = readFileSync(docsPath, "utf-8");
+      reply.type("text/html").send(docsHtml);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load documentation" });
+    }
+  });
+
+  // Pricing page (public)
+  app.get("/pricing", async (req, reply) => {
+    try {
+      const pricingPath = join(__dirname, "static", "pricing.html");
+      const pricingHtml = readFileSync(pricingPath, "utf-8");
+      reply.type("text/html").send(pricingHtml);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load pricing page" });
+    }
+  });
 
   // 404 handler
   app.setNotFoundHandler((req, reply) => {

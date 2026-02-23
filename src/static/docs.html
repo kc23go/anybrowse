@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation | AnyBrowse.dev</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #0a0a0f;
+            color: #e4e4e7;
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        header {
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+        .nav-links a {
+            color: #a1a1aa;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: #fff;
+        }
+        .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            color: #71717a;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .docs-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 48px;
+            padding: 48px 0;
+        }
+        .sidebar {
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+        }
+        .sidebar h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #71717a;
+            margin-bottom: 12px;
+        }
+        .sidebar ul {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        .sidebar li {
+            margin-bottom: 4px;
+        }
+        .sidebar a {
+            display: block;
+            padding: 8px 12px;
+            color: #a1a1aa;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9375rem;
+            transition: all 0.2s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        .content h2 {
+            font-size: 1.75rem;
+            margin: 48px 0 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .content h2:first-child {
+            margin-top: 0;
+        }
+        .content h3 {
+            font-size: 1.25rem;
+            margin: 32px 0 16px;
+            color: #fff;
+        }
+        .content h4 {
+            font-size: 1rem;
+            margin: 24px 0 12px;
+            color: #d4d4d8;
+        }
+        .content p {
+            color: #a1a1aa;
+            margin-bottom: 16px;
+        }
+        .endpoint {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .method {
+            background: #3b82f6;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .method.get { background: #10b981; }
+        .endpoint-path {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 1rem;
+            color: #fff;
+        }
+        .code-block {
+            background: #0f0f14;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 16px 0;
+        }
+        .code-header {
+            background: rgba(255,255,255,0.03);
+            padding: 8px 16px;
+            font-size: 0.75rem;
+            color: #71717a;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+        code {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .code-block pre {
+            color: #e4e4e7;
+        }
+        .json-key { color: #93c5fd; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fca5a5; }
+        .json-boolean { color: #fcd34d; }
+        .inline-code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.875em;
+            color: #fff;
+        }
+        .note {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+            padding: 16px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 24px 0;
+        }
+        .note-title {
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 8px;
+        }
+        .warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left-color: #f59e0b;
+        }
+        .warning .note-title {
+            color: #f59e0b;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            font-size: 0.9375rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        th {
+            color: #71717a;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            color: #a1a1aa;
+        }
+        td code {
+            color: #fff;
+        }
+        .step {
+            display: flex;
+            gap: 20px;
+            margin: 24px 0;
+            padding: 24px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .step-content h4 {
+            margin-top: 0;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .tag.required {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        .tag.optional {
+            background: rgba(161, 161, 170, 0.2);
+            color: #a1a1aa;
+        }
+        footer {
+            border-top: 1px solid rgba(255,255,255,0.05);
+            padding: 40px 0;
+            text-align: center;
+            color: #71717a;
+            font-size: 0.875rem;
+        }
+        @media (max-width: 900px) {
+            .docs-layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+            .hero h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <a href="/" class="logo">AnyBrowse.dev</a>
+            <ul class="nav-links">
+                <li><a href="/docs" class="active">Docs</a></li>
+                <li><a href="/pricing">Pricing</a></li>
+                <li><a href="https://github.com/kc23go/anybrowse" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>Documentation</h1>
+            <p>Everything you need to integrate autonomous web scraping with x402 micropayments.</p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="docs-layout">
+            <aside class="sidebar">
+                <h3>API Reference</h3>
+                <ul>
+                    <li><a href="#scrape">POST /scrape</a></li>
+                    <li><a href="#crawl">POST /crawl</a></li>
+                    <li><a href="#mcp">GET /mcp</a></li>
+                    <li><a href="#errors">Error Codes</a></li>
+                </ul>
+                <h3>Getting Started</h3>
+                <ul>
+                    <li><a href="#wallet">Setup Wallet</a></li>
+                    <li><a href="#configure">Configure x402</a></li>
+                    <li><a href="#first-call">First API Call</a></li>
+                    <li><a href="#payment-flow">Payment Flow</a></li>
+                </ul>
+                <h3>MCP Integration</h3>
+                <ul>
+                    <li><a href="#mcp-install">Installation</a></li>
+                    <li><a href="#mcp-claude">Claude Desktop</a></li>
+                    <li><a href="#mcp-cursor">Cursor</a></li>
+                    <li><a href="#mcp-windsurf">Windsurf</a></li>
+                </ul>
+                <h3>Best Practices</h3>
+                <ul>
+                    <li><a href="#rate-limits">Rate Limiting</a></li>
+                    <li><a href="#error-handling">Error Handling</a></li>
+                    <li><a href="#cost-optimization">Cost Optimization</a></li>
+                </ul>
+            </aside>
+
+            <main class="content">
+                <!-- API Reference -->
+                <h2 id="api-reference">API Reference</h2>
+                <p>AnyBrowse.dev uses the <strong>x402 protocol</strong> for micropayments. All endpoints require payment via USDC on Base network. No API keys needed—your wallet is your authentication.</p>
+
+                <div class="endpoint" id="scrape">
+                    <div class="endpoint-header">
+                        <span class="method">POST</span>
+                        <span class="endpoint-path">/scrape</span>
+                    </div>
+                    <p>Convert a single URL to clean, LLM-ready Markdown using a real Chrome browser.</p>
+                    
+                    <h4>Request Body</h4>
+                    <table>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>url</code> <span class="tag required">required</span></td>
+                            <td>string</td>
+                            <td>The URL to scrape (must start with http:// or https://)</td>
+                        </tr>
+                        <tr>
+                            <td><code>waitFor</code> <span class="tag optional">optional</span></td>
+                            <td>number</td>
+                            <td>Milliseconds to wait for JavaScript rendering (default: 5000)</td>
+                        </tr>
+                        <tr>
+                            <td><code>timeout</code> <span class="tag optional">optional</span></td>
+                            <td>number</td>
+                            <td>Maximum time to wait for page load in ms (default: 30000)</td>
+                        </tr>
+                    </table>
+
+                    <h4>Example Request</h4>
+                    <div class="code-block">
+                        <div class="code-header">curl</div>
+                        <pre>curl -X POST https://anybrowse.dev/scrape \\
+  -H "Content-Type: application/json" \\
+  -H "X-Payment: $SIGNED_PAYMENT" \\
+  -d '{"url": "https://example.com", "waitFor": 3000}'</pre>
+                    </div>
+
+                    <h4>Example Response</h4>
+                    <div class="code-block">
+                        <div class="code-header">200 OK</div>
+                        <pre># Example Domain
+
+This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.
+
+[More information...](https://www.iana.org/domains/example)</pre>
+                    </div>
+
+                    <div class="note">
+                        <div class="note-title">Payment Required</div>
+                        <p>If no valid payment header is provided, the endpoint returns <code>402 Payment Required</code> with payment requirements in the response headers.</p>
+                    </div>
+                </div>
+
+                <div class="endpoint" id="crawl">
+                    <div class="endpoint-header">
+                        <span class="method">POST</span>
+                        <span class="endpoint-path">/crawl</span>
+                    </div>
+                    <p>Multi-page crawling with recursive link following. Ideal for documentation sites and sitemaps.</p>
+                    
+                    <h4>Request Body</h4>
+                    <table>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>url</code> <span class="tag required">required</span></td>
+                            <td>string</td>
+                            <td>Starting URL for the crawl</td>
+                        </tr>
+                        <tr>
+                            <td><code>maxPages</code> <span class="tag optional">optional</span></td>
+                            <td>number</td>
+                            <td>Maximum pages to crawl (default: 10, max: 100)</td>
+                        </tr>
+                        <tr>
+                            <td><code>maxDepth</code> <span class="tag optional">optional</span></td>
+                            <td>number</td>
+                            <td>Maximum link depth from starting URL (default: 2)</td>
+                        </tr>
+                        <tr>
+                            <td><code>sameDomain</code> <span class="tag optional">optional</span></td>
+                            <td>boolean</td>
+                            <td>Only crawl pages on the same domain (default: true)</td>
+                        </tr>
+                    </table>
+
+                    <h4>Example Response</h4>
+                    <div class="code-block">
+                        <div class="code-header">200 OK - application/json</div>
+                        <pre>{
+  <span class="json-key">"pages"</span>: [
+    {
+      <span class="json-key">"url"</span>: <span class="json-string">"https://example.com"</span>,
+      <span class="json-key">"markdown"</span>: <span class="json-string">"# Example Domain..."</span>,
+      <span class="json-key">"title"</span>: <span class="json-string">"Example Domain"</span>
+    },
+    {
+      <span class="json-key">"url"</span>: <span class="json-string">"https://example.com/about"</span>,
+      <span class="json-key">"markdown"</span>: <span class="json-string">"# About Us..."</span>,
+      <span class="json-key">"title"</span>: <span class="json-string">"About"</span>
+    }
+  ],
+  <span class="json-key">"crawled"</span>: <span class="json-number">2</span>,
+  <span class="json-key">"skipped"</span>: <span class="json-number">0</span>
+}</pre>
+                    </div>
+                </div>
+
+                <div class="endpoint" id="mcp">
+                    <div class="endpoint-header">
+                        <span class="method get">GET</span>
+                        <span class="endpoint-path">/mcp</span>
+                    </div>
+                    <p>Model Context Protocol (MCP) server endpoint for AI agent integration. Supports tool discovery and execution.</p>
+                    
+                    <h4>Available Tools</h4>
+                    <table>
+                        <tr>
+                            <th>Tool</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td><code>scrape</code></td>
+                            <td>Convert any URL to clean, LLM-optimized Markdown using real Chrome browsers</td>
+                        </tr>
+                    </table>
+
+                    <h4>MCP Tool Schema</h4>
+                    <div class="code-block">
+                        <div class="code-header">scrape tool schema</div>
+                        <pre>{
+  <span class="json-key">"name"</span>: <span class="json-string">"scrape"</span>,
+  <span class="json-key">"description"</span>: <span class="json-string">"Convert any URL to clean, LLM-optimized Markdown. Uses real Chrome browsers with JavaScript execution."</span>,
+  <span class="json-key">"inputSchema"</span>: {
+    <span class="json-key">"type"</span>: <span class="json-string">"object"</span>,
+    <span class="json-key">"properties"</span>: {
+      <span class="json-key">"url"</span>: {
+        <span class="json-key">"type"</span>: <span class="json-string">"string"</span>,
+        <span class="json-key">"description"</span>: <span class="json-string">"The URL to scrape (must start with http:// or https://)"</span>
+      }
+    },
+    <span class="json-key">"required"</span>: [<span class="json-string">"url"</span>]
+  }
+}</pre>
+                    </div>
+                </div>
+
+                <h3 id="errors">Error Codes</h3>
+                <table>
+                    <tr>
+                        <th>Status</th>
+                        <th>Code</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td>200</td>
+                        <td><code>OK</code></td>
+                        <td>Successful scrape/crawl</td>
+                    </tr>
+                    <tr>
+                        <td>400</td>
+                        <td><code>BAD_REQUEST</code></td>
+                        <td>Invalid URL or missing required parameters</td>
+                    </tr>
+                    <tr>
+                        <td>402</td>
+                        <td><code>PAYMENT_REQUIRED</code></td>
+                        <td>Payment required. See X-Payment-Requirements header</td>
+                    </tr>
+                    <tr>
+                        <td>403</td>
+                        <td><code>FORBIDDEN</code></td>
+                        <td>URL blocked (private IP, localhost, etc.)</td>
+                    </tr>
+                    <tr>
+                        <td>404</td>
+                        <td><code>NOT_FOUND</code></td>
+                        <td>Target URL returned 404</td>
+                    </tr>
+                    <tr>
+                        <td>429</td>
+                        <td><code>TOO_MANY_REQUESTS</code></td>
+                        <td>Rate limit exceeded</td>
+                    </tr>
+                    <tr>
+                        <td>500</td>
+                        <td><code>INTERNAL_ERROR</code></td>
+                        <td>Browser or server error</td>
+                    </tr>
+                    <tr>
+                        <td>504</td>
+                        <td><code>TIMEOUT</code></td>
+                        <td>Page load timeout</td>
+                    </tr>
+                </table>
+
+                <!-- Getting Started -->
+                <h2 id="getting-started">Getting Started</h2>
+                <p>AnyBrowse uses the x402 protocol for seamless micropayments. Follow these steps to start scraping autonomously.</p>
+
+                <h3 id="wallet">1. Setup USDC Wallet on Base</h3>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Get a Web3 Wallet</h4>
+                        <p>Install <a href="https://www.coinbase.com/wallet" target="_blank">Coinbase Wallet</a>, <a href="https://metamask.io/" target="_blank">MetaMask</a>, or any EVM-compatible wallet.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Add Base Network</h4>
+                        <p>Add Base mainnet to your wallet:</p>
+                        <ul style="margin: 12px 0; padding-left: 20px; color: #a1a1aa;">
+                            <li>Network Name: Base</li>
+                            <li>RPC URL: https://mainnet.base.org</li>
+                            <li>Chain ID: 8453</li>
+                            <li>Currency Symbol: ETH</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Get USDC on Base</h4>
+                        <p>Bridge USDC from Ethereum or buy directly on Coinbase. You'll need a small amount of ETH for gas.</p>
+                    </div>
+                </div>
+
+                <h3 id="configure">2. Configure x402 Client</h3>
+                <p>Install an x402-compatible client to handle payments automatically.</p>
+
+                <div class="code-block">
+                    <div class="code-header">npm install</div>
+                    <pre>npm install x402-fetch</pre>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">TypeScript/JavaScript</div>
+                    <pre>import { x402Fetch } from 'x402-fetch';
+
+const client = x402Fetch({
+  wallet: {
+    privateKey: process.env.WALLET_PRIVATE_KEY,
+    network: 'base'
+  },
+  facilitator: 'coinbase' // or 'cloudflare'
+});</pre>
+                </div>
+
+                <h3 id="first-call">3. Make Your First API Call</h3>
+                <div class="code-block">
+                    <div class="code-header">JavaScript</div>
+                    <pre>const response = await client('https://anybrowse.dev/scrape', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ 
+    url: 'https://example.com',
+    waitFor: 3000 
+  })
+});
+
+const markdown = await response.text();
+console.log(markdown);</pre>
+                </div>
+
+                <div class="note">
+                    <div class="note-title">Test on Base Sepolia</div>
+                    <p>Use <code>network: 'base-sepolia'</code> for testing. Get test USDC from the <a href="https://faucet.circle.com/" target="_blank">Circle faucet</a>.</p>
+                </div>
+
+                <h3 id="payment-flow">4. Handle Payment Responses</h3>
+                <p>Understand how x402 payments work:</p>
+
+                <div class="code-block">
+                    <div class="code-header">Payment Flow (automatic with x402-fetch)</div>
+                    <pre>1. Client → POST /scrape (no payment)
+2. Server → 402 Payment Required
+   X-Payment-Requirements: {"amount": "2000", "asset": "USDC", ...}
+3. Client → Signs EIP-3009 authorization (off-chain, gasless)
+4. Client → POST /scrape + X-Payment: &lt;signed-auth&gt;
+5. Server → Verifies with facilitator
+6. Server → Returns scraped Markdown</pre>
+                </div>
+
+                <!-- MCP Integration -->
+                <h2 id="mcp-integration">MCP Integration</h2>
+                <p>AnyBrowse provides a Model Context Protocol (MCP) server for seamless integration with Claude, Cursor, Windsurf, and other MCP-compatible tools.</p>
+
+                <h3 id="mcp-install">Install MCP Server</h3>
+                <div class="code-block">
+                    <div class="code-header">npm (global)</div>
+                    <pre>npm install -g @anybrowse/mcp</pre>
+                </div>
+
+                <h3 id="mcp-claude">Configure Claude Desktop</h3>
+                <p>Add to your Claude Desktop configuration:</p>
+                <div class="code-block">
+                    <div class="code-header">~/Library/Application Support/Claude/claude_desktop_config.json</div>
+                    <pre>{
+  <span class="json-key">"mcpServers"</span>: {
+    <span class="json-key">"anybrowse"</span>: {
+      <span class="json-key">"command"</span>: <span class="json-string">"npx"</span>,
+      <span class="json-key">"args"</span>: [<span class="json-string">"-y"</span>, <span class="json-string">"@anybrowse/mcp"</span>],
+      <span class="json-key">"env"</span>: {
+        <span class="json-key">"X402_WALLET_PRIVATE_KEY"</span>: <span class="json-string">"0x..."</span>,
+        <span class="json-key">"X402_NETWORK"</span>: <span class="json-string">"base"</span>
+      }
+    }
+  }
+}</pre>
+                </div>
+
+                <h3 id="mcp-cursor">Configure Cursor</h3>
+                <p>In Cursor, go to <strong>Settings → AI → MCP Servers</strong> and add:</p>
+                <div class="code-block">
+                    <div class="code-header">Cursor MCP Config</div>
+                    <pre>Name: anybrowse
+Type: command
+Command: npx -y @anybrowse/mcp
+
+Environment Variables:
+  X402_WALLET_PRIVATE_KEY=0x...
+  X402_NETWORK=base</pre>
+                </div>
+
+                <h3 id="mcp-windsurf">Configure Windsurf</h3>
+                <p>Add to your Windsurf MCP configuration:</p>
+                <div class="code-block">
+                    <div class="code-header">~/.codeium/windsurf/mcp_config.json</div>
+                    <pre>{
+  <span class="json-key">"mcpServers"</span>: {
+    <span class="json-key">"anybrowse"</span>: {
+      <span class="json-key">"command"</span>: <span class="json-string">"npx"</span>,
+      <span class="json-key">"args"</span>: [<span class="json-string">"-y"</span>, <span class="json-string">"@anybrowse/mcp"</span>],
+      <span class="json-key">"env"</span>: {
+        <span class="json-key">"X402_WALLET_PRIVATE_KEY"</span>: <span class="json-string">"0x..."</span>
+      }
+    }
+  }
+}</pre>
+                </div>
+
+                <h3>Use Scrape Tool in Conversations</h3>
+                <p>Once configured, simply ask your AI assistant:</p>
+                <div class="note">
+                    <p>"Scrape https://example.com and summarize the content for me."</p>
+                </div>
+                <p>The AI will automatically call the <code>scrape</code> tool, handle the x402 payment, and return the Markdown content—all in the conversation flow.</p>
+
+                <!-- Best Practices -->
+                <h2 id="best-practices">Best Practices</h2>
+
+                <h3 id="rate-limits">Rate Limiting</h3>
+                <p>To ensure fair usage and system stability:</p>
+                <ul style="margin: 16px 0; padding-left: 24px; color: #a1a1aa;">
+                    <li><strong>Scrape:</strong> 60 requests per minute per wallet</li>
+                    <li><strong>Crawl:</strong> 10 requests per minute per wallet</li>
+                    <li><strong>Max page size:</strong> 10MB per page</li>
+                    <li><strong>Max execution time:</strong> 60 seconds per request</li>
+                </ul>
+                <p>If you hit rate limits, you'll receive a <code>429 Too Many Requests</code> response with a <code>Retry-After</code> header.</p>
+
+                <h3 id="error-handling">Error Handling</h3>
+                <div class="code-block">
+                    <div class="code-header">Robust error handling example</div>
+                    <pre>try {
+  const response = await client('https://anybrowse.dev/scrape', {
+    method: 'POST',
+    body: JSON.stringify({ url })
+  });
+  
+  if (response.status === 402) {
+    // x402 client should handle this automatically
+    console.error('Payment failed - check wallet balance');
+  } else if (response.status === 429) {
+    const retryAfter = response.headers.get('Retry-After');
+    console.log(`Rate limited. Retry after ${retryAfter}s`);
+  } else if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+  }
+  
+  const markdown = await response.text();
+} catch (error) {
+  console.error('Scrape failed:', error);
+}</pre>
+                </div>
+
+                <h3 id="cost-optimization">Cost Optimization</h3>
+                <div class="warning">
+                    <div class="note-title">Cost-Saving Tips</div>
+                    <ul style="margin-top: 8px; padding-left: 20px;">
+                        <li><strong>Use crawl for multiple pages:</strong> More efficient than individual scrape calls</li>
+                        <li><strong>Set appropriate waitFor:</strong> Don't wait longer than necessary for JS rendering</li>
+                        <li><strong>Cache results:</strong> Store scraped content locally to avoid duplicate charges</li>
+                        <li><strong>Use sameDomain:</strong> Prevents accidental crawling of external links</li>
+                        <li><strong>Test on Sepolia first:</strong> Validate your integration with testnet before mainnet</li>
+                    </ul>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 AnyBrowse.dev. Powered by x402 protocol.</p>
+        </div>
+    </footer>
+</body>
+</html>
