@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>anybrowse Blog - Web Scraping & AI Insights</title>
+    <meta name="description" content="Learn about web scraping, RAG pipelines, AI agents, and micropayments. Guides, tutorials, and comparisons for developers.">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="anybrowse Blog - Web Scraping & AI Insights">
+    <meta property="og:description" content="Learn about web scraping, RAG pipelines, AI agents, and micropayments.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://anybrowse.dev/blog">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface-elevated: #1a1a25;
+            --border: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #6a6a7a;
+            --accent: #0052ff;
+            --accent-hover: #3b82f6;
+            --success: #22c55e;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover { color: var(--text-primary); }
+        
+        .btn {
+            background: var(--accent);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn:hover { background: var(--accent-hover); }
+        
+        /* Hero */
+        .hero {
+            padding: 8rem 2rem 3rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--accent), #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        /* Blog Grid */
+        .blog-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+        
+        .blog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+        
+        .blog-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: border-color 0.2s, transform 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .blog-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+        }
+        
+        .blog-card .category {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+        
+        .blog-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.3;
+        }
+        
+        .blog-card p {
+            color: var(--text-secondary);
+            font-size: 0.9375rem;
+            margin-bottom: 1rem;
+            flex-grow: 1;
+        }
+        
+        .blog-card .meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 3rem 2rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-muted);
+        }
+        
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .blog-grid {
+                grid-template-columns: 1fr;
+            }
+            .hero h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="logo">anybrowse</a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/blog">Blog</a>
+                <a href="/docs">Docs</a>
+                <a href="/pricing">Pricing</a>
+                <a href="https://docs.anybrowse.dev" class="btn">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>anybrowse <span>Blog</span></h1>
+        <p>Guides, tutorials, and insights on web scraping, RAG pipelines, AI agents, and micropayments.</p>
+    </section>
+
+    <div class="blog-container">
+        <div class="blog-grid">
+            <a href="/blog/url-to-markdown-complete-guide" class="blog-card">
+                <span class="category">Guide</span>
+                <h3>The Complete Guide to Converting URLs to Markdown for AI Applications</h3>
+                <p>Learn the best methods to convert URLs to markdown—from DIY approaches to modern micropayment-powered APIs.</p>
+                <div class="meta">
+                    <span>~2,800 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/rag-pipeline-web-scraping" class="blog-card">
+                <span class="category">Tutorial</span>
+                <h3>Building Production-Ready RAG Pipelines with Web Scraping</h3>
+                <p>Step-by-step tutorial on building RAG pipelines using web-scraped data with code examples.</p>
+                <div class="meta">
+                    <span>~2,600 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/anybrowse-vs-firecrawl-comparison" class="blog-card">
+                <span class="category">Comparison</span>
+                <h3>anybrowse vs Firecrawl: A Comprehensive 2026 Comparison</h3>
+                <p>Compare pricing models, authentication methods, and features to choose the right tool.</p>
+                <div class="meta">
+                    <span>~2,700 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/ai-agent-use-cases" class="blog-card">
+                <span class="category">Use Cases</span>
+                <h3>10 AI Agent Use Cases for Web Scraping</h3>
+                <p>Discover real-world applications where AI agents use web scraping to automate workflows.</p>
+                <div class="meta">
+                    <span>~2,900 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/scraping-best-practices" class="blog-card">
+                <span class="category">Best Practices</span>
+                <h3>Web Scraping Best Practices for AI Applications</h3>
+                <p>Learn the 10 commandments of web scraping for AI—from handling dynamic content to respecting rate limits.</p>
+                <div class="meta">
+                    <span>~2,500 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/perplexity-clone-tutorial" class="blog-card">
+                <span class="category">Tutorial</span>
+                <h3>Building a Perplexity Clone with anybrowse</h3>
+                <p>Complete tutorial on building an AI-powered search engine using anybrowse and x402 micropayments.</p>
+                <div class="meta">
+                    <span>~3,100 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+
+            <a href="/blog/markdown-vs-html-for-llms" class="blog-card">
+                <span class="category">Technical</span>
+                <h3>Markdown vs HTML: Which Format is Better for LLMs?</h3>
+                <p>Deep dive into token efficiency, semantic structure, and why markdown wins for AI applications.</p>
+                <div class="meta">
+                    <span>~2,200 words</span>
+                    <span>Feb 2026</span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        <p><a href="/">anybrowse.dev</a> • Pay-to: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088</p>
+        <p style="margin-top: 0.5rem;">Powered by x402 • USDC on Base</p>
+    </footer>
+</body>
+</html>

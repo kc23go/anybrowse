@@ -364,7 +364,14 @@ async function buildServer() {
     if (accept.includes("application/json") && !accept.includes("text/html")) {
       return reply.send(LANDING_JSON);
     }
-    reply.type("text/html").send(LANDING_HTML);
+    try {
+      const landingPath = join(__dirname, "static", "landing.html");
+      const landingHtml = readFileSync(landingPath, "utf-8");
+      reply.type("text/html").send(landingHtml);
+    } catch (err) {
+      // Fallback to embedded landing page if file not found
+      reply.type("text/html").send(LANDING_HTML);
+    }
   });
 
   // Health check endpoint (enhanced)
@@ -468,6 +475,184 @@ async function buildServer() {
       reply.type("text/html").send(pricingHtml);
     } catch (err) {
       reply.status(500).send({ error: "Failed to load pricing page" });
+    }
+  });
+
+  // Blog index page (public)
+  app.get("/blog", async (req, reply) => {
+    try {
+      const blogIndexPath = join(__dirname, "static", "blog", "index.html");
+      const blogHtml = readFileSync(blogIndexPath, "utf-8");
+      reply.type("text/html").send(blogHtml);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load blog index" });
+    }
+  });
+
+  // Individual blog posts (public) - serve markdown files with HTML wrapper
+  app.get("/blog/:slug", async (req, reply) => {
+    const { slug } = req.params as { slug: string };
+    const validSlugs = [
+      "url-to-markdown-complete-guide",
+      "rag-pipeline-web-scraping",
+      "anybrowse-vs-firecrawl-comparison",
+      "ai-agent-use-cases",
+      "scraping-best-practices",
+      "perplexity-clone-tutorial",
+      "markdown-vs-html-for-llms"
+    ];
+    
+    if (!validSlugs.includes(slug)) {
+      return reply.status(404).send({ error: "Blog post not found" });
+    }
+    
+    try {
+      // Map slug to file
+      const fileMap: Record<string, string> = {
+        "url-to-markdown-complete-guide": "01-url-to-markdown-guide.md",
+        "rag-pipeline-web-scraping": "02-rag-pipeline-tutorial.md",
+        "anybrowse-vs-firecrawl-comparison": "03-firecrawl-comparison.md",
+        "ai-agent-use-cases": "04-ai-agent-use-cases.md",
+        "scraping-best-practices": "05-scraping-best-practices.md",
+        "perplexity-clone-tutorial": "06-perplexity-clone-tutorial.md",
+        "markdown-vs-html-for-llms": "07-markdown-vs-html.md"
+      };
+      
+      const mdPath = join(__dirname, "static", "blog", fileMap[slug]);
+      const markdown = readFileSync(mdPath, "utf-8");
+      
+      // Simple HTML wrapper for markdown
+      const title = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} | anybrowse Blog</title>
+    <meta name="description" content="${title} - Read more on the anybrowse blog.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #6a6a7a;
+            --accent: #0052ff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 2rem; align-items: center; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .nav-links a:hover { color: var(--text-primary); }
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 7rem 2rem 4rem;
+        }
+        .content h1 { font-size: 2.5rem; margin-bottom: 1.5rem; }
+        .content h2 { font-size: 1.5rem; margin: 2rem 0 1rem; color: var(--accent); }
+        .content h3 { font-size: 1.25rem; margin: 1.5rem 0 0.75rem; }
+        .content p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .content pre {
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .content code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+        .content ul, .content ol {
+            margin: 1rem 0 1rem 2rem;
+            color: var(--text-secondary);
+        }
+        .content li { margin-bottom: 0.5rem; }
+        .content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+        .content th, .content td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .content th {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="logo">anybrowse</a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/blog">Blog</a>
+                <a href="/docs">Docs</a>
+                <a href="/pricing">Pricing</a>
+            </div>
+        </div>
+    </nav>
+    <div class="content">
+        <pre>${markdown.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+    </div>
+</body>
+</html>`;
+      
+      reply.type("text/html").send(html);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load blog post" });
+    }
+  });
+
+  // Sitemap
+  app.get("/sitemap.xml", async (req, reply) => {
+    try {
+      const sitemapPath = join(__dirname, "static", "sitemap.xml");
+      const sitemap = readFileSync(sitemapPath, "utf-8");
+      reply.type("application/xml").send(sitemap);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load sitemap" });
     }
   });
 

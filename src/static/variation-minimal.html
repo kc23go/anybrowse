@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>anybrowse - URL to Markdown API | $0.002/scrape</title>
+    <meta name="description" content="Convert URLs to Markdown with one API call. $0.002 per scrape. x402 micropayments. Real Chrome browsers. No signup.">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --accent: #0052ff;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .container { max-width: 900px; margin: 0 auto; padding: 0 2rem; }
+        
+        .nav {
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+        
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            margin-left: 2rem;
+        }
+        
+        /* Hero */
+        .hero {
+            padding: 6rem 0;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        
+        .hero-tagline {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+        
+        .price-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 82, 255, 0.1);
+            border: 1px solid rgba(0, 82, 255, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 2rem;
+        }
+        
+        /* Code */
+        .code-section {
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            margin: 3rem 0;
+        }
+        
+        .code-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .code-tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        .code-tab.active {
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--accent);
+        }
+        
+        .code-content {
+            padding: 1.5rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+        }
+        
+        .comment { color: #6a737d; }
+        .keyword { color: #ff7b72; }
+        .string { color: #a5d6ff; }
+        
+        /* Features */
+        .features {
+            padding: 4rem 0;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+        
+        .feature {
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature h3 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .feature p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        /* Pricing */
+        .pricing {
+            padding: 4rem 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+        
+        .pricing-table {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            max-width: 600px;
+            margin: 2rem auto;
+        }
+        
+        .pricing-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+        
+        .pricing-item h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .pricing-price {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .pricing-item p {
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
+        footer {
+            padding: 3rem 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        
+        .payto {
+            font-family: monospace;
+            background: var(--surface);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="container">
+            <div class="logo">anybrowse</div>
+            <div class="nav-links">
+                <a href="https://docs.anybrowse.dev">Docs</a>
+                <a href="https://github.com/anybrowse">GitHub</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1>URL to Markdown API</h1>
+            <p class="hero-tagline">
+                Convert any URL to clean, LLM-ready Markdown.<br>
+                Real Chrome browsers. x402 micropayments.
+            </p>
+            <div class="price-pill">
+                ⚡ $0.002 per scrape • USDC on Base
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="code-section">
+            <div class="code-tabs">
+                <button class="code-tab active">cURL</button>
+                <button class="code-tab">Python</button>
+                <button class="code-tab">JavaScript</button>
+            </div>
+            <div class="code-content">
+<span class="comment"># 1. Request endpoint (returns 402 Payment Required)</span>
+curl -X POST https://anybrowse.dev/scrape \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -d <span class="string">'{"url": "https://example.com"}'</span>
+
+<span class="comment"># 2. Sign EIP-3009 authorization with your wallet</span>
+
+<span class="comment"># 3. Resubmit with payment</span>
+curl -X POST https://anybrowse.dev/scrape \\
+  -H <span class="string">"Content-Type: application/json"</span> \\
+  -H <span class="string">"X-Payment: $SIGNED_PAYMENT"</span> \\
+  -d <span class="string">'{"url": "https://example.com"}'</span>
+
+<span class="comment"># Returns clean markdown</span>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🌐</div>
+                <h3>Real Chrome</h3>
+                <p>Full JS execution</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>x402 Payments</h3>
+                <p>Pay per use</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔐</div>
+                <h3>No Signup</h3>
+                <p>Wallet only</p>
+            </div>
+        </div>
+    </div>
+
+    <section class="pricing">
+        <div class="container">
+            <h2>Pricing</h2>
+            <div class="pricing-table">
+                <div class="pricing-item">
+                    <h3>Scrape</h3>
+                    <div class="pricing-price">$0.002</div>
+                    <p>Single URL to Markdown<br>USDC on Base</p>
+                </div>
+                <div class="pricing-item">
+                    <h3>Crawl</h3>
+                    <div class="pricing-price">$0.01</div>
+                    <p>Multi-page extraction<br>Up to 10 pages</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>anybrowse.dev</p>
+            <div class="payto">PayTo: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088</div>
+        </div>
+    </footer>
+</body>
+</html>
