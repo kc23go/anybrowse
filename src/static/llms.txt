@@ -1,0 +1,67 @@
+# anybrowse
+
+> Convert any URL to LLM-ready Markdown via real Chrome browsers with stealth mode and proxy fallback. 90%+ success rate. Start with 10 free scrapes/day (no signup), then pay per request with API keys ($4.99/month Pro) or x402 micropayments on Base.
+
+## API Endpoints
+
+- Scrape: POST /scrape - Convert a single URL to clean Markdown (10 free/day, then $0.002)
+- Crawl: POST /crawl - Search Google and scrape top results to Markdown (10 free/day, then $0.01)
+- Search: POST /serp/search - Google SERP results as structured JSON (10 free/day, then $0.002)
+
+## Free Tier
+
+All users get 10 free scrapes per day with no signup required. Just make requests to anybrowse.dev.
+
+## Key Capabilities
+
+- **90%+ success rate** with stealth browser mode (anti-bot bypass)
+- **Proxy fallback** automatically retries blocked sites via residential proxies
+- **30s timeout** for JS-heavy single-page applications
+- **Structured error responses** with machine-readable reason codes (e.g. `TIMEOUT`, `BLOCKED`, `NOT_FOUND`)
+- **Real Chrome rendering** — full JavaScript execution, not headless scripts
+
+## Authentication Options
+
+1. **Free tier**: 10 scrapes/day, no auth required
+2. **API key (Pro)**: $4.99/month for 10,000 scrapes/month
+3. **x402**: Wallet-based micropayments (USDC on Base, $0.002/scrape)
+
+## MCP Server
+
+Endpoint: https://anybrowse.dev/mcp
+Protocol: Streamable HTTP
+Tools: scrape, crawl, search
+
+Add to Claude Code, Cursor, or Windsurf:
+
+```json
+{"mcpServers":{"anybrowse":{"type":"streamable-http","url":"https://anybrowse.dev/mcp"}}}
+```
+
+## x402 Payment
+
+Protocol: x402 (HTTP 402 Payment Required)
+Network: Base (mainnet)
+Asset: USDC
+Wallet: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088
+
+For x402: Send a request without payment, receive a 402 with payment instructions, sign with your wallet, resend with the X-PAYMENT header.
+
+## Agent Discovery
+
+- A2A Agent Card: https://anybrowse.dev/.well-known/agent-card.json
+- MCP Server: https://anybrowse.dev/mcp
+- Basename: anybrowse.base.eth
+
+## Free Endpoints
+
+- Health: GET /health
+- Stats: GET /stats
+- Earnings: GET /earnings
+- Autonomy: GET /autonomy
+
+## Links
+
+- Website: https://anybrowse.dev
+- GitHub: https://github.com/kc23go/anybrowse
+- Extended docs: https://anybrowse.dev/llms-full.txt

@@ -1,4 +1,24 @@
 import 'dotenv/config';
+import { config as dotenvConfig } from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Try loading production-env from multiple locations (non-dotfile, synced via deploy)
+const searchPaths = [
+  resolve(process.cwd(), 'production-env'),
+  resolve(process.cwd(), '../production-env'),
+  '/agent/app/production-env',
+  '/agent/app/src/production-env',
+  resolve(dirname(fileURLToPath(import.meta.url)), '../production-env'),
+  resolve(dirname(fileURLToPath(import.meta.url)), 'production-env'),
+];
+for (const p of searchPaths) {
+  if (existsSync(p)) {
+    dotenvConfig({ path: p, override: false });
+    break;
+  }
+}
 
 /**
  * Load a required string from environment variables
@@ -31,3 +51,6 @@ export function loadEnvNumber(key: string, fallback?: number): number {
 
   return value;
 }
+
+// Debug: log where we're looking for production-env
+// console.log('CWD:', process.cwd(), '| prodEnvPath:', prodEnvPath);

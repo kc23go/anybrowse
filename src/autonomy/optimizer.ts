@@ -19,8 +19,8 @@ export interface AgentConfig {
 
 const DEFAULT_CONFIG: AgentConfig = {
   pricing: {
-    scrape: 3000,
-    crawl: 5000,
+    scrape: 2000,
+    crawl: 10000,
     search: 2000,
   },
   poolSize: 1,

@@ -1,6 +1,11 @@
-import { chromium } from 'playwright-core';
+import { chromium as chromiumBase } from 'playwright-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { SessionPool, type PooledSession } from '@browsercash/pool';
 import { loadEnvString, loadEnvNumber } from './env.js';
+
+// Apply stealth plugin to evade bot detection
+chromiumBase.use(StealthPlugin());
+const chromium = chromiumBase;
 
 const BROWSER_API_KEY = loadEnvString('BROWSER_API_KEY');
 const DEBUG_LOG = process.env.DEBUG_LOG === '1' || process.env.DEBUG_LOG === 'true';

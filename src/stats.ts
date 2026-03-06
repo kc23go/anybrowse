@@ -1,6 +1,14 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
 const STATS_FILE = "/agent/data/stats.json";
+
+// Domains excluded from topDomains stats (test/internal domains)
+const EXCLUDED_STAT_DOMAINS = new Set([
+  'example.com',
+  'httpbin.org',
+  'localhost',
+  '127.0.0.1',
+]);
 const PERSIST_INTERVAL_MS = 60_000; // save every 60s
 
 interface EndpointStats {
@@ -105,6 +113,9 @@ class StatsTracker {
   }
 
   recordDomain(domain: string, success: boolean): void {
+    // Skip test/internal domains from stats tracking
+    if (EXCLUDED_STAT_DOMAINS.has(domain)) return;
+
     if (!this.topDomains[domain]) {
       this.topDomains[domain] = { total: 0, success: 0, failed: 0 };
     }
@@ -136,8 +147,9 @@ class StatsTracker {
       estimatedMicro += ep.x402Payments * (prices[path] || 0);
     }
 
-    // Sort domains by total, keep top 50
+    // Sort domains by total, keep top 50 (excluding test/internal domains)
     const sortedDomains = Object.entries(this.topDomains)
+      .filter(([domain]) => !EXCLUDED_STAT_DOMAINS.has(domain))
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 50);
 

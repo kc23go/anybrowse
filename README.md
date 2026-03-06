@@ -32,8 +32,8 @@ Connect any MCP-compatible client to `https://anybrowse.dev/mcp` (Streamable HTT
 
 | Endpoint | Price | Description |
 |----------|-------|-------------|
-| `POST /scrape` | $0.003 USDC | URL → Markdown |
-| `POST /crawl` | $0.005 USDC | Search + scrape top results |
+| `POST /scrape` | $0.002 USDC | URL → Markdown |
+| `POST /crawl` | $0.01 USDC | Search + scrape top results |
 | `POST /serp/search` | $0.002 USDC | Google SERP as JSON |
 
 ### Example

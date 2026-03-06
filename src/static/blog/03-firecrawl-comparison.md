@@ -14,7 +14,7 @@
 anybrowse vs Firecrawl: 2026 Comparison | x402 Micropayments
 
 ## Meta Description (155 chars)
-Compare anybrowse and Firecrawl for web scraping. x402 micropayments vs subscriptions. No signup required. Real Chrome browsers. $0.002/scrape pricing.
+Compare anybrowse and Firecrawl for web scraping. 10 free scrapes/day, then $0.002/scrape. API keys or x402. No signup required. Real Chrome browsers.
 
 ---
 
@@ -39,9 +39,9 @@ Whether you're building RAG pipelines, AI agents, or content extraction workflow
 |---------|---------------|---------------|
 | **Pricing Model** | Pay-per-use micropayments | Monthly subscription/credits |
 | **Payment Method** | USDC on Base (x402 protocol) | Credit card |
-| **Signup Required** | ❌ No | ✅ Yes |
-| **API Keys** | ❌ No (wallet-based) | ✅ Yes |
-| **Free Tier** | ❌ No (pay per use) | ✅ 500 credits/month |
+| **Signup Required** | ❌ No (free tier) / Optional (API key) | ✅ Yes |
+| **API Keys** | ✅ Yes (optional) | ✅ Yes |
+| **Free Tier** | ✅ 10 scrapes/day | ✅ 500 credits/month |
 | **Price per Scrape** | $0.002 | $0.005-0.01 (plan dependent) |
 | **Price per Crawl** | $0.01 | Varies by plan |
 | **MCP Server** | ✅ Yes | ✅ Yes |
@@ -52,9 +52,26 @@ Whether you're building RAG pipelines, AI agents, or content extraction workflow
 
 ### H2: Pricing: A Fundamental Difference
 
-#### H3: anybrowse: x402 Micropayments
+#### H3: anybrowse: Flexible Payment Options
 
-anybrowse uses the **x402 protocol** for payments, enabling truly permissionless API access:
+anybrowse offers **10 free scrapes/day** with no signup, then flexible payment options:
+
+**Option 1: Free Tier**
+- 10 scrapes per day
+- No signup required
+- No credit card needed
+- Perfect for trying it out
+
+**Option 2: API Keys**
+- Traditional authentication
+- Easy integration
+- Fits existing workflows
+
+**Option 3: x402 Micropayments (Permissionless)**
+- Wallet-based authentication
+- No signup required
+- AI agent native
+- x402 protocol for instant crypto payments
 
 **How it works:**
 1. Send request → Receive `402 Payment Required`

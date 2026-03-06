@@ -13,9 +13,42 @@ export type { PdfConversionResult } from './pdf.js';
 const DEBUG_LOG = process.env.DEBUG_LOG === '1' || process.env.DEBUG_LOG === 'true';
 
 // Configuration
-const MIN_CONTENT_LENGTH = loadEnvNumber('CRAWL_MIN_CONTENT_LENGTH', 200);
-const NAVIGATION_TIMEOUT_MS = loadEnvNumber('CRAWL_NAVIGATION_TIMEOUT_MS', 10000);
-const SLOW_TIMEOUT_MS = loadEnvNumber('CRAWL_SLOW_TIMEOUT_MS', 20000);
+const MIN_CONTENT_LENGTH = loadEnvNumber('CRAWL_MIN_CONTENT_LENGTH', 100);
+const NAVIGATION_TIMEOUT_MS = loadEnvNumber('CRAWL_NAVIGATION_TIMEOUT_MS', 30000);
+const SLOW_TIMEOUT_MS = loadEnvNumber('CRAWL_SLOW_TIMEOUT_MS', 45000);
+
+// Cookie consent button selectors to auto-dismiss (ordered by specificity)
+const COOKIE_CONSENT_SELECTORS = [
+  // Specific common consent frameworks
+  '#onetrust-accept-btn-handler',
+  '#accept-recommended-btn-handler',
+  '.cookie-consent-accept',
+  '[data-cookiebanner="accept_button"]',
+  // Generic text-based matches (handled via JS evaluation)
+];
+
+// Bilibili-specific context options (Chinese CDN optimised)
+const BILIBILI_CONTEXT_OPTIONS = {
+  locale: 'zh-CN',
+  extraHTTPHeaders: {
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+  },
+  userAgent:
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+};
+
+// Residential proxy for fallback (only used when blocked)
+const PROXY_CONFIG = {
+  server: 'http://161.77.10.249:12323',
+  username: '14aaa55fdc22e',
+  password: '5cc5f8b080',
+} as const;
+
+interface ProxyOptions {
+  server: string;
+  username: string;
+  password: string;
+}
 
 // Content selectors in priority order (semantic elements first)
 const CONTENT_SELECTORS = [
@@ -31,12 +64,76 @@ const CONTENT_SELECTORS = [
 // Track contexts with route blocking already configured
 const configuredContexts = new WeakSet<BrowserContext>();
 
+export type ScrapeErrorReason = 'timeout' | 'blocked' | 'not_found' | 'invalid_url' | 'unknown';
+
 export interface CrawlResult {
   url: string;
   title: string;
   markdown: string;
   status: 'success' | 'empty' | 'error';
   error?: string;
+  reason?: ScrapeErrorReason;
+  suggestion?: string;
+}
+
+const ERROR_SUGGESTIONS: Record<ScrapeErrorReason, string> = {
+  timeout: 'The site took too long to respond. Try again or use a different URL.',
+  blocked: 'This site may block scrapers. Try again or contact support.',
+  not_found: 'The URL could not be found. Check the URL and try again.',
+  invalid_url: 'The URL is invalid. Use a valid http:// or https:// URL.',
+  unknown: 'Something went wrong. Try again or contact support.',
+};
+
+/**
+ * Classify an error message into a structured reason code
+ */
+function classifyError(message: string): ScrapeErrorReason {
+  const msg = message.toLowerCase();
+  if (
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('time out') ||
+    msg.includes('exceeded')
+  ) return 'timeout';
+  if (
+    msg.includes('err_connection_refused') ||
+    msg.includes('err_cert_') ||
+    msg.includes('ssl_') ||
+    msg.includes('403') ||
+    msg.includes('blocked') ||
+    msg.includes('access denied') ||
+    msg.includes('forbidden')
+  ) return 'blocked';
+  if (
+    msg.includes('err_name_not_resolved') ||
+    msg.includes('err_address_unreachable') ||
+    msg.includes('404') ||
+    msg.includes('not found') ||
+    msg.includes('no such host')
+  ) return 'not_found';
+  if (
+    msg.includes('invalid url') ||
+    msg.includes('invalid uri') ||
+    msg.includes('url blocked') ||
+    msg.includes('ssrf')
+  ) return 'invalid_url';
+  return 'unknown';
+}
+
+/**
+ * Build a structured error result for CrawlResult
+ */
+function makeErrorResult(url: string, message: string): CrawlResult {
+  const reason = classifyError(message);
+  return {
+    url,
+    title: '',
+    markdown: '',
+    status: 'error',
+    error: message,
+    reason,
+    suggestion: ERROR_SUGGESTIONS[reason],
+  };
 }
 
 /**
@@ -56,6 +153,55 @@ function logPerf(step: string, url: string, startTime: number, details?: Record<
 function isValidContent(markdown: string): boolean {
   const cleaned = markdown.replace(/\s+/g, ' ').trim();
   return cleaned.length >= MIN_CONTENT_LENGTH;
+}
+
+/**
+ * Auto-dismiss cookie consent banners / GDPR popups.
+ * Tries known selector IDs first, then scans buttons for common accept-text patterns.
+ * Silent on failure — never blocks content extraction.
+ */
+async function dismissCookieBanners(page: Page): Promise<void> {
+  try {
+    await page.evaluate((selectors: string[]) => {
+      // Try explicit selectors first
+      for (const sel of selectors) {
+        const el = document.querySelector(sel) as HTMLElement | null;
+        if (el && el.offsetParent !== null) {
+          el.click();
+          return;
+        }
+      }
+
+      // Text-based scan: look for visible buttons / anchors with accept-like text
+      const acceptPatterns = [
+        /accept all/i,
+        /accept cookies/i,
+        /i agree/i,
+        /agree to all/i,
+        /allow all/i,
+        /allow cookies/i,
+        /got it/i,
+        /ok,? got it/i,
+        /consent to all/i,
+        /同意/,        // Chinese "agree"
+        /接受/,        // Chinese "accept"
+      ];
+
+      const candidates = Array.from(
+        document.querySelectorAll('button, a[role="button"], input[type="button"], input[type="submit"]')
+      ) as HTMLElement[];
+
+      for (const el of candidates) {
+        const text = (el.textContent || el.getAttribute('value') || '').trim();
+        if (el.offsetParent !== null && acceptPatterns.some((re) => re.test(text))) {
+          el.click();
+          return;
+        }
+      }
+    }, COOKIE_CONSENT_SELECTORS);
+  } catch {
+    // Never let cookie dismissal crash the scrape
+  }
 }
 
 /**
@@ -144,24 +290,40 @@ async function closeContext(context: BrowserContext | null, url: string): Promis
  * - Blocks heavy assets (images, fonts, stylesheets)
  * - Waits only for 'domcontentloaded' then extracts immediately
  */
-export async function scrapeUrlFast(browser: Browser, url: string): Promise<CrawlResult> {
+export async function scrapeUrlFast(browser: Browser, url: string, proxy?: ProxyOptions): Promise<CrawlResult> {
   const scrapeStart = performance.now();
-  console.log(`\x1b[35m[SCRAPER]\x1b[0m Starting scrape: ${url}`);
+  console.log(`\x1b[35m[SCRAPER]\x1b[0m Starting scrape: ${url}${proxy ? ' [proxy]' : ''}`);
 
   let context: BrowserContext | null = null;
   let createdContext = false;
   let page: Page | null = null;
 
+  // Bilibili and Chinese CDN: use locale-appropriate context
+  const isBilibili = url.includes('bilibili.com');
+
   try {
     const contextStart = performance.now();
 
-    // Reuse existing context if available, otherwise create new
-    const existingContexts = browser.contexts();
-    if (existingContexts.length > 0) {
-      context = existingContexts[0];
-    } else {
-      context = await browser.newContext();
+    // If proxy is requested, always create a fresh isolated context
+    if (proxy) {
+      const ctxOptions = isBilibili
+        ? { proxy, ...BILIBILI_CONTEXT_OPTIONS }
+        : { proxy };
+      context = await browser.newContext(ctxOptions);
       createdContext = true;
+    } else if (isBilibili) {
+      // Bilibili always gets a fresh context with Chinese locale/UA
+      context = await browser.newContext(BILIBILI_CONTEXT_OPTIONS);
+      createdContext = true;
+    } else {
+      // Reuse existing context if available, otherwise create new
+      const existingContexts = browser.contexts();
+      if (existingContexts.length > 0) {
+        context = existingContexts[0];
+      } else {
+        context = await browser.newContext();
+        createdContext = true;
+      }
     }
 
     await ensureRouteBlocking(context, true);
@@ -173,6 +335,9 @@ export async function scrapeUrlFast(browser: Browser, url: string): Promise<Craw
     const navStart = performance.now();
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS });
     logPerf('Navigation done', url, navStart);
+
+    // Dismiss cookie banners before content extraction
+    await dismissCookieBanners(page);
 
     const extractStart = performance.now();
     const { content, title } = await extractContentAndTitle(page);
@@ -194,7 +359,7 @@ export async function scrapeUrlFast(browser: Browser, url: string): Promise<Craw
       console.error(`[scraper:fast] Failed ${url}:`, message);
     }
 
-    return { url, title: '', markdown: '', status: 'error', error: message };
+    return makeErrorResult(url, message);
   } finally {
     await closePage(page, url);
     if (createdContext) {
@@ -211,14 +376,20 @@ export async function scrapeUrlFast(browser: Browser, url: string): Promise<Craw
  * - Waits for content to render
  * - Less aggressive asset blocking (allows stylesheets)
  */
-export async function scrapeUrlSlow(browser: Browser, url: string): Promise<CrawlResult> {
+export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: ProxyOptions): Promise<CrawlResult> {
   const scrapeStart = performance.now();
   let context: BrowserContext | null = null;
   let page: Page | null = null;
 
+  // Bilibili and Chinese CDN: use locale-appropriate context
+  const isBilibili = url.includes('bilibili.com');
+
   try {
     const contextStart = performance.now();
-    context = await browser.newContext();
+    let ctxOptions: Record<string, unknown> = {};
+    if (proxy) ctxOptions.proxy = proxy;
+    if (isBilibili) Object.assign(ctxOptions, BILIBILI_CONTEXT_OPTIONS);
+    context = await browser.newContext(ctxOptions);
     await ensureRouteBlocking(context, false);
     installSsrfRouteBlock(context);
     page = await context.newPage();
@@ -229,6 +400,9 @@ export async function scrapeUrlSlow(browser: Browser, url: string): Promise<Craw
     await page.goto(url, { waitUntil: 'load', timeout: SLOW_TIMEOUT_MS });
     logPerf('Navigation done', url, navStart);
 
+    // Dismiss cookie banners / GDPR popups before waiting for content
+    await dismissCookieBanners(page);
+
     // Wait for content to render
     try {
       await page.waitForFunction(
@@ -237,7 +411,7 @@ export async function scrapeUrlSlow(browser: Browser, url: string): Promise<Craw
           return text.replace(/\s+/g, '').length > minLen;
         },
         MIN_CONTENT_LENGTH,
-        { timeout: 10000 }
+        { timeout: 30000 }
       );
     } catch {
       // Content may still be usable even if wait times out
@@ -266,7 +440,7 @@ export async function scrapeUrlSlow(browser: Browser, url: string): Promise<Craw
       console.error(`[scraper:slow] Failed ${url}:`, message);
     }
 
-    return { url, title: '', markdown: '', status: 'error', error: message };
+    return makeErrorResult(url, message);
   } finally {
     await closePage(page, url);
     await closeContext(context, url);
@@ -288,13 +462,7 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string): Prom
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logPerf('SSRF BLOCKED', url, startTime, { error: message });
-    return {
-      url,
-      title: '',
-      markdown: '',
-      status: 'error',
-      error: `URL blocked: ${message}`,
-    };
+    return makeErrorResult(url, `URL blocked: ${message}`);
   }
 
   // Handle PDF URLs with Datalab Marker API
@@ -347,6 +515,22 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string): Prom
     result = await scrapeUrlSlow(browser, url);
     method = 'slow';
     intelligence.recordScrape(url, 'slow', result.status === 'success', performance.now() - startTime);
+  }
+
+  // If blocked: retry with residential proxy as last resort
+  if ((result.status === 'error' || result.status === 'empty') && result.reason === 'blocked') {
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Blocked — retrying with residential proxy: ${url}`);
+    const proxyResult = await scrapeUrlSlow(browser, url, PROXY_CONFIG);
+    intelligence.recordScrape(url, 'slow', proxyResult.status === 'success', performance.now() - startTime);
+    if (proxyResult.status === 'success') {
+      logPerf('PROXY FALLBACK', url, startTime, { status: 'success' });
+      intelligence.scoreContent(proxyResult.markdown);
+      recordDomainStats(url, true);
+      return proxyResult;
+    }
+    // Keep original result if proxy also failed (proxy error shouldn't override original reason)
+    logPerf('PROXY FALLBACK', url, startTime, { status: proxyResult.status });
+    result = proxyResult;
   }
 
   logPerf('WITH FALLBACK', url, startTime, { method, status: result.status });

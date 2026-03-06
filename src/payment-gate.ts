@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { randomBytes, timingSafeEqual, createPrivateKey, sign } from "crypto";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { getConfig } from "./autonomy/optimizer.js";
+import { checkSubscription, incrementUsage } from "./stripe-subscriptions.js";
 
 const PAY_TO = "0x8D76E8FB38541d70dF74b14660c39b4c5d737088";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -18,8 +19,8 @@ const PUBLIC_FACILITATOR = FACILITATOR_URL === SELF_HOSTED_FACILITATOR_URL
   : CDP_FACILITATOR_URL;
 
 const DEFAULT_PRICES: Record<string, number> = {
-  "/scrape": 3000,
-  "/crawl": 5000,
+  "/scrape": 2000,
+  "/crawl": 10000,
   "/serp/search": 2000,
 };
 
@@ -31,8 +32,71 @@ const USDC_EIP712 = {
 };
 
 // Internal bypass token — regenerated every startup, used by MCP handler
-export const INTERNAL_BYPASS_TOKEN = randomBytes(32).toString("hex");
+const INTERNAL_BYPASS_TOKEN = randomBytes(32).toString("hex");
 const BYPASS_TOKEN_BUF = Buffer.from(INTERNAL_BYPASS_TOKEN, "hex");
+
+export function validateInternalToken(candidate: string): boolean {
+  try {
+    const candidateBuf = Buffer.from(candidate, "hex");
+    if (candidateBuf.length !== BYPASS_TOKEN_BUF.length) return false;
+    return timingSafeEqual(candidateBuf, BYPASS_TOKEN_BUF);
+  } catch {
+    return false;
+  }
+}
+
+export function getInternalToken(): string {
+  return INTERNAL_BYPASS_TOKEN;
+}
+
+// ── Free tier rate limiting (10 scrapes/day per IP) ─────────────────────────
+const FREE_TIER_DAILY_LIMIT = 10;
+const FREE_TIER_DAY_MS = 86_400_000; // 24h in ms
+
+interface FreeTierEntry {
+  count: number;
+  resetAt: number; // epoch ms
+}
+
+const freeTierMap = new Map<string, FreeTierEntry>();
+
+// Midnight UTC reset cleanup
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of freeTierMap) {
+    if (now >= entry.resetAt) freeTierMap.delete(ip);
+  }
+}, 60_000);
+
+/**
+ * Get next midnight UTC as epoch ms
+ */
+function nextMidnightUtc(): number {
+  const now = new Date();
+  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return midnight.getTime();
+}
+
+/**
+ * Check (and consume) a free-tier slot for the given IP.
+ * Returns { allowed: true } if under limit, or { allowed: false } when exhausted.
+ */
+function checkFreeTier(ip: string): { allowed: boolean } {
+  const now = Date.now();
+  let entry = freeTierMap.get(ip);
+
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 0, resetAt: nextMidnightUtc() };
+    freeTierMap.set(ip, entry);
+  }
+
+  if (entry.count >= FREE_TIER_DAILY_LIMIT) {
+    return { allowed: false };
+  }
+
+  entry.count++;
+  return { allowed: true };
+}
 
 // Payment replay protection
 const SETTLED_PAYMENTS = new Set<string>();
@@ -76,13 +140,7 @@ function recordPayment(event: PaymentEvent): void {
 
 function isValidBypassToken(candidate: string | undefined): boolean {
   if (!candidate) return false;
-  try {
-    const candidateBuf = Buffer.from(candidate, "hex");
-    if (candidateBuf.length !== BYPASS_TOKEN_BUF.length) return false;
-    return timingSafeEqual(candidateBuf, BYPASS_TOKEN_BUF);
-  } catch {
-    return false;
-  }
+  return validateInternalToken(candidate);
 }
 
 /**
@@ -231,18 +289,59 @@ export default fp(async function paymentGate(app: FastifyInstance) {
       const amount = getCurrentPrice(path);
       if (!amount) return;
 
-      const paymentRequirements = buildPaymentRequirements(path, req.method, amount);
+      // ── Stripe Pro subscription check ──────────────────────────────
+      // Accept: Authorization: Bearer ab_xxxx  or  X-API-Key: ab_xxxx
+      const authHeader = req.headers["authorization"] as string | undefined;
+      const apiKeyHeader = req.headers["x-api-key"] as string | undefined;
+      let stripeApiKey: string | undefined;
+      if (authHeader?.startsWith("Bearer ab_")) {
+        stripeApiKey = authHeader.slice(7).trim();
+      } else if (apiKeyHeader?.startsWith("ab_")) {
+        stripeApiKey = apiKeyHeader.trim();
+      }
+
+      if (stripeApiKey) {
+        const check = checkSubscription(stripeApiKey);
+        if (check.valid && check.record) {
+          // Valid Pro subscriber — let them through and count usage
+          (req as any).stripeApiKey = stripeApiKey;
+          incrementUsage(stripeApiKey);
+          return; // ← skip x402 check
+        } else {
+          // Key present but invalid/over-limit
+          reply.status(402).send({
+            error: `Pro subscription invalid: ${check.reason}`,
+            upgrade: "https://anybrowse.dev/checkout",
+            reset: "Contact support or resubscribe",
+            pro: "$4.99/month for 10,000 scrapes",
+          });
+          return;
+        }
+      }
+      // ── end Stripe check ───────────────────────────────────────────
+
+      // ── end Stripe / free tier gate ───────────────────────────────
       const xPayment = req.headers["x-payment"] as string | undefined;
 
+      // If no x402 payment header is present, apply free tier (10/day per IP)
       if (!xPayment) {
-        reply.status(402).send({
-          x402Version: 1,
-          error: "X-PAYMENT header is required",
-          accepts: [paymentRequirements],
-          facilitator: publicFacilitator,
-        });
+        const clientIp = req.ip || "unknown";
+        const freeTierOk = checkFreeTier(clientIp);
+        if (!freeTierOk.allowed) {
+          reply.status(402).send({
+            error: "Daily free limit reached (10 scrapes/day)",
+            upgrade: "https://anybrowse.dev/checkout",
+            reset: "Resets at midnight UTC",
+            pro: "$4.99/month for 10,000 scrapes",
+          });
+          return;
+        }
+        // Free tier slot consumed — allow request through, skip x402
         return;
       }
+      // ── x402 payment path ─────────────────────────────────────────
+
+      const paymentRequirements = buildPaymentRequirements(path, req.method, amount);
 
       let decodedPayment: any;
       try {

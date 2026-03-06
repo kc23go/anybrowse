@@ -1,0 +1,98 @@
+# AnyBrowse - Web Scraping for AI Agents
+
+Web scraping → Markdown extraction for AI agents. 10 free scrapes/day. No signup required for free tier.
+
+## What It Does
+
+Converts any webpage into clean, structured markdown for LLM processing. Built specifically for AI agents and RAG pipelines.
+
+## Free Tier
+
+- **10 free scrapes/day** - No signup required
+- **No credit card** - Just start using it
+- **Resets daily** - Midnight UTC
+
+## Payment Options
+
+After free tier, choose your authentication method:
+
+- **API keys** - Traditional authentication, fits existing workflows
+- **x402 micropayments** - Wallet-based, permissionless payments
+  - USDC on Base - Fast, cheap transactions
+  - No signup required
+
+## Pricing
+
+- **Free:** 10 scrapes per day (no signup)
+- **Pro:** $4.99/month for 10,000 scrapes (API key auth)
+- **Pay-per-use (x402):** $0.002/scrape, $0.01/crawl — USDC on Base, no signup
+
+## Key Features
+
+- **90%+ success rate** with stealth browser mode (anti-bot bypass)
+- **Proxy fallback** — automatically retries blocked sites via residential proxies
+- **30s timeout** for JS-heavy single-page applications
+- **Structured error responses** with machine-readable reason codes (`TIMEOUT`, `BLOCKED`, `NOT_FOUND`, etc.)
+- Real Chrome browser rendering (not headless scripts)
+- MCP server for Claude/Cursor/Windsurf
+- Clean markdown output (removes ads, navigation)
+- Flexible authentication: free tier, API keys, OR wallet-based
+
+## API Endpoints
+
+### POST /scrape
+Extract markdown from single URL.
+```json
+{
+  "url": "https://example.com",
+  "render": true,
+  "waitFor": 2000
+}
+```
+
+### POST /crawl
+Crawl multiple URLs from starting point.
+```json
+{
+  "url": "https://example.com/docs",
+  "maxPages": 10,
+  "maxDepth": 2
+}
+```
+
+### GET /mcp
+MCP server endpoint for AI tool integration.
+
+## MCP Integration
+
+Add to Claude/Cursor/Windsurf config:
+```json
+{
+  "mcpServers": {
+    "anybrowse": {
+      "command": "npx",
+      "args": ["-y", "@anybrowse/mcp-server"]
+    }
+  }
+}
+```
+
+## When to Use
+
+- RAG pipeline content ingestion
+- AI agent web research
+- Documentation extraction
+- Article/content scraping
+- Training data collection
+
+## PayTo
+
+**Network:** Base
+**Token:** USDC
+**Contract:** 0x...
+
+## Quick Links
+
+- **Website:** https://anybrowse.dev
+- **Docs:** https://anybrowse.dev/docs
+- **MCP Server:** npm install @anybrowse/mcp-server

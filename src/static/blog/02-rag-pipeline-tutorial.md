@@ -14,7 +14,7 @@
 Building RAG Pipelines with Web Scraping | anybrowse
 
 ## Meta Description (155 chars)
-Build powerful RAG pipelines using web-scraped data. Step-by-step tutorial with code examples using anybrowse x402 micropayments. No API keys required.
+Build powerful RAG pipelines using web-scraped data. 10 free scrapes/day. Step-by-step tutorial with API key or x402 micropayments. No signup needed.
 
 ---
 
@@ -30,7 +30,7 @@ Static document uploads work for internal data, but what about:
 - **Real-time information** from news sources?
 - **Documentation** from APIs and tools?
 
-This guide shows you how to build a complete RAG pipeline that extracts, processes, and retrieves information from any website—using modern micropayment-powered scraping that eliminates API keys and subscriptions.
+This guide shows you how to build a complete RAG pipeline that extracts, processes, and retrieves information from any website—with 10 free scrapes/day and flexible payment options (API key or x402 micropayments).
 
 ### H2: What is RAG and Why It Matters
 
@@ -88,9 +88,26 @@ Get USDC on Base:
 
 ### H2: Step 2: Extracting Web Content with anybrowse
 
-#### H3: Understanding x402 Micropayments
+#### H3: Payment Options
 
-Unlike traditional APIs that use API keys, x402 uses wallet-based authentication:
+anybrowse offers two ways to authenticate:
+
+**Option 1: API Key (Easiest)**
+Simply include your API key in the header:
+```python
+headers = {'Authorization': 'Bearer your_api_key'}
+```
+
+**Option 2: x402 Micropayments (Wallet-based)**
+For permissionless, AI-agent-native payments:
+```python
+# Get payment requirements
+response = requests.post(endpoint, json={'url': url})
+
+# Sign and pay
+payment_req = response.headers['X-Payment-Requirements']
+payment = sign_payment(payment_req, private_key)
+```
 
 ```
 1. POST /scrape → 402 Payment Required (with payment details)
@@ -99,8 +116,9 @@ Unlike traditional APIs that use API keys, x402 uses wallet-based authentication
 ```
 
 **Benefits:**
-- No signup required
-- No API keys to manage
+- 10 free scrapes/day - no signup required
+- API keys for easy integration
+- x402 for permissionless AI agent payments
 - Pay only for what you use
 - Privacy-preserving
 
@@ -438,8 +456,10 @@ summary = pipeline.query("Summarize the key findings across these papers")
 Building RAG pipelines with web scraping has never been easier. The x402 micropayment model eliminates the friction of API keys and subscriptions—you just pay for what you use.
 
 **Key Takeaways:**
-- **$0.002 per scrape** makes experimentation cheap
-- **No signup required**—just a wallet with USDC on Base
+- **10 free scrapes/day** - try before you buy
+- **$0.002 per scrape** after free tier makes experimentation cheap
+- **API keys or x402** - choose what works for you
+- **No signup required** for free tier
 - **Real Chrome browsers** handle JavaScript-heavy sites
 - **MCP server** enables AI agent integration
 

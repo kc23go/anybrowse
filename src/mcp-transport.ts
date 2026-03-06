@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { INTERNAL_BYPASS_TOKEN } from "./payment-gate.js";
+import { getInternalToken } from "./payment-gate.js";
 
 /**
  * MCP (Model Context Protocol) Streamable HTTP Transport
@@ -294,7 +294,7 @@ async function executeToolCall(
       payload: body,
       headers: {
         "content-type": "application/json",
-        "x-internal-token": INTERNAL_BYPASS_TOKEN,
+        "x-internal-token": getInternalToken(),
       },
     });
 

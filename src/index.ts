@@ -12,7 +12,15 @@ import { intelligence } from "./autonomy/intelligence.js";
 import { startPromoter, stopPromoter, getPromotionStatus } from "./autonomy/promoter.js";
 import { startAdvertiser, stopAdvertiser, getAdvertiseStatus } from "./autonomy/advertise.js";
 import { registerMcpRoute } from "./mcp-transport.js";
-import { readFileSync } from "fs";
+import {
+  createCheckoutSession,
+  getCheckoutSession,
+  handleWebhookEvent,
+  getSubscriptionStatus,
+  STRIPE_ENABLED,
+} from "./stripe-subscriptions.js";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -40,12 +48,12 @@ const LANDING_HTML = `<!DOCTYPE html>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
 <meta property="og:type" content="website">
 <meta property="og:title" content="anybrowse \u2014 any URL to Markdown">
-<meta property="og:description" content="Convert any URL to clean, LLM-ready Markdown. $0.003/page. No API key. No signup. x402 micropayments on Base.">
+<meta property="og:description" content="Convert any URL to clean, LLM-ready Markdown. $0.002/page. No API key. No signup. x402 micropayments on Base.">
 <meta property="og:url" content="https://anybrowse.dev/">
 <meta property="og:site_name" content="anybrowse">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="anybrowse \u2014 any URL to Markdown">
-<meta name="twitter:description" content="Convert any URL to clean, LLM-ready Markdown. $0.003/page. No API key. x402 micropayments on Base.">
+<meta name="twitter:description" content="Convert any URL to clean, LLM-ready Markdown. $0.002/page. No API key. x402 micropayments on Base.">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:720px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
@@ -100,6 +108,9 @@ a{color:#d94400;text-decoration:none}
 a:hover{text-decoration:underline}
 a:focus{outline:2px solid #d94400;outline-offset:2px}
 .co{font-size:.7rem;color:#767676;letter-spacing:.08em;font-style:italic;margin-bottom:.75rem}
+.nav-links{margin-bottom:2rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
 footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
 footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
 footer a:hover{color:#1a1a1a}
@@ -127,7 +138,7 @@ h1{font-size:2rem}
     "@type": "AggregateOffer",
     "priceCurrency": "USD",
     "lowPrice": "0.002",
-    "highPrice": "0.005",
+    "highPrice": "0.01",
     "offerCount": "3"
   },
   "creator": {
@@ -156,7 +167,7 @@ h1{font-size:2rem}
       "name": "How much does anybrowse cost?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Scrape: $0.003/page, Crawl: $0.005/request, Search: $0.002/query. Pay per request with USDC on Base. No subscriptions."
+        "text": "Scrape: $0.002/page, Crawl: $0.01/request, Search: $0.002/query. Pay per request with USDC on Base. No subscriptions."
       }
     },
     {
@@ -237,8 +248,13 @@ h1{font-size:2rem}
 <span class="version">v1.0</span>
 </div>
 
+<div class="nav-links">
+<a href="/docs">Documentation</a>
+<a href="/pricing">Pricing</a>
+</div>
+
 <h1><span class="q">ANY URL</span> <span class="arrow">&rarr;</span> MARKDOWN</h1>
-<p class="sub"><strong>$0.003</strong> per call &middot; No API key &middot; No signup &middot; Paid in USDC on Base</p>
+<p class="sub"><strong>$0.002</strong> per scrape &middot; <strong>$0.01</strong> per crawl &middot; No API key &middot; No signup &middot; Paid in USDC on Base</p>
 
 <pre id="cmd" tabindex="0" role="button" aria-label="Copy curl command" onclick="cp(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cp(this)}"><span class="d">$</span> <span class="c">curl</span> <span class="f">-X POST</span> https://anybrowse.dev/scrape <span class="f">\\</span>
   <span class="f">-H</span> <span class="s">"Content-Type: application/json"</span> <span class="f">\\</span>
@@ -258,11 +274,11 @@ h1{font-size:2rem}
 <div class="ep">
 <div class="er">
 <div class="el"><span class="em">POST</span> <span class="epath">/scrape</span> <span class="edesc">url to markdown</span></div>
-<span class="eprice">$0.003</span>
+<span class="eprice">$0.002</span>
 </div>
 <div class="er">
 <div class="el"><span class="em">POST</span> <span class="epath">/crawl</span> <span class="edesc">search + scrape</span></div>
-<span class="eprice">$0.005</span>
+<span class="eprice">$0.01</span>
 </div>
 <div class="er">
 <div class="el"><span class="em">POST</span> <span class="epath">/serp/search</span> <span class="edesc">raw search</span></div>
@@ -274,8 +290,8 @@ h1{font-size:2rem}
 </div>
 </div>
 
-<h2>MCP</h2>
-<p class="co">c/o Claude Code, Cursor, Windsurf</p>
+<h2>MCP SERVER</h2>
+<p class="co">for Claude Code, Cursor, Windsurf</p>
 <div class="mc">{
   <span class="mk">"mcpServers"</span>: {
     <span class="mk">"anybrowse"</span>: {
@@ -286,10 +302,10 @@ h1{font-size:2rem}
 }</div>
 
 <h2>PAYMENT</h2>
-<p class="pay">All paid endpoints use <a href="https://www.x402.org">x402</a> micropayments on Base. Send a request without payment &mdash; receive a <code>402</code> with instructions. Sign with your wallet, resend with the <code>X-PAYMENT</code> header. That&rsquo;s it.</p>
+<p class="pay">All paid endpoints use <a href="https://www.x402.org">x402</a> micropayments on Base. Send a request without payment &mdash; receive a <code>402</code> with instructions. Sign with your wallet, resend with the <code>X-PAYMENT</code> header. No signup. No API keys.</p>
 
 <footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a><br>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
 <span class="mn">anybrowse.base.eth</span><br>
 <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span><br>
 <span id="ps"></span>
@@ -318,8 +334,8 @@ const LANDING_JSON = {
   url: "https://anybrowse.dev",
   version: "1.0.0",
   capabilities: [
-    { endpoint: "POST /scrape", description: "Convert any URL to Markdown", price: "$0.003 USDC" },
-    { endpoint: "POST /crawl", description: "Search + scrape top results", price: "$0.005 USDC" },
+    { endpoint: "POST /scrape", description: "Convert any URL to Markdown", price: "$0.002 USDC" },
+    { endpoint: "POST /crawl", description: "Search + scrape top results", price: "$0.01 USDC" },
     { endpoint: "POST /serp/search", description: "Google search results", price: "$0.002 USDC" },
     { endpoint: "POST /mcp", description: "MCP tool server (JSON-RPC 2.0)", price: "free" },
   ],
@@ -335,12 +351,30 @@ const LANDING_JSON = {
     stats: "/stats",
     health: "/health",
     earnings: "/earnings",
+    docs: "/docs",
+    pricing: "/pricing",
   },
 };
 
 async function buildServer() {
   const app = Fastify({ logger: true, trustProxy: "127.0.0.1" });
   await app.register(cors, { origin: true });
+
+  // ── Raw body capture for Stripe webhook signature verification ──
+  // Override default JSON parser to also store raw Buffer on request.
+  // All routes still receive parsed JSON; /webhook gets rawBody too.
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "buffer" },
+    (req, body: Buffer, done) => {
+      (req as any).rawBody = body;
+      try {
+        done(null, JSON.parse(body.toString("utf-8")));
+      } catch (err: any) {
+        done(err, undefined);
+      }
+    }
+  );
 
   // x402 payment gate (returns 402 for paid routes without X-PAYMENT header)
   const paymentsEnabled = process.env.ENABLE_PAYMENTS !== "false";
@@ -476,6 +510,228 @@ async function buildServer() {
     } catch (err) {
       reply.status(500).send({ error: "Failed to load pricing page" });
     }
+  });
+
+  // ── Simple in-memory rate limiter for /checkout (max 10/IP/minute) ──
+  const checkoutRateMap = new Map<string, { count: number; resetAt: number }>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of checkoutRateMap.entries()) {
+      if (now >= entry.resetAt) checkoutRateMap.delete(ip);
+    }
+  }, 60_000);
+
+  function checkoutRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = checkoutRateMap.get(ip);
+    if (!entry || now >= entry.resetAt) {
+      checkoutRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
+      return true; // allowed
+    }
+    if (entry.count >= 10) return false; // blocked
+    entry.count++;
+    return true; // allowed
+  }
+
+  // ── Stripe: POST /checkout ─────────────────────────────────────────
+  // Creates a Stripe Checkout session for the $4.99/mo Pro subscription.
+  app.post("/checkout", async (req, reply) => {
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+    if (!checkoutRateLimit(clientIp)) {
+      return reply.status(429).send({ error: "Too many requests. Please try again later." });
+    }
+    if (!STRIPE_ENABLED) {
+      return reply.status(503).send({
+        error: "Stripe payments are not yet configured. Please check back soon.",
+        stripe_configured: false,
+      });
+    }
+    try {
+      const origin = `${req.protocol}://${req.hostname}`;
+      const session = await createCheckoutSession(
+        `${origin}/checkout/success`,
+        `${origin}/checkout/cancel`
+      );
+      // Redirect to Stripe Checkout
+      reply.redirect(session.url!);
+    } catch (err: any) {
+      console.error("[stripe] Checkout error:", err.message);
+      reply.status(500).send({ error: "Failed to create checkout session" });
+    }
+  });
+
+  // ── Stripe: GET /checkout — redirect shortcut ──────────────────────
+  app.get("/checkout", async (req, reply) => {
+    if (!STRIPE_ENABLED) {
+      return reply.redirect("/pricing");
+    }
+    try {
+      const origin = `https://anybrowse.dev`;
+      const session = await createCheckoutSession(
+        `${origin}/checkout/success`,
+        `${origin}/checkout/cancel`
+      );
+      reply.redirect(session.url!);
+    } catch (err: any) {
+      console.error("[stripe] Checkout error:", err.message);
+      reply.redirect("/pricing");
+    }
+  });
+
+  // ── Stripe: GET /checkout/success ──────────────────────────────────
+  app.get("/checkout/success", async (req, reply) => {
+    const { session_id } = req.query as { session_id?: string };
+    let apiKey: string | null = null;
+    let email: string | null = null;
+
+    if (session_id && STRIPE_ENABLED) {
+      const result = await getCheckoutSession(session_id);
+      apiKey = result.apiKey;
+      email = result.email;
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome to Pro — anybrowse</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:600px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7}
+h1{font-size:2rem;font-weight:800;margin-bottom:.5rem;color:#1a1a1a}
+.emoji{font-size:3rem;margin-bottom:1rem;display:block}
+p{color:#555;margin-bottom:1.5rem}
+.key-box{background:#fff;border:2px solid #d94400;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.key-box .label{font-size:.65rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.5rem}
+.key-box code{font-family:"SF Mono",monospace;font-size:1rem;color:#1a1a1a;word-break:break-all;font-weight:600}
+.copy-btn{display:inline-block;margin-top:.75rem;padding:.4rem 1rem;background:#d94400;color:#fff;border:none;border-radius:4px;font-size:.8rem;font-weight:600;cursor:pointer;letter-spacing:.04em}
+.copy-btn:hover{background:#c03800}
+.usage{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0;font-size:.875rem}
+.usage h3{font-size:.65rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.75rem}
+pre.ex{background:#1a1a1a;color:#f4f0eb;border-radius:6px;padding:1rem 1.25rem;font-family:"SF Mono",monospace;font-size:.78rem;line-height:1.6;margin:.75rem 0;overflow-x:auto}
+.orange{color:#d94400}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+.back{margin-top:2rem;font-size:.875rem}
+</style>
+</head>
+<body>
+<span class="emoji">🎉</span>
+<h1>You're on Pro!</h1>
+<p>Your subscription is active. You get <strong>10,000 scrapes/month</strong>. Save your API key below — it's your access credential.</p>
+
+${
+  apiKey
+    ? `<div class="key-box">
+  <div class="label">Your API Key</div>
+  <code id="apk">${apiKey}</code><br>
+  <button class="copy-btn" onclick="navigator.clipboard.writeText('${apiKey}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Key',1500)">Copy Key</button>
+</div>
+<p style="font-size:.8rem;color:#999">⚠️ Store this key safely. It won't be shown again.</p>`
+    : `<div class="key-box">
+  <div class="label">API Key</div>
+  <code>Your key will arrive via webhook confirmation. If you don't see it, check your Stripe receipt email.</code>
+</div>`
+}
+
+<div class="usage">
+  <h3>How to use your key</h3>
+  <pre class="ex"><span class="orange">curl</span> -X POST https://anybrowse.dev/scrape \\
+  -H <span class="orange">"Authorization: Bearer ${apiKey || "ab_YOUR_KEY_HERE"}"</span> \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}'</pre>
+  <p>Or use the <code>X-API-Key</code> header:</p>
+  <pre class="ex"><span class="orange">curl</span> -X POST https://anybrowse.dev/scrape \\
+  -H <span class="orange">"X-API-Key: ${apiKey || "ab_YOUR_KEY_HERE"}"</span> \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}'</pre>
+</div>
+
+<p class="back"><a href="/">← Back to anybrowse</a> &middot; <a href="/docs">Documentation</a></p>
+</body>
+</html>`;
+    reply.type("text/html").send(html);
+  });
+
+  // ── Stripe: GET /checkout/cancel ───────────────────────────────────
+  app.get("/checkout/cancel", async (req, reply) => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checkout cancelled — anybrowse</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:600px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7}
+h1{font-size:2rem;font-weight:800;margin-bottom:.5rem}
+p{color:#555;margin-bottom:1.5rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+.emoji{font-size:3rem;margin-bottom:1rem;display:block}
+</style>
+</head>
+<body>
+<span class="emoji">↩️</span>
+<h1>No problem.</h1>
+<p>Checkout was cancelled. You can try again any time.</p>
+<p><a href="/pricing">← View pricing</a> &middot; <a href="/">Back to home</a></p>
+</body>
+</html>`;
+    reply.type("text/html").send(html);
+  });
+
+  // ── Stripe: POST /webhook ──────────────────────────────────────────
+  // Stripe sends events here. Must be registered with raw body.
+  app.post("/webhook", async (req, reply) => {
+    const sig = req.headers["stripe-signature"] as string | undefined;
+    const rawBody = (req as any).rawBody as Buffer | undefined;
+
+    if (!sig) {
+      return reply.status(400).send({ error: "Missing stripe-signature header" });
+    }
+    if (!rawBody) {
+      return reply.status(400).send({ error: "Missing raw body" });
+    }
+
+    try {
+      await handleWebhookEvent(rawBody, sig);
+      reply.status(200).send({ received: true });
+    } catch (err: any) {
+      console.error("[stripe] Webhook error:", err.message);
+      reply.status(400).send({ error: "Invalid webhook" });
+    }
+  });
+
+  // ── Stripe: GET /subscription/status ──────────────────────────────
+  // Check subscription status for a given API key
+  app.get("/subscription/status", async (req, reply) => {
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const apiKeyHeader = req.headers["x-api-key"] as string | undefined;
+    let apiKey: string | undefined;
+    if (authHeader?.startsWith("Bearer ab_")) {
+      apiKey = authHeader.slice(7).trim();
+    } else if (apiKeyHeader?.startsWith("ab_")) {
+      apiKey = apiKeyHeader.trim();
+    }
+
+    if (!apiKey) {
+      return reply.status(400).send({ error: "Provide Authorization: Bearer ab_xxxx or X-API-Key: ab_xxxx" });
+    }
+
+    const record = getSubscriptionStatus(apiKey);
+    if (!record) {
+      return reply.status(404).send({ error: "API key not found" });
+    }
+
+    return {
+      status: record.status,
+      usageThisPeriod: record.usageThisPeriod,
+      monthlyLimit: 10000,
+      remaining: Math.max(0, 10000 - record.usageThisPeriod),
+      currentPeriodEnd: record.currentPeriodEnd,
+    };
   });
 
   // Blog index page (public)
@@ -645,14 +901,269 @@ async function buildServer() {
     }
   });
 
-  // Sitemap
+  // Sitemap - inline to ensure always up to date
   app.get("/sitemap.xml", async (req, reply) => {
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://anybrowse.dev/</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/docs</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/pricing</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/url-to-markdown-complete-guide</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/rag-pipeline-web-scraping</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/anybrowse-vs-firecrawl-comparison</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/ai-agent-use-cases</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/scraping-best-practices</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/perplexity-clone-tutorial</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/blog/markdown-vs-html-for-llms</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/mcp</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://anybrowse.dev/stats</loc>
+    <lastmod>2026-02-25</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>`;
+    reply.type("application/xml").send(sitemap);
+  });
+
+  // llms.txt - LLM-friendly documentation
+  app.get("/llms.txt", async (req, reply) => {
+    const llmsContent = `# anybrowse
+
+> Convert any URL to LLM-ready Markdown via real Chrome browsers. Pay per request with x402 micropayments on Base. No API keys. No subscriptions.
+
+## API Endpoints
+
+- Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)
+- Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)
+- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)
+
+## MCP Server
+
+Endpoint: https://anybrowse.dev/mcp
+Protocol: Streamable HTTP
+Tools: scrape, crawl, search
+
+Add to Claude Code, Cursor, or Windsurf:
+
+\`\`\`json
+{"mcpServers":{"anybrowse":{"type":"streamable-http","url":"https://anybrowse.dev/mcp"}}}
+\`\`\`
+
+## Payment
+
+Protocol: x402 (HTTP 402 Payment Required)
+Network: Base (mainnet)
+Asset: USDC
+Wallet: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088
+
+No API keys or subscriptions needed. Send a request without payment, receive a 402 with payment instructions, sign with your wallet, resend with the X-PAYMENT header.
+
+## Agent Discovery
+
+- A2A Agent Card: https://anybrowse.dev/.well-known/agent-card.json
+- MCP Server: https://anybrowse.dev/mcp
+- Basename: anybrowse.base.eth
+
+## Free Endpoints
+
+- Health: GET /health
+- Stats: GET /stats
+- Earnings: GET /earnings
+- Autonomy: GET /autonomy
+
+## Links
+
+- Website: https://anybrowse.dev
+- GitHub: https://github.com/kc23go/anybrowse
+- Extended docs: https://anybrowse.dev/llms-full.txt
+`;
+    reply.type("text/plain").send(llmsContent);
+  });
+
+  // Test endpoint to verify deployment
+  app.get("/version", async (req, reply) => {
+    reply.send({ version: "1.0.1", deployed: "2026-02-23", pricing: "updated" });
+  });
+
+  // Admin endpoint to reload/restart nginx
+  app.get("/admin/reload-nginx", async (req, reply) => {
+    const adminToken = process.env.ADMIN_SECRET_TOKEN;
+    if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
     try {
-      const sitemapPath = join(__dirname, "static", "sitemap.xml");
-      const sitemap = readFileSync(sitemapPath, "utf-8");
-      reply.type("application/xml").send(sitemap);
+      const result = execSync("nginx -s reload 2>&1 || systemctl reload nginx 2>&1 || service nginx reload 2>&1", { encoding: "utf-8" });
+      reply.send({ success: true, result, type: "reload" });
     } catch (err) {
-      reply.status(500).send({ error: "Failed to load sitemap" });
+      reply.status(500).send({ success: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get("/admin/restart-nginx", async (req, reply) => {
+    const adminToken = process.env.ADMIN_SECRET_TOKEN;
+    if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+    try {
+      const result = execSync("systemctl restart nginx 2>&1 || service nginx restart 2>&1 || nginx -s stop && nginx 2>&1", { encoding: "utf-8" });
+      reply.send({ success: true, result, type: "restart" });
+    } catch (err) {
+      reply.status(500).send({ success: false, error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Admin endpoint to fix llms.txt pricing - tries multiple locations
+  app.get("/admin/fix-llms", async (req, reply) => {
+    const adminToken = process.env.ADMIN_SECRET_TOKEN;
+    if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+    const correctContent = [
+      "# anybrowse",
+      "",
+      "> Convert any URL to LLM-ready Markdown via real Chrome browsers. Pay per request with x402 micropayments on Base. No API keys. No subscriptions.",
+      "",
+      "## API Endpoints",
+      "",
+      "- Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)",
+      "- Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)",
+      "- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)",
+      "",
+      "## MCP Server",
+      "",
+      "Endpoint: https://anybrowse.dev/mcp",
+      "Protocol: Streamable HTTP",
+      "Tools: scrape, crawl, search",
+      "",
+      "Add to Claude Code, Cursor, or Windsurf:",
+      "",
+      '```json',
+      '{"mcpServers":{"anybrowse":{"type":"streamable-http","url":"https://anybrowse.dev/mcp"}}}',
+      '```',
+      "",
+      "## Payment",
+      "",
+      "Protocol: x402 (HTTP 402 Payment Required)",
+      "Network: Base (mainnet)",
+      "Asset: USDC",
+      "Wallet: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088",
+      "",
+      "No API keys or subscriptions needed. Send a request without payment, receive a 402 with payment instructions, sign with your wallet, resend with the X-PAYMENT header.",
+      "",
+      "## Agent Discovery",
+      "",
+      "- A2A Agent Card: https://anybrowse.dev/.well-known/agent-card.json",
+      "- MCP Server: https://anybrowse.dev/mcp",
+      "- Basename: anybrowse.base.eth",
+      "",
+      "## Free Endpoints",
+      "",
+      "- Health: GET /health",
+      "- Stats: GET /stats",
+      "- Earnings: GET /earnings",
+      "- Autonomy: GET /autonomy",
+      "",
+      "## Links",
+      "",
+      "- Website: https://anybrowse.dev",
+      "- GitHub: https://github.com/kc23go/anybrowse",
+      "- Extended docs: https://anybrowse.dev/llms-full.txt",
+      ""
+    ].join("\n");
+
+    const results: any[] = [];
+    const paths = [
+      join(__dirname, "static", "llms.txt"),
+      "/agent/app/dist/static/llms.txt",
+      "/var/www/anybrowse/static/llms.txt",
+      "/usr/share/nginx/html/llms.txt",
+      "/etc/nginx/html/llms.txt"
+    ];
+
+    for (const path of paths) {
+      try {
+        writeFileSync(path, correctContent, "utf-8");
+        // Verify write by reading back
+        const verifyContent = readFileSync(path, "utf-8").substring(0, 50);
+        results.push({ path, success: true, verify: verifyContent });
+      } catch (err) {
+        results.push({ path, success: false, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    reply.send({ results, contentPreview: correctContent.substring(0, 100) });
+  });
+
+  // llms-summary.txt - Short version for LLMs
+  app.get("/llms-summary.txt", async (req, reply) => {
+    try {
+      const llmsPath = join(__dirname, "static", "llms-summary.txt");
+      const llmsContent = readFileSync(llmsPath, "utf-8");
+      reply.type("text/plain").send(llmsContent);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load llms-summary.txt" });
     }
   });
 
@@ -678,6 +1189,67 @@ async function main() {
   startOptimizer();
   startPromoter();
   startAdvertiser();
+
+  // Update static llms.txt with correct pricing
+  try {
+    const llmsStaticPath = join(__dirname, "static", "llms.txt");
+    const correctContent = [
+      "# anybrowse",
+      "",
+      "> Convert any URL to LLM-ready Markdown via real Chrome browsers. Pay per request with x402 micropayments on Base. No API keys. No subscriptions.",
+      "",
+      "## API Endpoints",
+      "",
+      "- Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)",
+      "- Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)",
+      "- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)",
+      "",
+      "## MCP Server",
+      "",
+      "Endpoint: https://anybrowse.dev/mcp",
+      "Protocol: Streamable HTTP",
+      "Tools: scrape, crawl, search",
+      "",
+      "Add to Claude Code, Cursor, or Windsurf:",
+      "",
+      '```json',
+      '{"mcpServers":{"anybrowse":{"type":"streamable-http","url":"https://anybrowse.dev/mcp"}}}',
+      '```',
+      "",
+      "## Payment",
+      "",
+      "Protocol: x402 (HTTP 402 Payment Required)",
+      "Network: Base (mainnet)",
+      "Asset: USDC",
+      "Wallet: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088",
+      "",
+      "No API keys or subscriptions needed. Send a request without payment, receive a 402 with payment instructions, sign with your wallet, resend with the X-PAYMENT header.",
+      "",
+      "## Agent Discovery",
+      "",
+      "- A2A Agent Card: https://anybrowse.dev/.well-known/agent-card.json",
+      "- MCP Server: https://anybrowse.dev/mcp",
+      "- Basename: anybrowse.base.eth",
+      "",
+      "## Free Endpoints",
+      "",
+      "- Health: GET /health",
+      "- Stats: GET /stats",
+      "- Earnings: GET /earnings",
+      "- Autonomy: GET /autonomy",
+      "",
+      "## Links",
+      "",
+      "- Website: https://anybrowse.dev",
+      "- GitHub: https://github.com/kc23go/anybrowse",
+      "- Extended docs: https://anybrowse.dev/llms-full.txt",
+      ""
+    ].join("\n");
+    writeFileSync(llmsStaticPath, correctContent, "utf-8");
+    console.log("[anybrowse] Updated static llms.txt with correct pricing");
+  } catch (err) {
+    console.warn("[anybrowse] Failed to update static llms.txt:", err instanceof Error ? err.message : err);
+  }
 
   // Start server
   const app = await buildServer();
@@ -708,3 +1280,4 @@ main().catch((err) => {
   console.error("[anybrowse] Fatal error:", err);
   process.exit(1);
 });
+// Deployed: Mon Feb 23 22:41:45 UTC 2026

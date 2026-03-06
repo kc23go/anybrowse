@@ -1,579 +1,271 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pricing | AnyBrowse.dev</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #0a0a0f;
-            color: #e4e4e7;
-            line-height: 1.7;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-        header {
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 0;
-        }
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
-        }
-        .nav-links {
-            display: flex;
-            gap: 32px;
-            list-style: none;
-        }
-        .nav-links a {
-            color: #a1a1aa;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s;
-        }
-        .nav-links a:hover, .nav-links a.active {
-            color: #fff;
-        }
-        .hero {
-            padding: 100px 0 60px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .hero h1 {
-            font-size: 3.5rem;
-            font-weight: 800;
-            margin-bottom: 20px;
-            background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero p {
-            font-size: 1.25rem;
-            color: #71717a;
-            max-width: 600px;
-            margin: 0 auto 40px;
-        }
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            color: #3b82f6;
-            padding: 8px 16px;
-            border-radius: 100px;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        .badge::before {
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            padding: 60px 0;
-        }
-        .pricing-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 32px;
-            transition: all 0.3s;
-        }
-        .pricing-card:hover {
-            border-color: rgba(59, 130, 246, 0.3);
-            transform: translateY(-4px);
-        }
-        .pricing-card.featured {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
-            border-color: rgba(59, 130, 246, 0.4);
-            position: relative;
-        }
-        .pricing-card.featured::before {
-            content: 'Most Popular';
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            color: #fff;
-            padding: 4px 16px;
-            border-radius: 100px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .endpoint-icon {
-            width: 48px;
-            height: 48px;
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-        }
-        .pricing-card h3 {
-            font-size: 1.25rem;
-            margin-bottom: 8px;
-        }
-        .price {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin: 16px 0;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .price-unit {
-            font-size: 1rem;
-            color: #71717a;
-            font-weight: 400;
-        }
-        .pricing-card p {
-            color: #a1a1aa;
-            font-size: 0.9375rem;
-            margin-bottom: 24px;
-        }
-        .features {
-            list-style: none;
-            margin-bottom: 24px;
-        }
-        .features li {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 0;
-            color: #a1a1aa;
-            font-size: 0.9375rem;
-        }
-        .features li::before {
-            content: '✓';
-            color: #10b981;
-            font-weight: 700;
-        }
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 12px 24px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            color: #fff;
-            font-weight: 600;
-            text-align: center;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .btn:hover {
-            background: rgba(255,255,255,0.12);
-            border-color: rgba(255,255,255,0.2);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            border-color: transparent;
-        }
-        .btn-primary:hover {
-            opacity: 0.9;
-            border-color: transparent;
-        }
-        .section {
-            padding: 80px 0;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-        .section h2 {
-            font-size: 2rem;
-            margin-bottom: 16px;
-            text-align: center;
-        }
-        .section > p {
-            text-align: center;
-            color: #71717a;
-            max-width: 600px;
-            margin: 0 auto 48px;
-        }
-        .payment-setup {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 32px;
-            margin-top: 48px;
-        }
-        .setup-step {
-            text-align: center;
-        }
-        .setup-step .number {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin: 0 auto 20px;
-        }
-        .setup-step h3 {
-            font-size: 1.125rem;
-            margin-bottom: 12px;
-        }
-        .setup-step p {
-            color: #a1a1aa;
-            font-size: 0.9375rem;
-        }
-        .wallet-address {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-family: 'Monaco', monospace;
-            font-size: 0.875rem;
-            color: #fff;
-            word-break: break-all;
-            margin-top: 12px;
-        }
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 48px;
-            font-size: 0.9375rem;
-        }
-        .comparison-table th {
-            text-align: left;
-            padding: 16px;
-            color: #71717a;
-            font-weight: 600;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .comparison-table td {
-            padding: 20px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            color: #a1a1aa;
-        }
-        .comparison-table tr:hover td {
-            background: rgba(255,255,255,0.02);
-        }
-        .comparison-table .service {
-            font-weight: 600;
-            color: #fff;
-        }
-        .comparison-table .highlight {
-            color: #10b981;
-            font-weight: 600;
-        }
-        .comparison-table .negative {
-            color: #ef4444;
-        }
-        .x402-info {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 16px;
-            padding: 40px;
-            margin-top: 48px;
-        }
-        .x402-info h3 {
-            font-size: 1.5rem;
-            margin-bottom: 16px;
-        }
-        .x402-info p {
-            color: #a1a1aa;
-            margin-bottom: 24px;
-        }
-        .x402-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
-        }
-        .x402-feature {
-            display: flex;
-            gap: 16px;
-            align-items: flex-start;
-        }
-        .x402-feature .icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(16, 185, 129, 0.1);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-        .x402-feature h4 {
-            font-size: 1rem;
-            margin-bottom: 4px;
-        }
-        .x402-feature p {
-            font-size: 0.875rem;
-            margin: 0;
-        }
-        .faq {
-            max-width: 800px;
-            margin: 48px auto 0;
-        }
-        .faq-item {
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding: 24px 0;
-        }
-        .faq-item h4 {
-            font-size: 1.125rem;
-            margin-bottom: 12px;
-        }
-        .faq-item p {
-            color: #a1a1aa;
-        }
-        footer {
-            border-top: 1px solid rgba(255,255,255,0.05);
-            padding: 40px 0;
-            text-align: center;
-            color: #71717a;
-            font-size: 0.875rem;
-        }
-        @media (max-width: 900px) {
-            .pricing-grid, .payment-setup, .x402-grid {
-                grid-template-columns: 1fr;
-            }
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            .comparison-table {
-                font-size: 0.875rem;
-            }
-            .comparison-table th,
-            .comparison-table td {
-                padding: 12px 8px;
-            }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pricing | anybrowse</title>
+<meta name="description" content="Simple pricing for anybrowse. Free tier, Pro subscription ($4.99/mo), and permissionless x402 crypto payments.">
+<link rel="canonical" href="https://anybrowse.dev/pricing">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:800px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:2.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover,.nav-links a.active{color:#d94400}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
+.page-sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+h3{font-size:1.1rem;font-weight:700;color:#1a1a1a;margin-bottom:.5rem}
+/* Pricing grid */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0 2rem}
+.pricing-card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem 1.1rem;display:flex;flex-direction:column}
+.pricing-card.featured{border-color:#d94400;background:#fff9f7;position:relative}
+.featured-label{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#d94400;color:#fff;padding:2px 12px;border-radius:100px;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.card-name{font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#767676;margin-bottom:.25rem}
+.card-price{font-size:1.6rem;font-weight:800;color:#1a1a1a;line-height:1.1}
+.card-price small{font-size:.65rem;font-weight:400;color:#767676}
+.card-desc{font-size:.75rem;color:#767676;margin:.4rem 0 .75rem;line-height:1.4;flex-grow:1}
+.features{list-style:none;margin-bottom:1rem;font-size:.75rem}
+.features li{padding:.3rem 0;border-bottom:1px solid #f0ece6;color:#555;display:flex;align-items:flex-start;gap:.5rem}
+.features li:last-child{border-bottom:none}
+.features li .ck{color:#16a34a;font-weight:700;flex-shrink:0}
+.features li .tag{font-size:.6rem;font-weight:600;letter-spacing:.05em;background:#f0ece6;color:#767676;padding:1px 5px;border-radius:3px;margin-left:3px}
+.btn{display:block;width:100%;padding:.5rem .75rem;border-radius:5px;font-weight:600;text-align:center;text-decoration:none;transition:background .15s;cursor:pointer;border:none;font-size:.78rem;font-family:inherit}
+.btn-primary{background:#d94400;color:#fff}
+.btn-primary:hover{background:#c03800}
+.btn-ghost{background:#f4f0eb;border:1px solid #ccc;color:#1a1a1a}
+.btn-ghost:hover{background:#e8e4df}
+.btn-outline{background:transparent;border:1px solid #ccc;color:#555}
+.btn-outline:hover{border-color:#888;color:#1a1a1a}
+/* Comparison table */
+.compare-wrap{overflow-x:auto;margin:1rem 0 2rem}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:.65rem .75rem;color:#767676;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #e0dcd7}
+td{padding:.65rem .75rem;border-bottom:1px solid #e0dcd7;color:#555}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#faf7f4}
+.svc{font-weight:600;color:#1a1a1a}
+.good{color:#16a34a;font-weight:600}
+.bad{color:#ef4444}
+/* x402 explainer */
+.x402-box{background:#fff;border:1px solid #e0dcd7;border-left:3px solid #d94400;border-radius:6px;padding:1.5rem 1.75rem;margin-top:1.5rem}
+.x402-box h3{margin-bottom:.5rem}
+.x402-box p{color:#555;font-size:.88rem;margin-bottom:1rem}
+.x402-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem}
+.x402-feat{display:flex;gap:.75rem;align-items:flex-start}
+.x402-feat .icon{font-size:1.1rem;flex-shrink:0;margin-top:.1rem}
+.x402-feat h4{font-size:.82rem;font-weight:700;color:#1a1a1a;margin-bottom:.1rem}
+.x402-feat p{font-size:.78rem;color:#767676;margin:0}
+/* FAQ */
+.faq{margin:1rem 0}
+.faq-item{padding:1.25rem 0;border-bottom:1px solid #e0dcd7}
+.faq-item:last-child{border-bottom:none}
+.faq-item h4{font-size:.9rem;font-weight:700;color:#1a1a1a;margin-bottom:.35rem}
+.faq-item p{font-size:.85rem;color:#555}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus{outline:2px solid #d94400;outline-offset:2px}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+@media(max-width:600px){
+body{padding:2.5rem 1rem 1.5rem}
+.pricing-grid{grid-template-columns:1fr}
+.x402-grid{grid-template-columns:1fr}
+h1{font-size:1.8rem}
+}
+</style>
 </head>
 <body>
-    <header>
-        <nav class="container">
-            <a href="/" class="logo">AnyBrowse.dev</a>
-            <ul class="nav-links">
-                <li><a href="/docs">Docs</a></li>
-                <li><a href="/pricing" class="active">Pricing</a></li>
-                <li><a href="https://github.com/kc23go/anybrowse" target="_blank">GitHub</a></li>
-            </ul>
-        </nav>
-    </header>
 
-    <section class="hero">
-        <div class="container">
-            <div class="badge">Live on Base Network</div>
-            <h1>Simple, Pay-Per-Use Pricing</h1>
-            <p>No subscriptions. No API keys. No monthly fees. Just pay for what you scrape with USDC micropayments.</p>
-        </div>
-    </section>
+<div class="header">
+<a href="/">
+<svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="anybrowse logo" role="img">
+<defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
+<circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+<g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
+<line x1="28" y1="100" x2="172" y2="100"/>
+<line x1="36" y1="68" x2="164" y2="68"/>
+<line x1="36" y1="132" x2="164" y2="132"/>
+<ellipse cx="100" cy="100" rx="26" ry="72"/>
+<ellipse cx="100" cy="100" rx="56" ry="72"/>
+</g>
+<line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
+<polygon points="85,148 100,172 115,148" fill="#d94400"/>
+</svg>
+</a>
+<a href="/" class="wordmark" style="text-decoration:none">any<b>browse</b></a>
+</div>
 
-    <div class="container">
-        <div class="pricing-grid">
-            <div class="pricing-card">
-                <div class="endpoint-icon">🔍</div>
-                <h3>/scrape</h3>
-                <div class="price">$0.002<span class="price-unit">/call</span></div>
-                <p>Convert a single URL to clean, LLM-ready Markdown using a real Chrome browser.</p>
-                <ul class="features">
-                    <li>Real Chrome browser rendering</li>
-                    <li>JavaScript execution</li>
-                    <li>Up to 60 calls/minute</li>
-                    <li>Instant payment settlement</li>
-                </ul>
-                <a href="/docs#getting-started" class="btn">Get Started</a>
-            </div>
+<div class="nav-links">
+<a href="/docs">Documentation</a>
+<a href="/pricing" class="active">Pricing</a>
+</div>
 
-            <div class="pricing-card featured">
-                <div class="endpoint-icon">🕷️</div>
-                <h3>/crawl</h3>
-                <div class="price">$0.01<span class="price-unit">/call</span></div>
-                <p>Multi-page crawling with recursive link following. Up to 100 pages per call.</p>
-                <ul class="features">
-                    <li>Up to 100 pages per crawl</li>
-                    <li>Depth-limited recursion</li>
-                    <li>Same-domain protection</li>
-                    <li>Aggregated results</li>
-                </ul>
-                <a href="/docs#getting-started" class="btn btn-primary">Get Started</a>
-            </div>
+<h1>Pricing</h1>
+<p class="page-sub">Start free. No signup. Subscribe with a card or pay per request with USDC on Base.</p>
 
-            <div class="pricing-card">
-                <div class="endpoint-icon">🤖</div>
-                <h3>MCP Server</h3>
-                <div class="price">FREE<span class="price-unit">discovery</span></div>
-                <p>Model Context Protocol integration for AI agents. Discovery is free, pay per scrape.</p>
-                <ul class="features">
-                    <li>Free tool discovery</li>
-                    <li>Claude/Cursor/Windsurf ready</li>
-                    <li>Pay only for actual scrapes</li>
-                    <li>Agent-native integration</li>
-                </ul>
-                <a href="/docs#mcp-integration" class="btn">View Docs</a>
-            </div>
-        </div>
-    </div>
+<div class="pricing-grid">
 
-    <section class="section">
-        <div class="container">
-            <h2>Payment Setup</h2>
-            <p>Get started in minutes with USDC on Base network. No accounts, no KYC, just crypto-native payments.</p>
+  <div class="pricing-card">
+    <div class="card-name">Free</div>
+    <div class="card-price">$0<small>/day</small></div>
+    <div class="card-desc">10 scrapes/day. No signup, no credit card.</div>
+    <ul class="features">
+      <li><span class="ck">+</span> 10 scrapes/day</li>
+      <li><span class="ck">+</span> 10 crawls/day</li>
+      <li><span class="ck">+</span> 10 searches/day</li>
+      <li><span class="ck">+</span> Real Chrome rendering</li>
+      <li><span class="ck">+</span> No signup required</li>
+      <li><span class="ck">+</span> Resets midnight UTC</li>
+    </ul>
+    <a href="/" class="btn btn-ghost">Start for free</a>
+  </div>
 
-            <div class="payment-setup">
-                <div class="setup-step">
-                    <div class="number">1</div>
-                    <h3>Get USDC on Base</h3>
-                    <p>Bridge USDC from Ethereum or buy directly on Coinbase. Base is Coinbase's L2 with low fees.</p>
-                </div>
-                <div class="setup-step">
-                    <div class="number">2</div>
-                    <h3>Fund Your Wallet</h3>
-                    <p>USDC payments go to our smart contract. Each call is automatically deducted.</p>
-                    <div class="wallet-address">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</div>
-                </div>
-                <div class="setup-step">
-                    <div class="number">3</div>
-                    <h3>Configure x402</h3>
-                    <p>Install an x402 client to handle payments automatically. No manual signatures needed.</p>
-                </div>
-            </div>
+  <div class="pricing-card featured">
+    <div class="featured-label">Most popular</div>
+    <div class="card-name">Pro</div>
+    <div class="card-price">$4.99<small>/mo</small></div>
+    <div class="card-desc">10,000 scrapes/month. Pay by card. No crypto needed.</div>
+    <ul class="features">
+      <li><span class="ck">+</span> 10,000 scrapes/month</li>
+      <li><span class="ck">+</span> Credit card billing <span class="tag">Stripe</span></li>
+      <li><span class="ck">+</span> API key auth</li>
+      <li><span class="ck">+</span> Real Chrome rendering</li>
+      <li><span class="ck">+</span> Resets each billing cycle</li>
+      <li><span class="ck">+</span> Cancel anytime</li>
+    </ul>
+    <a href="/checkout" class="btn btn-primary">Subscribe with Card</a>
+  </div>
 
-            <div class="x402-info">
-                <h3>What is x402?</h3>
-                <p>x402 is a protocol that enables instant blockchain payments over HTTP using the 402 "Payment Required" status code. It uses EIP-3009 gasless transfers for sub-2-second settlement.</p>
-                <div class="x402-grid">
-                    <div class="x402-feature">
-                        <div class="icon">⚡</div>
-                        <div>
-                            <h4>Instant Settlement</h4>
-                            <p>2-second confirmation on Base network</p>
-                        </div>
-                    </div>
-                    <div class="x402-feature">
-                        <div class="icon">🔑</div>
-                        <div>
-                            <h4>No API Keys</h4>
-                            <p>Your wallet is your authentication</p>
-                        </div>
-                    </div>
-                    <div class="x402-feature">
-                        <div class="icon">⛽</div>
-                        <div>
-                            <h4>Gasless Payments</h4>
-                            <p>EIP-3009 authorizations—no gas fees</p>
-                        </div>
-                    </div>
-                    <div class="x402-feature">
-                        <div class="icon">🤖</div>
-                        <div>
-                            <h4>Agent-Native</h4>
-                            <p>AI agents can pay autonomously</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+  <div class="pricing-card">
+    <div class="card-name">Permissionless</div>
+    <div class="card-price">$0.002<small>/scrape</small></div>
+    <div class="card-desc">Pay per request. USDC on Base. No account. Ideal for agents.</div>
+    <ul class="features">
+      <li><span class="ck">+</span> $0.002/scrape</li>
+      <li><span class="ck">+</span> $0.01/crawl</li>
+      <li><span class="ck">+</span> $0.002/search</li>
+      <li><span class="ck">+</span> No monthly commitment</li>
+      <li><span class="ck">+</span> Agent-native (x402)</li>
+      <li><span class="ck">+</span> Unlimited volume</li>
+    </ul>
+    <a href="/docs#payment" class="btn btn-outline">Learn about x402</a>
+  </div>
 
-    <section class="section">
-        <div class="container">
-            <h2>Cost Comparison</h2>
-            <p>See how AnyBrowse compares to traditional scraping services. No subscriptions, no commitments.</p>
+</div>
 
-            <table class="comparison-table">
-                <tr>
-                    <th>Service</th>
-                    <th>Pricing Model</th>
-                    <th>Cost per 1K Scrapes</th>
-                    <th>Setup</th>
-                    <th>MCP Support</th>
-                </tr>
-                <tr>
-                    <td class="service">AnyBrowse</td>
-                    <td class="highlight">Pay-per-use (x402)</td>
-                    <td class="highlight">~$2.00</td>
-                    <td class="highlight">Instant (no signup)</td>
-                    <td class="highlight">✓ Native</td>
-                </tr>
-                <tr>
-                    <td class="service">Firecrawl</td>
-                    <td>Subscription/Credits</td>
-                    <td>$5-49/month + credits</td>
-                    <td>API key required</td>
-                    <td>✓ Available</td>
-                </tr>
-                <tr>
-                    <td class="service">Jina AI Reader</td>
-                    <td>Free tier + API key</td>
-                    <td>$0 (limited) or API key</td>
-                    <td>API key required</td>
-                    <td class="negative">✗</td>
-                </tr>
-                <tr>
-                    <td class="service">Build Your Own</td>
-                    <td>Infrastructure costs</td>
-                    <td>$50-200+/month</td>
-                    <td>Complex setup</td>
-                    <td class="negative">✗</td>
-                </tr>
-            </table>
+<h2>CARD OR CRYPTO</h2>
+<p style="font-size:.88rem;color:#555;margin-bottom:1rem">Both work. Same speed, same Chrome-rendered Markdown. Pick what fits your workflow.</p>
 
-            <div class="faq">
-                <div class="faq-item">
-                    <h4>Why is AnyBrowse cheaper?</h4>
-                    <p>We don't have the overhead of credit card processing, subscription management, or user databases. The x402 protocol allows for true peer-to-peer micropayments with minimal fees.</p>
-                </div>
-                <div class="faq-item">
-                    <h4>vs Firecrawl</h4>
-                    <p>Firecrawl requires a monthly subscription ($5-49) plus credit purchases. AnyBrowse has no monthly fee—you only pay when you scrape. For low-volume users, this can mean 90%+ cost savings.</p>
-                </div>
-                <div class="faq-item">
-                    <h4>vs Jina AI Reader</h4>
-                    <p>Jina offers a generous free tier but requires an API key and has rate limits. AnyBrowse has no rate limits beyond fair-use (60/min) and requires no API keys—just a funded wallet.</p>
-                </div>
-                <div class="faq-item">
-                    <h4>vs Building Your Own</h4>
-                    <p>Running Chrome browsers at scale requires infrastructure (Puppeteer/Playwright clusters, proxies, CAPTCHA solving). This typically costs $50-200+/month in server costs alone, plus maintenance time.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="compare-wrap">
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Free</th>
+<th>Pro (Stripe)</th>
+<th>Permissionless (x402)</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Cost</td><td class="good">Free</td><td>$4.99/month</td><td>$0.002/scrape</td></tr>
+<tr><td>Volume</td><td>10/day</td><td class="good">10,000/month</td><td class="good">Unlimited</td></tr>
+<tr><td>Payment method</td><td>None</td><td class="good">Credit card</td><td>USDC on Base</td></tr>
+<tr><td>Signup required</td><td class="good">No</td><td>Email (Stripe)</td><td class="good">No</td></tr>
+<tr><td>Authentication</td><td>None</td><td>API key (Bearer)</td><td>x402 X-PAYMENT header</td></tr>
+<tr><td>Best for</td><td>Trying it out</td><td>Developers and teams</td><td>AI agents, automation</td></tr>
+</tbody>
+</table>
+</div>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2026 AnyBrowse.dev. Powered by x402 protocol.</p>
-        </div>
-    </footer>
+<div class="x402-box">
+<h3>What is x402?</h3>
+<p>x402 is an open micropayment protocol built on HTTP 402. Send a request, get a payment challenge, sign with your wallet, resend. AI agents can do this automatically with no human in the loop.</p>
+<div class="x402-grid">
+  <div class="x402-feat">
+    <div class="icon">&#9889;</div>
+    <div><h4>2-second settlement</h4><p>Instant on Base. No waiting.</p></div>
+  </div>
+  <div class="x402-feat">
+    <div class="icon">&#128273;</div>
+    <div><h4>Wallet = auth</h4><p>Your crypto wallet is your API key.</p></div>
+  </div>
+  <div class="x402-feat">
+    <div class="icon">&#127981;</div>
+    <div><h4>Gasless transfers</h4><p>EIP-3009 authorizations. No gas fees.</p></div>
+  </div>
+  <div class="x402-feat">
+    <div class="icon">&#129302;</div>
+    <div><h4>Agent-native</h4><p>AI agents pay autonomously with no human approval.</p></div>
+  </div>
+</div>
+</div>
+
+<h2>VS. OTHER SCRAPING APIS</h2>
+<p style="font-size:.88rem;color:#555;margin-bottom:1rem">Same Chrome rendering. Much simpler pricing.</p>
+
+<div class="compare-wrap">
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Free Tier</th>
+<th>Paid</th>
+<th>Cost / 1K scrapes</th>
+<th>API Key req?</th>
+</tr>
+</thead>
+<tbody>
+<tr><td class="svc">anybrowse (Free)</td><td class="good">10/day</td><td>None</td><td class="good">$0 (300/mo free)</td><td class="good">No</td></tr>
+<tr><td class="svc">anybrowse (Pro)</td><td class="good">10/day</td><td>$4.99/mo = 10K scrapes</td><td class="good">$1.90</td><td>Yes (provided)</td></tr>
+<tr><td class="svc">anybrowse (x402)</td><td class="good">10/day</td><td>$0.002/scrape</td><td class="good">$2.00</td><td class="good">No (wallet)</td></tr>
+<tr><td class="svc">Firecrawl</td><td>500 credits/mo</td><td>$16-$333/mo</td><td>$16-$33</td><td class="bad">Yes (signup)</td></tr>
+<tr><td class="svc">ScrapingBee</td><td>1,000 credits</td><td>$49/mo+</td><td>$4.90+</td><td class="bad">Yes (signup)</td></tr>
+<tr><td class="svc">Build your own</td><td>None</td><td>$50-200/mo infra</td><td>Variable + maintenance</td><td>N/A</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>FAQ</h2>
+<div class="faq">
+  <div class="faq-item">
+    <h4>Which plan should I pick?</h4>
+    <p>Start with Free (no signup). If you need more than 10/day and prefer paying by credit card, go Pro. If you are an AI agent or prefer crypto with no signup, use x402 permissionless.</p>
+  </div>
+  <div class="faq-item">
+    <h4>Can I use both Pro and x402?</h4>
+    <p>Yes. They are independent. Your API key covers Pro quota; x402 USDC payments are separate. Both hit the same endpoints.</p>
+  </div>
+  <div class="faq-item">
+    <h4>What happens when I hit the Pro limit?</h4>
+    <p>Requests return a 402 error. Your quota resets on your next billing date. You can fall back to x402 pay-per-request for extra volume.</p>
+  </div>
+  <div class="faq-item">
+    <h4>How do I cancel my Pro subscription?</h4>
+    <p>Log into Stripe's customer portal (link in your receipt email) and cancel. No fees. Pro access continues until end of the billing period.</p>
+  </div>
+  <div class="faq-item">
+    <h4>What wallets work with x402?</h4>
+    <p>Any wallet that can sign EIP-3009 USDC authorizations on Base. AgentKit (Coinbase), Viem, Wagmi, and most modern wallets. AI agents using CDP SDK work out of the box.</p>
+  </div>
+  <div class="faq-item">
+    <h4>Is there a free trial for Pro?</h4>
+    <p>The Free tier is your trial: 10 scrapes/day forever, no card needed. When you want more, subscribe to Pro.</p>
+  </div>
+</div>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
 </body>
 </html>

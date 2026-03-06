@@ -14,7 +14,7 @@
 URL to Markdown: Complete Guide for AI Applications | anybrowse
 
 ## Meta Description (155 chars)
-Learn how to convert any URL to clean markdown for AI applications. Pay-per-use with x402 micropayments. No signup required. Code examples included.
+Learn how to convert any URL to clean markdown for AI applications. 10 free scrapes/day, then $0.002 per scrape. API keys or x402. Code examples included.
 
 ---
 
@@ -152,7 +152,7 @@ The newest approach eliminates subscriptions entirely. Instead of monthly fees o
 
 #### H3: Using anybrowse with x402
 
-anybrowse.dev is a URL-to-markdown service built on x402. Here's how to use it:
+anybrowse.dev is a URL-to-markdown service with flexible payment options. Start with 10 free scrapes/day, then use API keys or x402 micropayments. Here's how to use it:
 
 ```typescript
 import { x402Fetch } from 'x402-fetch';
@@ -172,10 +172,11 @@ console.log(markdown);
 ```
 
 **Pricing:**
-- **$0.002 per scrape**: Single URL to markdown
+- **10 free scrapes/day**: No signup required
+- **$0.002 per scrape**: After free tier (single URL)
 - **$0.01 per crawl**: Multi-page extraction
-- **Payment**: USDC on Base network
-- **PayTo address**: `0x8D76E8FB38541d70dF74b14660c39b4c5d737088`
+- **Payment options**: API key or x402 (USDC on Base)
+- **PayTo address** (x402): `0x8D76E8FB38541d70dF74b14660c39b4c5d737088`
 
 #### H3: Python Example
 
@@ -363,10 +364,11 @@ Claude: "I'll check the OpenAI blog for you." [uses anybrowse MCP tool]
 
 Converting URLs to markdown is essential for modern AI applications. While DIY approaches work for simple cases, production systems need reliable JavaScript rendering and clean output.
 
-The x402 micropayment model represents a fundamental shift in API access:
-- **No accounts, no subscriptions**: Just pay per use
-- **Privacy by design**: Wallet-based auth, no personal data required
-- **AI agent native**: Autonomous payment capabilities
+anybrowse offers the best of both worlds:
+- **10 free scrapes/day**: Try before you buy, no signup needed
+- **API keys**: Traditional authentication for developers who prefer it
+- **x402 micropayments**: Permissionless, wallet-based payments for AI agents
+- **Privacy by design**: No personal data required, regardless of payment method
 
 Ready to try it? Get some USDC on Base network and make your first micropayment-powered scrape:
 

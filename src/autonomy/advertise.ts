@@ -39,13 +39,13 @@ const CHANNEL_PARENT_URLS: Record<string, string> = {
 
 // Post templates — rotated daily, each must be <= 320 bytes
 const POST_TEMPLATES = [
-  "anybrowse.dev \u2014 Any URL to LLM-ready Markdown via real Chrome.\n\nMCP tools: scrape ($0.003), crawl ($0.005), search ($0.002)\n\nEndpoint: https://anybrowse.dev/mcp\nx402 payments on Base. No API keys.",
+  "anybrowse.dev \u2014 Any URL to LLM-ready Markdown via real Chrome.\n\nMCP tools: scrape ($0.002), crawl ($0.01), search ($0.002)\n\nEndpoint: https://anybrowse.dev/mcp\nx402 payments on Base. No API keys.",
 
   "Web scraping for AI agents? anybrowse runs real Chrome, returns clean Markdown.\n\nAdd to Claude/Cursor:\n{\"mcpServers\":{\"anybrowse\":{\"url\":\"https://anybrowse.dev/mcp\"}}}\n\nPay per request, USDC on Base.",
 
   "Your AI agent needs to read the web? Most sites need JS.\n\nanybrowse.dev renders with real Chrome, returns clean Markdown.\n\nx402 payments | MCP server | No API keys\nhttps://anybrowse.dev",
 
-  "anybrowse \u2014 web scraping API for AI agents.\n\nReal Chrome rendering\nMCP server for Claude/Cursor\nx402 micropayments (USDC on Base)\n$0.003/page\n\nhttps://anybrowse.dev",
+  "anybrowse \u2014 web scraping API for AI agents.\n\nReal Chrome rendering\nMCP server for Claude/Cursor\nx402 micropayments (USDC on Base)\n$0.002/page\n\nhttps://anybrowse.dev",
 ];
 
 let lastPostDate = "";
