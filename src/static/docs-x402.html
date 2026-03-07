@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>x402 Payment Integration Guide | anybrowse</title>
+<meta name="description" content="Integrate x402 micropayments with anybrowse. Pay $0.002 USDC per scrape with no subscription. Works with Coinbase AgentKit and the x402 npm package.">
+<link rel="canonical" href="https://anybrowse.dev/docs/x402">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.page-wrap{max-width:900px;margin:0 auto;padding:4rem 1.5rem 4rem}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:2.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
+.page-sub{font-size:1rem;color:#555;margin-bottom:3rem}
+.badge{display:inline-block;background:#fdf0e8;color:#d94400;border:1px solid #f5c9a8;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:.08em;padding:2px 8px;text-transform:uppercase;vertical-align:middle;margin-left:.5rem}
+/* Section headers */
+.section{margin-bottom:3rem}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3rem 0 1rem;font-style:italic;padding-bottom:.5rem;border-bottom:1px solid #e0dcd7}
+h2:first-child{margin-top:0}
+h3{font-size:1rem;font-weight:700;color:#1a1a1a;margin:2rem 0 .75rem}
+h4{font-size:.85rem;font-weight:700;color:#1a1a1a;margin:1.5rem 0 .5rem}
+p{color:#555;font-size:.9rem;margin-bottom:1rem}
+ul,ol{padding-left:1.5rem;color:#555;font-size:.9rem;margin-bottom:1rem}
+li{padding:.2rem 0}
+/* Code blocks */
+.code-block{background:#fff;border:1px solid #e0dcd7;border-radius:6px;overflow:hidden;margin:1rem 0}
+.code-block-header{background:#f0ece6;border-bottom:1px solid #e0dcd7;padding:.4rem 1rem;display:flex;align-items:center;gap:.5rem}
+.code-lang{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#767676}
+.copy-btn{margin-left:auto;background:none;border:1px solid #d0ccc7;border-radius:3px;padding:2px 8px;font-size:.65rem;color:#767676;cursor:pointer;transition:all .15s}
+.copy-btn:hover{border-color:#d94400;color:#d94400}
+.code-block pre{padding:1.25rem 1.4rem;overflow-x:auto}
+.code-block code{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;line-height:1.6;color:#1a1a1a}
+/* Step cards */
+.steps{display:grid;gap:.75rem;margin:1.25rem 0}
+.step{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem 1.25rem;display:flex;gap:1rem;align-items:flex-start}
+.step-num{background:#d94400;color:#fff;border-radius:50%;width:24px;height:24px;min-width:24px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;margin-top:2px}
+.step-content h4{margin:0 0 .25rem;font-size:.85rem}
+.step-content p{margin:0;font-size:.82rem;color:#767676}
+.step-content code{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;background:#f4f0eb;padding:1px 5px;border-radius:3px;color:#d94400}
+/* Pricing table */
+.price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin:1.25rem 0}
+.price-card{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1.25rem 1.4rem}
+.price-label{font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#767676;margin-bottom:.35rem}
+.price-amount{font-size:1.5rem;font-weight:800;color:#1a1a1a;margin-bottom:.25rem}
+.price-desc{font-size:.78rem;color:#767676}
+/* Error table */
+.error-table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.82rem}
+.error-table th{text-align:left;font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#767676;padding:.5rem .75rem;border-bottom:2px solid #e0dcd7}
+.error-table td{padding:.75rem;border-bottom:1px solid #f0ece6;vertical-align:top;color:#555}
+.error-table tr:last-child td{border-bottom:none}
+.error-table td:first-child{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;color:#d94400;font-size:.75rem;white-space:nowrap}
+.error-table tr:hover td{background:#fdf9f7}
+/* Info callout */
+.callout{background:#fdf0e8;border:1px solid #f5c9a8;border-radius:6px;padding:1rem 1.25rem;margin:1.25rem 0;font-size:.85rem;color:#7a3800}
+.callout strong{color:#d94400}
+/* Footer */
+.footer{margin-top:4rem;padding-top:2rem;border-top:1px solid #e0dcd7;text-align:center;font-size:.78rem;color:#999}
+.footer a{color:#767676;text-decoration:none}
+.footer a:hover{color:#d94400}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none">
+      <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#1a1a1a" stroke-width="3"/>
+        <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
+        <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
+      </svg>
+      <span class="wordmark"><b>any</b>browse</span>
+    </a>
+  </div>
+
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/docs">Docs</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs/x402" style="color:#d94400">x402 Guide</a>
+  </div>
+
+  <h1>x402 Payment Integration Guide <span class="badge">Micropayments</span></h1>
+  <p class="page-sub">Pay per request with USDC on Base. No subscription, no signup — just a crypto wallet.</p>
+
+  <!-- What is x402? -->
+  <h2>What is x402?</h2>
+  <p>
+    x402 is an open HTTP payment protocol that lets API clients pay for individual requests using USDC on Base (Ethereum L2).
+    When your free tier runs out, instead of signing up for a subscription you can pay <strong>$0.002 per scrape</strong> directly
+    from your wallet — no account required. The server returns an HTTP 402 with cryptographic payment requirements, your wallet signs
+    and submits the payment on-chain, and you resend the request with an <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">X-PAYMENT</code> header.
+    The x402 client library handles all of this automatically.
+  </p>
+  <div class="callout">
+    <strong>When should I use x402?</strong> If your AI agent has a Coinbase wallet (e.g. via AgentKit), x402 is the easiest option — no signup needed.
+    For high-volume use, the Pro subscription ($4.99/month for 10k scrapes) is cheaper. The MCP endpoint is free and unlimited for agents.
+  </div>
+
+  <!-- Quickstart: AI Agents -->
+  <h2>Quickstart — AI Agents (Coinbase AgentKit)</h2>
+  <p>If you're building with Coinbase AgentKit, x402 is handled automatically.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Install AgentKit</h4>
+        <p><code>npm install @coinbase/agentkit</code></p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Create a wallet and fund it with USDC on Base</h4>
+        <p>Your agent needs a small amount of USDC on Base mainnet (a few cents is enough to start).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Make requests — AgentKit handles x402 automatically</h4>
+        <p>AgentKit intercepts 402 responses, pays, and retries. No code changes needed beyond initializing AgentKit with your wallet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quickstart: Developers -->
+  <h2>Quickstart — Developers (x402 npm package)</h2>
+  <p>The <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">x402</code> npm package wraps the standard <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">fetch</code> function to automatically handle 402 payment challenges.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Install the package</h4>
+        <p><code>npm install x402 @coinbase/agentkit viem</code></p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Create a wallet</h4>
+        <p>Fund it with USDC on Base. Each scrape costs $0.002 USDC.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Wrap fetch and make requests</h4>
+        <p><code>wrapFetch(fetch, wallet)</code> — the library handles payment automatically when you hit a 402.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Code Examples -->
+  <h2>Working Code Examples</h2>
+
+  <h3>JavaScript / TypeScript</h3>
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-lang">TypeScript</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code>import { wrapFetch } from 'x402/client';
+import { createWallet } from '@coinbase/agentkit';
+
+// Create and fund a Coinbase wallet (USDC on Base)
+const wallet = await createWallet();
+const fetch402 = wrapFetch(fetch, wallet);
+
+// This automatically handles 402 payment challenges
+const response = await fetch402('https://anybrowse.dev/scrape', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: 'https://example.com' })
+});
+
+const { markdown } = await response.json();
+console.log(markdown);</code></pre>
+  </div>
+
+  <h3>Python</h3>
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-lang">Python</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code>from x402.client import wrap_httpx
+import httpx
+
+# wallet must be a Coinbase CDP wallet or compatible signer
+client = wrap_httpx(httpx.Client(), wallet)
+
+response = client.post(
+    'https://anybrowse.dev/scrape',
+    json={'url': 'https://example.com'}
+)
+
+data = response.json()
+print(data['markdown'])</code></pre>
+  </div>
+
+  <h3>With viem (custom wallet)</h3>
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-lang">TypeScript</span>
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+    </div>
+    <pre><code>import { wrapFetch } from 'x402/client';
+import { createWalletClient, http } from 'viem';
+import { base } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
+
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);
+const walletClient = createWalletClient({
+  account,
+  chain: base,
+  transport: http()
+});
+
+const fetch402 = wrapFetch(fetch, walletClient);
+
+// Crawl example — $0.01 per call
+const response = await fetch402('https://anybrowse.dev/crawl', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ query: 'best web scraping tools 2025', limit: 5 })
+});
+
+const { results } = await response.json();</code></pre>
+  </div>
+
+  <!-- Pricing -->
+  <h2>Pricing</h2>
+  <div class="price-grid">
+    <div class="price-card">
+      <div class="price-label">Scrape</div>
+      <div class="price-amount">$0.002</div>
+      <div class="price-desc">POST /scrape<br>Convert URL → Markdown</div>
+    </div>
+    <div class="price-card">
+      <div class="price-label">Crawl</div>
+      <div class="price-amount">$0.01</div>
+      <div class="price-desc">POST /crawl<br>Google search + scrape</div>
+    </div>
+    <div class="price-card">
+      <div class="price-label">Search</div>
+      <div class="price-amount">$0.002</div>
+      <div class="price-desc">POST /serp/search<br>SERP results as JSON</div>
+    </div>
+    <div class="price-card">
+      <div class="price-label">Extract</div>
+      <div class="price-amount">$0.01</div>
+      <div class="price-desc">POST /extract<br>Structured JSON from URL</div>
+    </div>
+  </div>
+  <p>Payments are USDC on Base (mainnet). The x402 protocol uses the Coinbase facilitator. Gas is minimal — Base fees are fractions of a cent.</p>
+  <p>For high-volume use, compare: <a href="/pricing" style="color:#d94400">Pro subscription</a> at $4.99/month gives 10,000 scrapes (≈$0.0005/call).</p>
+
+  <!-- Payment details -->
+  <h3>Payment Details</h3>
+  <ul>
+    <li><strong>Network:</strong> Base (mainnet, chain ID 8453)</li>
+    <li><strong>Token:</strong> USDC (<code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</code>)</li>
+    <li><strong>Pay-to address:</strong> <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</code></li>
+    <li><strong>Facilitator:</strong> Coinbase CDP (hosted) — no self-hosted infrastructure needed</li>
+  </ul>
+
+  <!-- Troubleshooting -->
+  <h2>Troubleshooting</h2>
+  <table class="error-table">
+    <thead>
+      <tr>
+        <th>Error</th>
+        <th>Cause</th>
+        <th>Fix</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>paymentPayload is invalid</td>
+        <td>Manually constructed X-PAYMENT header with wrong format or encoding</td>
+        <td>Use the <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">x402</code> npm package or Coinbase AgentKit. Do <em>not</em> manually construct the header.</td>
+      </tr>
+      <tr>
+        <td>Invalid X-PAYMENT header — expected base64 JSON</td>
+        <td>X-PAYMENT value is not valid base64 or not valid JSON when decoded</td>
+        <td>The header must be a base64-encoded JSON object. Always use the x402 client library to generate it.</td>
+      </tr>
+      <tr>
+        <td>Payment already used</td>
+        <td>Replay attack — same payment submitted twice</td>
+        <td>Each payment is single-use. The x402 library generates a fresh payment per request automatically.</td>
+      </tr>
+      <tr>
+        <td>Payment verification error — try again</td>
+        <td>Temporary facilitator error</td>
+        <td>Retry the request. If persistent, check Base network status.</td>
+      </tr>
+      <tr>
+        <td>Insufficient funds</td>
+        <td>Wallet USDC balance is too low</td>
+        <td>Fund your wallet with USDC on Base mainnet. A few cents is enough for many requests.</td>
+      </tr>
+      <tr>
+        <td>Daily free limit reached</td>
+        <td>50 free scrapes/day per IP exhausted</td>
+        <td>Use x402 micropayments (this guide), subscribe to Pro ($4.99/month), or use the MCP endpoint (unlimited for agents).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Common Mistake: Manually Constructing X-PAYMENT</h3>
+  <p>The most frequent error is attempting to manually construct the <code style="font-family:monospace;background:#f4f0eb;padding:1px 5px;border-radius:3px">X-PAYMENT</code> header. This requires EIP-712 signing, USDC permit2 encoding, and specific JSON structure — it's complex and error-prone. <strong>Always use the x402 client library.</strong></p>
+
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-lang">❌ Don't do this</span>
+    </div>
+    <pre><code>// Wrong — do not manually set X-PAYMENT
+headers['X-PAYMENT'] = btoa(JSON.stringify({ amount: '2000', to: '0x...' }));</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-block-header">
+      <span class="code-lang">✅ Do this instead</span>
+    </div>
+    <pre><code>import { wrapFetch } from 'x402/client';
+// wrapFetch handles all payment signing and header construction
+const fetch402 = wrapFetch(fetch, wallet);
+const response = await fetch402('https://anybrowse.dev/scrape', { ... });</code></pre>
+  </div>
+
+  <!-- Links -->
+  <h2>Resources</h2>
+  <ul>
+    <li><a href="https://github.com/coinbase/x402" style="color:#d94400" target="_blank">x402 GitHub repository</a></li>
+    <li><a href="https://www.npmjs.com/package/x402" style="color:#d94400" target="_blank">x402 npm package</a></li>
+    <li><a href="https://docs.cdp.coinbase.com/agentkit/docs/welcome" style="color:#d94400" target="_blank">Coinbase AgentKit docs</a></li>
+    <li><a href="/docs" style="color:#d94400">anybrowse full API documentation</a></li>
+    <li><a href="/pricing" style="color:#d94400">Pricing &amp; subscription plans</a></li>
+  </ul>
+
+  <div class="footer">
+    <a href="/">anybrowse.dev</a> &middot; <a href="/docs">Docs</a> &middot; <a href="/pricing">Pricing</a> &middot; <a href="/tos">Terms</a>
+  </div>
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+</script>
+</body>
+</html>

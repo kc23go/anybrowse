@@ -4,515 +4,529 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Documentation | anybrowse</title>
-<meta name="description" content="anybrowse API documentation. Convert any URL to clean, LLM-ready Markdown. 90%+ success rate with real Chrome rendering, proxy fallback, and x402 micropayments.">
+<meta name="description" content="Get your first scrape in under 60 seconds. MCP, REST API, Python. No signup required.">
 <link rel="canonical" href="https://anybrowse.dev/docs">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-.page-wrap{max-width:980px;margin:0 auto;padding:4rem 1.5rem 2.5rem}
-.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
-.logo{width:44px;height:44px;flex-shrink:0}
-.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
-.wordmark b{font-weight:700}
-.nav-links{margin-bottom:2.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
-.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
-.nav-links a:hover,.nav-links a.active{color:#d94400}
-h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
-.page-sub{font-size:1rem;color:#555;margin-bottom:2.5rem}
-/* Docs layout */
-.docs-layout{display:grid;grid-template-columns:220px 1fr;gap:3rem;align-items:start}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:#d94400;text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:980px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.hdr{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem}
+.logo{width:40px;height:40px;flex-shrink:0}
+.wm{font-size:1.1rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wm b{font-weight:700}
+.nav{margin-bottom:2rem;display:flex;gap:1.5rem}
+.nav a{color:#767676;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase}
+.nav a.active,.nav a:hover{color:#d94400}
+/* Layout */
+.layout{display:grid;grid-template-columns:200px 1fr;gap:3rem;align-items:start}
 /* Sidebar */
-.sidebar{position:sticky;top:2rem}
-.sidebar-group{margin-bottom:1.75rem}
-.sidebar-group h3{font-size:.55rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.5rem;font-style:italic}
-.sidebar-group ul{list-style:none}
-.sidebar-group li{margin-bottom:1px}
-.sidebar-group a{display:block;padding:.3rem .6rem;color:#767676;text-decoration:none;border-radius:4px;font-size:.8rem;transition:all .15s}
-.sidebar-group a:hover{color:#d94400;background:#f0ece6}
-.sidebar-group a.active{color:#d94400;background:#fdf4f0;font-weight:600}
-/* Content */
-.content h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3rem 0 1rem;font-style:italic;padding-bottom:.5rem;border-bottom:1px solid #e0dcd7}
-.content h2:first-child{margin-top:0}
-.content h3{font-size:1rem;font-weight:700;color:#1a1a1a;margin:2rem 0 .75rem}
-.content h4{font-size:.85rem;font-weight:700;color:#1a1a1a;margin:1.5rem 0 .5rem}
-.content p{color:#555;font-size:.9rem;margin-bottom:1rem}
-.content ul,
-.content ol{padding-left:1.5rem;color:#555;font-size:.9rem;margin-bottom:1rem}
-.content li{padding:.15rem 0}
-/* Endpoint blocks */
-.endpoint{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1.25rem 1.4rem;margin:1.25rem 0}
-.endpoint-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
-.method{background:#d94400;color:#fff;padding:2px 8px;border-radius:3px;font-size:.6rem;font-weight:700;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em}
-.method.get{background:#16a34a}
-.endpoint-path{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.88rem;font-weight:600;color:#1a1a1a}
+.sidebar{position:sticky;top:1.5rem}
+.sg{margin-bottom:1.5rem}
+.sg h3{font-size:.5rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.4rem;font-style:italic}
+.sg ul{list-style:none}
+.sg a{display:block;padding:.25rem .5rem;color:#767676;border-radius:4px;font-size:.78rem;transition:all .15s}
+.sg a:hover,.sg a.active{color:#d94400;background:#fdf4f0;text-decoration:none;font-weight:600}
+/* Hero quickstart */
+.hero{background:#fff;border:2px solid #d94400;border-radius:8px;padding:1.5rem;margin-bottom:2rem}
+.hero-title{font-size:1.4rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.25rem}
+.hero-sub{color:#555;font-size:.88rem;margin-bottom:1.25rem}
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:1rem;border-bottom:2px solid #e0dcd7;padding-bottom:0}
+.tab{padding:.4rem .9rem;font-size:.78rem;font-weight:600;cursor:pointer;border:none;background:none;color:#767676;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;border-radius:4px 4px 0 0}
+.tab.active{color:#d94400;border-bottom-color:#d94400;background:#fdf4f0}
+.tab:hover:not(.active){color:#1a1a1a}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+/* Client pills */
+.clients{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+.client-pill{background:#f4f0eb;border:1px solid #e0dcd7;border-radius:20px;padding:.2rem .7rem;font-size:.72rem;font-weight:600;color:#555}
 /* Code blocks */
-.code-block{background:#fff;border:1px solid #e0dcd7;border-radius:6px;overflow:hidden;margin:1rem 0}
-.code-header{background:#f4f0eb;padding:.4rem 1rem;font-size:.6rem;color:#767676;border-bottom:1px solid #e0dcd7;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
-pre{padding:1rem 1.25rem;overflow-x:auto;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;line-height:1.65;color:#1a1a1a}
-code{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.85em;background:#f0ece6;border:1px solid #e0dcd7;padding:1px 5px;border-radius:3px;color:#1a1a1a}
-pre code{background:none;border:none;padding:0;font-size:inherit;color:inherit}
-/* JSON syntax colors */
-.jk{color:#555}
-.js{color:#2d6a4f}
-.jn{color:#d94400}
-.jb{color:#0066cc}
+.cb{background:#fff;border:1px solid #e0dcd7;border-radius:6px;overflow:hidden;margin:.75rem 0;position:relative}
+.cb-hdr{background:#f4f0eb;padding:.3rem .75rem .3rem 1rem;font-size:.58rem;color:#767676;border-bottom:1px solid #e0dcd7;letter-spacing:.08em;text-transform:uppercase;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.copy-btn{background:#d94400;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:.6rem;cursor:pointer;font-weight:600;transition:opacity .15s}
+.copy-btn:hover{opacity:.8}
+.copy-btn.copied{background:#16a34a}
+pre{padding:.85rem 1rem;overflow-x:auto;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.6;color:#1a1a1a}
+code{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.82em;background:#f0ece6;border:1px solid #e0dcd7;padding:1px 5px;border-radius:3px}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+.jk{color:#555}.js{color:#2d6a4f}.jn{color:#d94400}.jb{color:#0066cc}
+/* Try-it widget */
+.tryit{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem;margin-bottom:2rem}
+.tryit h3{font-size:.95rem;font-weight:700;margin-bottom:.75rem}
+.tryit-row{display:flex;gap:.5rem;align-items:stretch}
+.tryit-input{flex:1;padding:.55rem .8rem;border:1px solid #e0dcd7;border-radius:5px;font-size:.85rem;background:#f4f0eb;font-family:inherit;outline:none;transition:border-color .15s}
+.tryit-input:focus{border-color:#d94400}
+.tryit-btn{background:#d94400;color:#fff;border:none;border-radius:5px;padding:.55rem 1.1rem;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.tryit-btn:hover:not(:disabled){opacity:.85}
+.tryit-btn:disabled{opacity:.5;cursor:not-allowed}
+.tryit-result{margin-top:.85rem;display:none}
+.tryit-result.show{display:block}
+.tryit-result pre{background:#f4f0eb;border:1px solid #e0dcd7;border-radius:5px;padding:.75rem;font-size:.75rem;max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.tryit-err{color:#c00;font-size:.8rem;margin-top:.5rem}
+/* Section headers */
+.sh{font-size:.55rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:#767676;margin:2.5rem 0 1rem;font-style:italic;padding-bottom:.4rem;border-bottom:1px solid #e0dcd7}
+.sh:first-child{margin-top:0}
+/* Content */
+h3.ch{font-size:1rem;font-weight:700;margin:1.75rem 0 .6rem}
+h4.ch4{font-size:.85rem;font-weight:700;margin:1.25rem 0 .4rem}
+p{color:#555;font-size:.88rem;margin-bottom:.85rem}
+ul,ol{padding-left:1.4rem;color:#555;font-size:.88rem;margin-bottom:.85rem}
+li{padding:.1rem 0}
+/* Endpoint blocks */
+.ep{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem 1.25rem;margin:1rem 0}
+.ep-hdr{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem}
+.method{background:#d94400;color:#fff;padding:2px 7px;border-radius:3px;font-size:.58rem;font-weight:700;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em}
+.method.get{background:#16a34a}
+.ep-path{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;font-weight:700}
 /* Tables */
-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
-th{text-align:left;padding:.5rem .75rem;color:#767676;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #e0dcd7}
-td{padding:.6rem .75rem;border-bottom:1px solid #f0ece6;color:#555;vertical-align:top}
+table{width:100%;border-collapse:collapse;font-size:.8rem;margin:.75rem 0}
+th{text-align:left;padding:.45rem .65rem;color:#767676;font-size:.58rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #e0dcd7}
+td{padding:.5rem .65rem;border-bottom:1px solid #f0ece6;color:#555;vertical-align:top}
 tr:last-child td{border-bottom:none}
-td code{background:#f0ece6;border:1px solid #e0dcd7;padding:1px 5px;border-radius:3px;color:#1a1a1a;font-size:.8rem}
-.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:.62rem;font-weight:600;margin-left:4px;font-family:"Helvetica Neue",Helvetica,system-ui,sans-serif}
-.tag.required{background:#fdf4f0;color:#d94400;border:1px solid #fcc}
-.tag.optional{background:#f0ece6;color:#767676;border:1px solid #ddd}
+td code{font-size:.78rem}
+.tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:.6rem;font-weight:600;margin-left:3px}
+.tag.req{background:#fdf4f0;color:#d94400;border:1px solid #fcc}
+.tag.opt{background:#f0ece6;color:#767676;border:1px solid #ddd}
 /* Notes */
-.note{background:#fff;border-left:3px solid #d94400;padding:.85rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.85rem}
-.note-title{font-weight:700;color:#d94400;margin-bottom:.25rem;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase}
-.note p{color:#555;margin:0}
-.note.info{border-left-color:#0066cc}
-.note.info .note-title{color:#0066cc}
-.note.warning{border-left-color:#c87800}
-.note.warning .note-title{color:#c87800}
-/* Steps */
-.step{display:flex;gap:1rem;margin:.75rem 0;padding:1rem 1.25rem;background:#fff;border:1px solid #e0dcd7;border-radius:6px;font-size:.88rem}
-.step-num{width:28px;height:28px;background:#d94400;color:#fff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8rem;flex-shrink:0}
-.step-content h4{margin:0 0 .25rem;font-size:.88rem}
-.step-content p{margin:0;color:#555;font-size:.85rem}
-.step-content ul{margin:.4rem 0 0;font-size:.82rem}
-/* Links */
-a{color:#d94400;text-decoration:none}
-a:hover{text-decoration:underline}
-a:focus{outline:2px solid #d94400;outline-offset:2px}
+.note{background:#fff;border-left:3px solid #d94400;padding:.7rem 1rem;border-radius:0 6px 6px 0;margin:.85rem 0;font-size:.83rem}
+.note-title{font-weight:700;color:#d94400;margin-bottom:.2rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+.note.info{border-left-color:#0066cc}.note.info .note-title{color:#0066cc}
+/* Pricing cards */
+.pricing-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0}
+.pc{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem}
+.pc.featured{border-color:#d94400;border-width:2px}
+.pc-name{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#767676;margin-bottom:.3rem}
+.pc-price{font-size:1.5rem;font-weight:800;color:#1a1a1a;margin-bottom:.2rem}
+.pc-desc{font-size:.78rem;color:#555}
 /* Footer */
-footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
-footer a{color:#767676;text-decoration:none;transition:color .15s}
-footer a:hover{color:#1a1a1a}
+footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid #ddd8d2;font-size:.73rem;color:#767676;line-height:2.4}
+footer a{color:#767676}footer a:hover{color:#1a1a1a}
 .mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
 /* Mobile */
-@media(max-width:720px){
-.page-wrap{padding:2.5rem 1rem 1.5rem}
-.docs-layout{grid-template-columns:1fr}
-.sidebar{display:none}
-h1{font-size:1.8rem}
+@media(max-width:680px){
+.layout{grid-template-columns:1fr}.sidebar{display:none}
+.hero-title{font-size:1.2rem}.pricing-row{grid-template-columns:1fr}
+.tryit-row{flex-direction:column}
 }
 </style>
 </head>
 <body>
-<div class="page-wrap">
+<div class="wrap">
 
-<div class="header">
-<a href="/">
-<svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="anybrowse logo" role="img">
+<div class="hdr">
+<a href="/"><svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
 <defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
 <circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
 <g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
-<line x1="28" y1="100" x2="172" y2="100"/>
-<line x1="36" y1="68" x2="164" y2="68"/>
-<line x1="36" y1="132" x2="164" y2="132"/>
-<ellipse cx="100" cy="100" rx="26" ry="72"/>
-<ellipse cx="100" cy="100" rx="56" ry="72"/>
+<line x1="28" y1="100" x2="172" y2="100"/><line x1="36" y1="68" x2="164" y2="68"/><line x1="36" y1="132" x2="164" y2="132"/>
+<ellipse cx="100" cy="100" rx="26" ry="72"/><ellipse cx="100" cy="100" rx="56" ry="72"/>
 </g>
 <line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
 <polygon points="85,148 100,172 115,148" fill="#d94400"/>
-</svg>
-</a>
-<a href="/" class="wordmark" style="text-decoration:none">any<b>browse</b></a>
+</svg></a>
+<a href="/" class="wm">any<b>browse</b></a>
 </div>
 
-<div class="nav-links">
-<a href="/docs" class="active">Documentation</a>
-<a href="/pricing">Pricing</a>
-</div>
+<div class="nav"><a href="/docs" class="active">Documentation</a><a href="/pricing">Pricing</a></div>
 
-<h1>Documentation</h1>
-<p class="page-sub">90%+ success rate. Real Chrome rendering. Pay with a card or USDC on Base.</p>
-
-<div class="docs-layout">
-
-<!-- Sidebar -->
+<div class="layout">
 <aside class="sidebar">
-<div class="sidebar-group">
-  <h3>API Reference</h3>
-  <ul>
-    <li><a href="#scrape">POST /scrape</a></li>
-    <li><a href="#crawl">POST /crawl</a></li>
-    <li><a href="#search">POST /serp/search</a></li>
-    <li><a href="#mcp-endpoint">GET /mcp</a></li>
-    <li><a href="#errors">Error codes</a></li>
-  </ul>
-</div>
-<div class="sidebar-group">
-  <h3>Getting Started</h3>
-  <ul>
-    <li><a href="#free-usage">Free tier</a></li>
-    <li><a href="#api-key">API key (Pro)</a></li>
-    <li><a href="#x402-setup">x402 setup</a></li>
-    <li><a href="#payment-flow">Payment flow</a></li>
-  </ul>
-</div>
-<div class="sidebar-group">
-  <h3>MCP Integration</h3>
-  <ul>
-    <li><a href="#mcp-claude-code">Claude Code</a></li>
-    <li><a href="#mcp-cursor">Cursor</a></li>
-    <li><a href="#mcp-windsurf">Windsurf</a></li>
-    <li><a href="#mcp-desktop">Claude Desktop</a></li>
-  </ul>
-</div>
-<div class="sidebar-group">
-  <h3>Best Practices</h3>
-  <ul>
-    <li><a href="#rate-limits">Rate limits</a></li>
-    <li><a href="#error-handling">Error handling</a></li>
-    <li><a href="#cost-tips">Cost tips</a></li>
-  </ul>
-</div>
+<div class="sg"><h3>Start here</h3><ul>
+<li><a href="#quickstart">Quickstart</a></li>
+<li><a href="#tryit">Try it live</a></li>
+<li><a href="#pricing">Pricing</a></li>
+</ul></div>
+<div class="sg"><h3>MCP Setup</h3><ul>
+<li><a href="#mcp-claude-code">Claude Code</a></li>
+<li><a href="#mcp-cursor">Cursor</a></li>
+<li><a href="#mcp-windsurf">Windsurf</a></li>
+<li><a href="#mcp-desktop">Claude Desktop</a></li>
+</ul></div>
+<div class="sg"><h3>API Reference</h3><ul>
+<li><a href="#scrape">scrape</a></li>
+<li><a href="#crawl">crawl</a></li>
+<li><a href="#batch">batch_scrape</a></li>
+<li><a href="#extract">extract</a></li>
+<li><a href="#search">search</a></li>
+<li><a href="#errors">Errors</a></li>
+</ul></div>
+<div class="sg"><h3>Payments</h3><ul>
+<li><a href="#x402">x402 setup</a></li>
+<li><a href="#rate-limits">Rate limits</a></li>
+</ul></div>
 </aside>
 
-<!-- Main content -->
-<main class="content">
+<main>
 
-<h2 id="api-reference">API REFERENCE</h2>
-<p>All endpoints accept JSON and return Markdown or JSON. Authenticate with an API key (Pro) or x402 payment header. Free tier: 10 requests/day, no auth required.</p>
+<!-- HERO QUICKSTART -->
+<section id="quickstart">
+<div class="hero">
+<div class="hero-title">First scrape in 60 seconds</div>
+<div class="hero-sub">No signup. No API key. Pick your setup:</div>
 
-<div class="endpoint" id="scrape">
-<div class="endpoint-header">
-  <span class="method">POST</span>
-  <span class="endpoint-path">/scrape</span>
-</div>
-<p>Convert a single URL to clean, LLM-ready Markdown. Uses a real Chrome browser with stealth mode and automatic proxy fallback for blocked sites.</p>
-
-<h4>Request body</h4>
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>url</code> <span class="tag required">required</span></td><td>string</td><td>The URL to scrape. Must start with http:// or https://</td></tr>
-<tr><td><code>waitFor</code> <span class="tag optional">optional</span></td><td>number</td><td>Milliseconds to wait for JS rendering (default: 5000)</td></tr>
-<tr><td><code>timeout</code> <span class="tag optional">optional</span></td><td>number</td><td>Max page load time in ms (default: 30000)</td></tr>
-</tbody>
-</table>
-
-<h4>Example</h4>
-<div class="code-block">
-<div class="code-header">curl</div>
-<pre>curl -X POST https://anybrowse.dev/scrape \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com"}'</pre>
+<div class="tabs">
+<button class="tab active" onclick="switchTab('mcp')">MCP (Agents)</button>
+<button class="tab" onclick="switchTab('rest')">REST API</button>
+<button class="tab" onclick="switchTab('python')">Python</button>
 </div>
 
-<div class="code-block">
-<div class="code-header">With API key (Pro)</div>
-<pre>curl -X POST https://anybrowse.dev/scrape \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ab_your_key_here" \
-  -d '{"url": "https://example.com", "waitFor": 3000}'</pre>
-</div>
-
-<h4>Response (200 OK)</h4>
-<div class="code-block">
-<div class="code-header">Plain Markdown text</div>
-<pre># Example Domain
-
-This domain is for use in illustrative examples in documents.
-You may use this domain in literature without prior coordination.
-
-[More information...](https://www.iana.org/domains/example)</pre>
-</div>
-</div>
-
-<div class="endpoint" id="crawl">
-<div class="endpoint-header">
-  <span class="method">POST</span>
-  <span class="endpoint-path">/crawl</span>
-</div>
-<p>Multi-page crawling with recursive link following. Ideal for documentation sites, product pages, and sitemaps.</p>
-
-<h4>Request body</h4>
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>url</code> <span class="tag required">required</span></td><td>string</td><td>Starting URL for the crawl</td></tr>
-<tr><td><code>maxPages</code> <span class="tag optional">optional</span></td><td>number</td><td>Max pages to crawl (default: 10, max: 100)</td></tr>
-<tr><td><code>maxDepth</code> <span class="tag optional">optional</span></td><td>number</td><td>Max link depth from start URL (default: 2)</td></tr>
-<tr><td><code>sameDomain</code> <span class="tag optional">optional</span></td><td>boolean</td><td>Only follow same-domain links (default: true)</td></tr>
-</tbody>
-</table>
-
-<h4>Example response</h4>
-<div class="code-block">
-<div class="code-header">200 OK — application/json</div>
+<div id="tab-mcp" class="tab-panel active">
+<p style="font-size:.82rem;color:#555;margin-bottom:.5rem">Add to your MCP config and ask your agent to scrape anything:</p>
+<div class="cb">
+<div class="cb-hdr">MCP config (all clients)<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 <pre>{
-  <span class="jk">"pages"</span>: [
-    {
-      <span class="jk">"url"</span>: <span class="js">"https://example.com"</span>,
-      <span class="jk">"title"</span>: <span class="js">"Example Domain"</span>,
-      <span class="jk">"markdown"</span>: <span class="js">"# Example Domain..."</span>
+  <span class="jk">"mcpServers"</span>: {
+    <span class="jk">"anybrowse"</span>: {
+      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
+      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
     }
-  ],
-  <span class="jk">"crawled"</span>: <span class="jn">2</span>,
-  <span class="jk">"skipped"</span>: <span class="jn">0</span>
-}</pre>
-</div>
-</div>
-
-<div class="endpoint" id="search">
-<div class="endpoint-header">
-  <span class="method">POST</span>
-  <span class="endpoint-path">/serp/search</span>
-</div>
-<p>Run a Google search and return results as structured data or Markdown. Useful for agents that need to find and then scrape relevant pages.</p>
-
-<h4>Request body</h4>
-<table>
-<thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>query</code> <span class="tag required">required</span></td><td>string</td><td>Search query</td></tr>
-<tr><td><code>num</code> <span class="tag optional">optional</span></td><td>number</td><td>Number of results to return (default: 10)</td></tr>
-</tbody>
-</table>
+  }
+}</pre></div>
+<p style="font-size:.82rem;color:#555;margin:.75rem 0 .4rem">Then ask your agent:</p>
+<div class="cb">
+<div class="cb-hdr">Natural language prompt<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>Scrape https://techcrunch.com and summarize the top stories</pre></div>
+<div style="margin-top:1rem">
+<p style="font-size:.8rem;font-weight:700;color:#1a1a1a;margin-bottom:.5rem">Where to put this config:</p>
+<table><thead><tr><th>Client</th><th>Config location</th></tr></thead><tbody>
+<tr><td><strong>Claude Code</strong></td><td><code>~/.claude/claude_desktop_config.json</code> → mcpServers</td></tr>
+<tr><td><strong>Cursor</strong></td><td>Settings → MCP → Add Server</td></tr>
+<tr><td><strong>Windsurf</strong></td><td><code>~/.codeium/windsurf/mcp_config.json</code> → mcpServers</td></tr>
+<tr><td><strong>Claude Desktop</strong></td><td><code>~/Library/Application Support/Claude/claude_desktop_config.json</code></td></tr>
+</tbody></table></div>
 </div>
 
-<div class="endpoint" id="mcp-endpoint">
-<div class="endpoint-header">
-  <span class="method get">GET</span>
-  <span class="endpoint-path">/mcp</span>
-</div>
-<p>Streamable-HTTP MCP server. Exposes <code>scrape</code>, <code>crawl</code>, and <code>search</code> tools to any MCP-compatible client.</p>
-
-<h4>Available tools</h4>
-<table>
-<thead><tr><th>Tool</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td><code>scrape</code></td><td>Convert any URL to LLM-ready Markdown</td></tr>
-<tr><td><code>crawl</code></td><td>Multi-page crawl, returns array of pages</td></tr>
-<tr><td><code>search</code></td><td>Google search, returns structured results</td></tr>
-</tbody>
-</table>
-</div>
-
-<h3 id="errors">Error codes</h3>
-<p>All error responses include a JSON body with a machine-readable <code>reason</code> field.</p>
-<div class="code-block">
-<div class="code-header">Error response shape</div>
-<pre>{
-  <span class="jk">"error"</span>: <span class="js">"Human-readable description"</span>,
-  <span class="jk">"reason"</span>: <span class="js">"REASON_CODE"</span>,
-  <span class="jk">"upgrade"</span>: <span class="js">"https://anybrowse.dev/checkout"</span>
-}</pre>
-</div>
-<table>
-<thead><tr><th>Status</th><th>Reason</th><th>Description</th></tr></thead>
-<tbody>
-<tr><td>200</td><td><code>OK</code></td><td>Successful scrape or crawl</td></tr>
-<tr><td>400</td><td><code>BAD_REQUEST</code></td><td>Invalid URL or missing parameters</td></tr>
-<tr><td>402</td><td><code>PAYMENT_REQUIRED</code></td><td>Free tier exceeded. See upgrade link in response.</td></tr>
-<tr><td>403</td><td><code>FORBIDDEN</code></td><td>URL blocked (private IP, localhost, etc.)</td></tr>
-<tr><td>404</td><td><code>NOT_FOUND</code></td><td>Target URL returned 404</td></tr>
-<tr><td>429</td><td><code>TOO_MANY_REQUESTS</code></td><td>Rate limit exceeded</td></tr>
-<tr><td>451</td><td><code>BLOCKED</code></td><td>Site blocked scraping after proxy fallback</td></tr>
-<tr><td>500</td><td><code>INTERNAL_ERROR</code></td><td>Browser or server error</td></tr>
-<tr><td>504</td><td><code>TIMEOUT</code></td><td>Page load exceeded 30s timeout</td></tr>
-</tbody>
-</table>
-
-<h2 id="getting-started">GETTING STARTED</h2>
-
-<h3 id="free-usage">Free tier</h3>
-<p>10 scrapes, 10 crawls, and 10 searches per day. No signup, no API key. Just send a request:</p>
-<div class="code-block">
-<div class="code-header">curl</div>
+<div id="tab-rest" class="tab-panel">
+<div class="cb">
+<div class="cb-hdr">curl<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 <pre>curl -X POST https://anybrowse.dev/scrape \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://example.com"}'</pre>
-</div>
-<p>Limits reset at midnight UTC. Hit the limit and you'll get a 402 with an upgrade link.</p>
+  -d '{"url": "https://techcrunch.com"}'</pre></div>
+<div class="cb">
+<div class="cb-hdr">Response</div>
+<pre># TechCrunch
+## Top Stories
 
-<h3 id="api-key">API key (Pro)</h3>
-<p>Subscribe at <a href="/checkout">/checkout</a> for $4.99/month. You'll get an API key in the format <code>ab_...</code>. Use it as a Bearer token:</p>
-<div class="code-block">
-<div class="code-header">Authorization header</div>
-<pre>Authorization: Bearer ab_your_key_here</pre>
+Latest news from the world of technology...
+(returns full page as clean Markdown)</pre></div>
 </div>
 
-<h3 id="x402-setup" class="payment">x402 payments</h3>
-<p>Pay $0.002/scrape in USDC on Base. No account needed. Install an x402-compatible client:</p>
-<div class="code-block">
-<div class="code-header">npm</div>
-<pre>npm install x402-fetch</pre>
+<div id="tab-python" class="tab-panel">
+<div class="cb">
+<div class="cb-hdr">Python<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>import requests
+
+r = requests.post("https://anybrowse.dev/scrape",
+                  json={"url": "https://techcrunch.com"})
+print(r.json()["markdown"])</pre></div>
+<div class="note info"><div class="note-title">Returns JSON for REST, plain text for MCP</div>
+<p>REST API returns <code>{"markdown": "..."}</code>. MCP tools return plain markdown strings directly.</p></div>
 </div>
-<div class="code-block">
-<div class="code-header">JavaScript / TypeScript</div>
+</div><!-- .hero -->
+</section>
+
+<!-- TRY IT WIDGET -->
+<section id="tryit">
+<div class="tryit">
+<h3>Try it live</h3>
+<div class="tryit-row">
+<input class="tryit-input" id="tryit-url" type="url" placeholder="https://example.com" value="https://example.com">
+<button class="tryit-btn" id="tryit-btn" onclick="runScrape()">Scrape it</button>
+</div>
+<div class="tryit-result" id="tryit-result">
+<pre id="tryit-output"></pre>
+</div>
+<div class="tryit-err" id="tryit-err"></div>
+</div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+<div class="sh">WHAT HAPPENS NEXT</div>
+<div class="pricing-row">
+<div class="pc">
+<div class="pc-name">Free</div>
+<div class="pc-price">$0</div>
+<div class="pc-desc">10 scrapes/day. No API key. No signup. Resets at midnight UTC.</div>
+</div>
+<div class="pc featured">
+<div class="pc-name">Pro</div>
+<div class="pc-price">$4.99<span style="font-size:.9rem;font-weight:400">/mo</span></div>
+<div class="pc-desc">Unlimited scrapes. API key. Priority queue. <a href="/checkout">Get started</a></div>
+</div>
+<div class="pc">
+<div class="pc-name">Pay-per-use</div>
+<div class="pc-price">$0.002</div>
+<div class="pc-desc">Per scrape via x402 micropayments. USDC on Base. No subscription. <a href="#x402">Set up</a></div>
+</div>
+</div>
+<p>When you hit the free limit, you get a <code>402</code> with an upgrade link in the response. Rate limits reset daily at 00:00 UTC.</p>
+</section>
+
+<!-- MCP SETUP -->
+<div class="sh" id="mcp-setup">MCP SETUP</div>
+
+<div id="mcp-claude-code">
+<h3 class="ch">Claude Code</h3>
+<div class="cb"><div class="cb-hdr">~/.claude/claude_desktop_config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>{
+  <span class="jk">"mcpServers"</span>: {
+    <span class="jk">"anybrowse"</span>: {
+      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
+      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
+    }
+  }
+}</pre></div>
+<p>Or use a project-local <code>.mcp.json</code> file in your repo root with the same structure.</p>
+</div>
+
+<div id="mcp-cursor">
+<h3 class="ch">Cursor</h3>
+<p>Go to <strong>Settings → MCP → Add Server</strong> and paste:</p>
+<div class="cb"><div class="cb-hdr">Cursor MCP config<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>{
+  <span class="jk">"mcpServers"</span>: {
+    <span class="jk">"anybrowse"</span>: {
+      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
+      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
+    }
+  }
+}</pre></div>
+</div>
+
+<div id="mcp-windsurf">
+<h3 class="ch">Windsurf</h3>
+<p>Go to <strong>Settings → Model Context Protocol</strong> or edit directly:</p>
+<div class="cb"><div class="cb-hdr">~/.codeium/windsurf/mcp_config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>{
+  <span class="jk">"mcpServers"</span>: {
+    <span class="jk">"anybrowse"</span>: {
+      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
+      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
+    }
+  }
+}</pre></div>
+</div>
+
+<div id="mcp-desktop">
+<h3 class="ch">Claude Desktop</h3>
+<div class="cb"><div class="cb-hdr">~/Library/Application Support/Claude/claude_desktop_config.json<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>{
+  <span class="jk">"mcpServers"</span>: {
+    <span class="jk">"anybrowse"</span>: {
+      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
+      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
+    }
+  }
+}</pre></div>
+<div class="note"><div class="note-title">No key needed</div><p>Free tier works out of the box. For Pro, add <code>"apiKey": "ab_your_key"</code> to the server config.</p></div>
+</div>
+
+<!-- API REFERENCE -->
+<div class="sh">MCP TOOLS &amp; API REFERENCE</div>
+
+<div class="ep" id="scrape">
+<div class="ep-hdr"><span class="method">POST</span><span class="ep-path">/scrape</span><span style="font-size:.72rem;color:#555;margin-left:.5rem">MCP tool: <code>scrape</code></span></div>
+<p>Convert any URL to clean, LLM-ready Markdown. <strong>84% scrape success rate</strong> — works on JavaScript-heavy sites, Cloudflare-protected pages, and government sites. Uses real Chrome with stealth mode, automatic CAPTCHA solving, and proxy fallback.</p>
+<table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>url</code> <span class="tag req">required</span></td><td>string</td><td>URL to scrape (http/https)</td></tr>
+<tr><td><code>slow</code> <span class="tag opt">optional</span></td><td>boolean</td><td>Wait extra time for JS-heavy sites (default: false)</td></tr>
+<tr><td><code>waitFor</code> <span class="tag opt">optional</span></td><td>number</td><td>Custom JS wait in ms (default: 5000)</td></tr>
+</tbody></table>
+<div class="cb"><div class="cb-hdr">Example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>curl -X POST https://anybrowse.dev/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://news.ycombinator.com"}'
+
+# Returns: plain Markdown text of the page</pre></div>
+</div>
+
+<div class="ep" id="crawl">
+<div class="ep-hdr"><span class="method">POST</span><span class="ep-path">/crawl</span><span style="font-size:.72rem;color:#555;margin-left:.5rem">MCP tool: <code>crawl</code></span></div>
+<p>Recursively crawl a site and return multiple pages as Markdown. Ideal for docs sites and product catalogs.</p>
+<table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>url</code> <span class="tag req">required</span></td><td>string</td><td>Starting URL</td></tr>
+<tr><td><code>maxPages</code> <span class="tag opt">optional</span></td><td>number</td><td>Max pages to crawl (default: 10, max: 100)</td></tr>
+<tr><td><code>maxDepth</code> <span class="tag opt">optional</span></td><td>number</td><td>Link depth from start URL (default: 2)</td></tr>
+<tr><td><code>sameDomain</code> <span class="tag opt">optional</span></td><td>boolean</td><td>Only follow same-domain links (default: true)</td></tr>
+</tbody></table>
+<div class="cb"><div class="cb-hdr">Response (200 OK)<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>{
+  <span class="jk">"pages"</span>: [{ <span class="jk">"url"</span>: <span class="js">"https://docs.example.com"</span>, <span class="jk">"title"</span>: <span class="js">"Introduction"</span>, <span class="jk">"markdown"</span>: <span class="js">"# Introduction..."</span> }],
+  <span class="jk">"crawled"</span>: <span class="jn">5</span>, <span class="jk">"skipped"</span>: <span class="jn">1</span>
+}</pre></div>
+</div>
+
+<div class="ep" id="batch">
+<div class="ep-hdr"><span class="method">POST</span><span class="ep-path">/batch</span><span style="font-size:.72rem;color:#555;margin-left:.5rem">MCP tool: <code>batch_scrape</code></span></div>
+<p>Scrape up to 10 URLs in parallel in a single call. More efficient than looping /scrape.</p>
+<table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>urls</code> <span class="tag req">required</span></td><td>string[]</td><td>Array of URLs (max 10)</td></tr>
+</tbody></table>
+<div class="cb"><div class="cb-hdr">Example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>curl -X POST https://anybrowse.dev/batch \
+  -H "Content-Type: application/json" \
+  -d '{"urls": ["https://techcrunch.com", "https://theverge.com", "https://wired.com"]}'
+
+# Response: { "results": [{ "url": "...", "success": true, "markdown": "...", "title": "..." }] }</pre></div>
+</div>
+
+<div class="ep" id="extract">
+<div class="ep-hdr"><span class="method">POST</span><span class="ep-path">/extract</span><span style="font-size:.72rem;color:#555;margin-left:.5rem">MCP tool: <code>extract</code></span></div>
+<p>Extract structured JSON from any page using a field schema. Returns typed data alongside raw Markdown.</p>
+<table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>url</code> <span class="tag req">required</span></td><td>string</td><td>URL to extract from</td></tr>
+<tr><td><code>schema</code> <span class="tag req">required</span></td><td>object</td><td>Field names mapped to types: <code>string</code>, <code>number</code>, <code>boolean</code>, <code>array</code></td></tr>
+</tbody></table>
+<div class="cb"><div class="cb-hdr">Example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>curl -X POST https://anybrowse.dev/extract \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://shop.example.com/product/1",
+       "schema": {"price": "number", "title": "string", "in_stock": "boolean"}}'
+
+# Response: { "data": { "price": 29.99, "title": "Widget Pro", "in_stock": true }, "markdown": "..." }</pre></div>
+</div>
+
+<div class="ep" id="search">
+<div class="ep-hdr"><span class="method">POST</span><span class="ep-path">/serp/search</span><span style="font-size:.72rem;color:#555;margin-left:.5rem">MCP tool: <code>search</code></span></div>
+<p>Real-time web search via <strong>Brave Search API</strong> — fast, reliable, no rate limits. Returns results as structured JSON. Use before scraping to find the right pages.</p>
+<table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>query</code> <span class="tag req">required</span></td><td>string</td><td>Search query</td></tr>
+<tr><td><code>num</code> <span class="tag opt">optional</span></td><td>number</td><td>Number of results (default: 10)</td></tr>
+</tbody></table>
+<div class="cb"><div class="cb-hdr">Example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>curl -X POST https://anybrowse.dev/serp/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "best MCP servers 2025", "num": 5}'
+
+# Response: { "results": [{ "title": "...", "url": "...", "snippet": "..." }] }</pre></div>
+</div>
+
+<!-- ERRORS -->
+<div class="sh" id="errors">ERROR REFERENCE</div>
+<table>
+<thead><tr><th>Status</th><th>Error</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>402</td><td>Daily limit reached</td><td>Upgrade to Pro at <a href="/checkout">/checkout</a> or use <a href="#x402">x402 pay-per-use</a></td></tr>
+<tr><td>402</td><td>Payment verification failed</td><td>Check wallet balance; use the x402-fetch library (see below)</td></tr>
+<tr><td>200</td><td>Empty or minimal content</td><td>Site may require more JS time. Add <code>"slow": true</code> to request</td></tr>
+<tr><td>451</td><td>BLOCKED</td><td>Site blocked scraping after proxy fallback. Try a different URL or contact us</td></tr>
+<tr><td>429</td><td>TOO_MANY_REQUESTS</td><td>Check the <code>Retry-After</code> header and wait before retrying</td></tr>
+<tr><td>504</td><td>TIMEOUT</td><td>Page took over 30s to load. Try with a shorter <code>timeout</code> or skip</td></tr>
+<tr><td>500</td><td>INTERNAL_ERROR</td><td>Retry once; if persistent the URL may be permanently blocked</td></tr>
+<tr><td>400</td><td>BAD_REQUEST</td><td>Check that <code>url</code> starts with <code>http://</code> or <code>https://</code></td></tr>
+</tbody>
+</table>
+<div class="cb"><div class="cb-hdr">Error response shape</div>
+<pre>{ <span class="jk">"error"</span>: <span class="js">"Human-readable message"</span>, <span class="jk">"reason"</span>: <span class="js">"REASON_CODE"</span>, <span class="jk">"upgrade"</span>: <span class="js">"https://anybrowse.dev/checkout"</span> }</pre></div>
+
+<!-- X402 -->
+<div class="sh" id="x402">x402 MICROPAYMENTS</div>
+<p>Pay $0.002/scrape in USDC on Base. No subscription, no account needed. The x402-fetch library handles payment automatically.</p>
+<div class="cb"><div class="cb-hdr">Install<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>npm install x402-fetch</pre></div>
+<div class="cb"><div class="cb-hdr">JavaScript / TypeScript<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 <pre>import { x402Fetch } from 'x402-fetch';
 
 const client = x402Fetch({
-  wallet: {
-    privateKey: process.env.WALLET_PRIVATE_KEY,
-    network: 'base'
-  },
+  wallet: { privateKey: process.env.WALLET_PRIVATE_KEY, network: 'base' },
   facilitator: 'coinbase'
 });
 
-const response = await client('https://anybrowse.dev/scrape', {
+const res = await client('https://anybrowse.dev/scrape', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ url: 'https://example.com' })
+  body: JSON.stringify({ url: 'https://techcrunch.com' })
 });
+const markdown = await res.text();</pre></div>
+<div class="note info"><div class="note-title">Test for free on Base Sepolia</div>
+<p>Use <code>network: 'base-sepolia'</code> and get test USDC from the <a href="https://faucet.circle.com/" target="_blank">Circle faucet</a>.</p></div>
 
-const markdown = await response.text();</pre>
-</div>
-
-<div class="note info">
-  <div class="note-title">Test on Base Sepolia</div>
-  <p>Use <code>network: 'base-sepolia'</code> for testing. Get test USDC from the <a href="https://faucet.circle.com/" target="_blank">Circle faucet</a>.</p>
-</div>
-
-<h3 id="payment-flow">Payment flow</h3>
-<p>x402 payments are automatic with the x402-fetch library. Here is what happens under the hood:</p>
-<div class="code-block">
-<div class="code-header">x402 flow</div>
-<pre>1. Client  POST /scrape (no payment header)
-2. Server  402 Payment Required
-           X-Payment-Requirements: {"amount": "2000", "asset": "USDC", ...}
-3. Client  Signs EIP-3009 authorization (off-chain, gasless)
-4. Client  POST /scrape + X-Payment: &lt;signed-auth&gt;
-5. Server  Verifies with Coinbase facilitator
-6. Server  Returns scraped Markdown</pre>
-</div>
-
-<h2 id="mcp-integration">MCP INTEGRATION</h2>
-<p>anybrowse exposes a Streamable-HTTP MCP server at <code>https://anybrowse.dev/mcp</code>. Works with Claude Code, Cursor, Windsurf, and any MCP-compatible client.</p>
-
-<h3 id="mcp-claude-code">Claude Code</h3>
-<p>Add to your project's <code>.mcp.json</code> or global MCP config:</p>
-<div class="code-block">
-<div class="code-header">.mcp.json</div>
-<pre>{
-  <span class="jk">"mcpServers"</span>: {
-    <span class="jk">"anybrowse"</span>: {
-      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
-      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
-    }
-  }
-}</pre>
-</div>
-
-<h3 id="mcp-cursor">Cursor</h3>
-<p>Go to <strong>Settings &rarr; AI &rarr; MCP Servers</strong> and add a new server:</p>
-<div class="code-block">
-<div class="code-header">Cursor MCP config</div>
-<pre>{
-  <span class="jk">"mcpServers"</span>: {
-    <span class="jk">"anybrowse"</span>: {
-      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
-      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
-    }
-  }
-}</pre>
-</div>
-
-<h3 id="mcp-windsurf">Windsurf</h3>
-<div class="code-block">
-<div class="code-header">~/.codeium/windsurf/mcp_config.json</div>
-<pre>{
-  <span class="jk">"mcpServers"</span>: {
-    <span class="jk">"anybrowse"</span>: {
-      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
-      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
-    }
-  }
-}</pre>
-</div>
-
-<h3 id="mcp-desktop">Claude Desktop</h3>
-<div class="code-block">
-<div class="code-header">~/Library/Application Support/Claude/claude_desktop_config.json</div>
-<pre>{
-  <span class="jk">"mcpServers"</span>: {
-    <span class="jk">"anybrowse"</span>: {
-      <span class="jk">"type"</span>: <span class="js">"streamable-http"</span>,
-      <span class="jk">"url"</span>: <span class="js">"https://anybrowse.dev/mcp"</span>
-    }
-  }
-}</pre>
-</div>
-
-<div class="note">
-  <div class="note-title">No private key needed</div>
-  <p>The MCP server uses the free tier by default (10 requests/day). For production, add your API key or configure an x402 wallet.</p>
-</div>
-
-<h2 id="best-practices">BEST PRACTICES</h2>
-
-<h3 id="rate-limits">Rate limits</h3>
+<!-- RATE LIMITS -->
+<div class="sh" id="rate-limits">RATE LIMITS</div>
 <table>
-<thead><tr><th>Endpoint</th><th>Free tier</th><th>Pro tier</th></tr></thead>
+<thead><tr><th>Endpoint</th><th>Free</th><th>Pro</th><th>x402</th></tr></thead>
 <tbody>
-<tr><td><code>/scrape</code></td><td>10/day</td><td>10,000/month, 60/min</td></tr>
-<tr><td><code>/crawl</code></td><td>10/day</td><td>10,000/month, 10/min</td></tr>
-<tr><td><code>/serp/search</code></td><td>10/day</td><td>10,000/month</td></tr>
-<tr><td><code>/mcp</code></td><td>Free</td><td>Free</td></tr>
+<tr><td><code>/scrape</code></td><td>10/day</td><td>10,000/month</td><td>Unlimited (pay per call)</td></tr>
+<tr><td><code>/crawl</code></td><td>10/day</td><td>10,000/month</td><td>Unlimited</td></tr>
+<tr><td><code>/batch</code></td><td>5/day</td><td>Unlimited</td><td>Unlimited</td></tr>
+<tr><td><code>/serp/search</code></td><td>10/day</td><td>10,000/month</td><td>Unlimited</td></tr>
+<tr><td><code>/mcp</code> (connect)</td><td>Free</td><td>Free</td><td>Free</td></tr>
 </tbody>
 </table>
-<p>Rate limit responses include a <code>Retry-After</code> header with seconds to wait.</p>
-
-<h3 id="error-handling">Error handling</h3>
-<div class="code-block">
-<div class="code-header">Robust error handling</div>
-<pre>try {
-  const response = await client('https://anybrowse.dev/scrape', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  });
-
-  if (response.status === 402) {
-    // x402 client handles this automatically
-    // Manual fallback: check wallet balance
-    console.error('Payment failed');
-  } else if (response.status === 429) {
-    const retryAfter = response.headers.get('Retry-After');
-    await sleep(retryAfter * 1000);
-    // retry...
-  } else if (!response.ok) {
-    const err = await response.json();
-    // err.reason: TIMEOUT | BLOCKED | NOT_FOUND | INTERNAL_ERROR
-    if (err.reason === 'TIMEOUT') {
-      // Page was slow — increase waitFor or skip
-    } else if (err.reason === 'BLOCKED') {
-      // Site blocked scraping after proxy fallback
-    }
-    throw new Error(`[${err.reason}] ${err.error}`);
-  }
-
-  return await response.text();
-} catch (err) {
-  console.error('Scrape failed:', err);
-}</pre>
-</div>
-
-<h3 id="cost-tips">Cost tips</h3>
-<div class="note warning">
-  <div class="note-title">Reduce costs</div>
-  <p>A few things that add up:</p>
-</div>
-<ul>
-  <li><strong>Use /crawl for multi-page jobs</strong> rather than many individual /scrape calls</li>
-  <li><strong>Cache results</strong> locally to avoid scraping the same URL twice</li>
-  <li><strong>Set a realistic waitFor</strong> value. 2000ms is often enough for most sites</li>
-  <li><strong>Use sameDomain: true</strong> to avoid accidentally crawling external links</li>
-  <li><strong>Test on Base Sepolia</strong> to validate your integration before spending mainnet USDC</li>
-</ul>
+<p>Limits reset at midnight UTC. Rate limit responses include a <code>Retry-After</code> header in seconds.</p>
 
 </main>
-</div>
+</div><!-- .layout -->
 
 <footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
 <span class="mn">anybrowse.base.eth</span><br>
 <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
 </footer>
 
-</div><!-- .page-wrap -->
+</div><!-- .wrap -->
+
+<script>
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function copyCode(btn) {
+  const pre = btn.closest('.cb').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
+async function runScrape() {
+  const url = document.getElementById('tryit-url').value.trim();
+  const btn = document.getElementById('tryit-btn');
+  const result = document.getElementById('tryit-result');
+  const output = document.getElementById('tryit-output');
+  const err = document.getElementById('tryit-err');
+  err.textContent = '';
+  result.classList.remove('show');
+  if (!url) { err.textContent = 'Enter a URL first.'; return; }
+  btn.disabled = true; btn.textContent = 'Scraping...';
+  try {
+    const res = await fetch('/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (res.status === 402) { err.textContent = 'Free tier limit reached (10/day). Upgrade to Pro or use x402.'; return; }
+    if (!res.ok) { err.textContent = 'Error ' + res.status + '. Check the URL and try again.'; return; }
+    const text = await res.text();
+    let md = text;
+    try { md = JSON.parse(text).markdown || text; } catch(e){}
+    output.textContent = md.slice(0, 600) + (md.length > 600 ? '\n\n... (truncated)' : '');
+    result.classList.add('show');
+  } catch(e) {
+    err.textContent = 'Network error. Check your connection.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Scrape it';
+  }
+}
+
+// Scroll spy for sidebar
+const sections = document.querySelectorAll('[id]');
+const links = document.querySelectorAll('.sg a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+  links.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+}, { passive: true });
+</script>
 </body>
 </html>

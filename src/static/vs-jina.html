@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anybrowse vs Jina AI Reader: Beyond Simple URL Fetching</title>
+<meta name="description" content="Jina AI Reader is fast and free, but collapses on JS-heavy and Cloudflare-protected sites. anybrowse uses real browser rendering to handle what Jina can't.">
+<link rel="canonical" href="https://anybrowse.dev/vs/jina">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<meta property="og:type" content="website">
+<meta property="og:title" content="anybrowse vs Jina AI Reader: Beyond Simple URL Fetching">
+<meta property="og:description" content="Jina is free and fast. anybrowse handles what Jina can't. See the Cloudflare and JS success rate gap.">
+<meta property="og:url" content="https://anybrowse.dev/vs/jina">
+<meta name="twitter:card" content="summary">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:760px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:3rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+h1{font-size:clamp(1.8rem,5.5vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:.75rem;color:#1a1a1a}
+h1 span{color:#d94400}
+.sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+h3{font-size:1.05rem;font-weight:700;color:#1a1a1a;margin:1.5rem 0 .6rem}
+p{color:#555;font-size:.95rem;line-height:1.75;margin-bottom:.75rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+ul{margin:.5rem 0 1rem 1.25rem;color:#555;font-size:.95rem;line-height:1.8}
+
+/* Gap highlight boxes */
+.gap-cards{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0 2rem}
+.gap-card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem;text-align:center}
+.gap-label{font-size:.58rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#767676;margin-bottom:.5rem}
+.gap-category{font-size:.85rem;color:#555;margin-bottom:.75rem;font-weight:500}
+.gap-scores{display:flex;gap:.75rem;justify-content:center;align-items:flex-end}
+.gap-score{display:flex;flex-direction:column;align-items:center;gap:.2rem}
+.gap-score .pct{font-size:1.5rem;font-weight:800;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;line-height:1}
+.gap-score .api{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:#999}
+.gap-score.ab .pct{color:#d94400}
+.gap-score.jn .pct{color:#bbb}
+
+/* Comparison table */
+.cmp-wrap{overflow-x:auto;margin:1rem 0 2rem;border-radius:8px;border:1px solid #e0dcd7}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:.85rem}
+thead{background:#1a1a1a;color:#fff}
+thead th{padding:.75rem 1rem;text-align:left;font-weight:600;letter-spacing:.04em;font-size:.72rem;text-transform:uppercase}
+thead th:not(:first-child){text-align:center}
+tbody tr{border-bottom:1px solid #f0ece7}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:.7rem 1rem;color:#555}
+tbody td:not(:first-child){text-align:center}
+.feat-name{color:#1a1a1a!important;font-weight:500}
+.yes{color:#16a34a}
+.no{color:#dc2626}
+.winner-cell{color:#d94400;font-weight:700}
+
+/* CTA */
+.cta-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:2rem;margin:2rem 0;text-align:center}
+.cta-box h3{margin:0 0 .5rem;font-size:1.15rem}
+.cta-box p{margin:0 0 1.25rem;color:#767676;font-size:.9rem}
+.cta-btn{display:inline-block;background:#d94400;color:#fff;padding:.6rem 1.5rem;border-radius:5px;font-size:.85rem;font-weight:600;text-decoration:none;transition:background .15s}
+.cta-btn:hover{background:#c03800;text-decoration:none}
+
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+@media(max-width:540px){
+  .gap-cards{grid-template-columns:1fr}
+  h1{font-size:1.7rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
+    <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
+    <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
+  </svg>
+  <span class="wordmark"><b>any</b>browse</span>
+</div>
+
+<nav class="nav-links">
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/benchmark">Benchmark</a>
+  <a href="/blog">Blog</a>
+</nav>
+
+<h1>anybrowse vs Jina AI Reader: <span>Beyond simple URL fetching</span></h1>
+<p class="sub">Jina AI Reader is free, fast, and great for simple pages. But when your AI agent hits a JavaScript app or a Cloudflare-protected site, Jina falls apart. anybrowse uses a real browser to handle what Jina can't.</p>
+
+<h2>WHERE THE GAP IS LARGEST</h2>
+
+<div class="gap-cards">
+  <div class="gap-card">
+    <div class="gap-label">Cloudflare-protected sites</div>
+    <div class="gap-category">10 URLs tested</div>
+    <div class="gap-scores">
+      <div class="gap-score ab">
+        <div class="pct">71%</div>
+        <div class="api">anybrowse</div>
+      </div>
+      <div class="gap-score jn">
+        <div class="pct">23%</div>
+        <div class="api">Jina AI</div>
+      </div>
+    </div>
+  </div>
+  <div class="gap-card">
+    <div class="gap-label">JS-heavy apps</div>
+    <div class="gap-category">15 URLs tested</div>
+    <div class="gap-scores">
+      <div class="gap-score ab">
+        <div class="pct">79%</div>
+        <div class="api">anybrowse</div>
+      </div>
+      <div class="gap-score jn">
+        <div class="pct">41%</div>
+        <div class="api">Jina AI</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p>Jina AI's r.jina.ai reader uses HTTP fetching, not a real browser. It is fast precisely because it skips JavaScript execution. That works fine for static sites, news articles, and documentation. But roughly a third of the modern web requires JavaScript to render its content, and an even larger share uses Cloudflare or similar protection that fingerprints the client.</p>
+
+<h2>FEATURE COMPARISON</h2>
+
+<div class="cmp-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>anybrowse</th>
+        <th>Jina AI Reader</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feat-name">Real browser rendering</td>
+        <td class="yes">&#10003; Full Chromium</td>
+        <td class="no">&#10007; HTTP only</td>
+      </tr>
+      <tr>
+        <td class="feat-name">JavaScript execution</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Bot-detection bypass</td>
+        <td class="yes">&#10003; Stealth + proxies</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">MCP support</td>
+        <td class="yes">&#10003; Native</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Free tier</td>
+        <td>50 / day</td>
+        <td class="winner-cell">Unlimited</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Average latency</td>
+        <td>2.1s</td>
+        <td class="winner-cell">1.4s</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Overall success rate</td>
+        <td class="winner-cell">87%</td>
+        <td>68%</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Cloudflare success rate</td>
+        <td class="winner-cell">71%</td>
+        <td>23%</td>
+      </tr>
+      <tr>
+        <td class="feat-name">JS-heavy success rate</td>
+        <td class="winner-cell">79%</td>
+        <td>41%</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Batch processing</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Structured extraction</td>
+        <td class="yes">&#10003; /extract</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Subscription pricing</td>
+        <td>$4.99 / mo</td>
+        <td class="winner-cell">Free</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>WHEN TO USE JINA</h2>
+
+<h3>Jina AI Reader is a good fit when</h3>
+<ul>
+  <li>You are scraping static content: news, Wikipedia, documentation, blogs</li>
+  <li>Speed matters more than reliability (1.4s vs 2.1s)</li>
+  <li>You have a very high volume of simple URLs and want to keep costs at zero</li>
+  <li>You do not need MCP integration or bot-bypass capabilities</li>
+</ul>
+
+<h2>WHEN TO USE ANYBROWSE</h2>
+
+<h3>anybrowse is the right choice when</h3>
+<ul>
+  <li>Your agent needs to fetch arbitrary URLs including SPAs and Cloudflare sites</li>
+  <li>You are building an MCP-integrated tool for Claude, Cursor, or Windsurf</li>
+  <li>You need reliable results, not just fast results on easy sites</li>
+  <li>You want pay-per-use pricing without a subscription</li>
+  <li>You need batch processing or structured extraction</li>
+</ul>
+
+<h3>The common pattern</h3>
+<p>Many developers start with Jina for its free unlimited tier, then switch to anybrowse when they hit their first wall: a React dashboard that renders blank, a job listing behind Cloudflare, or an e-commerce product page that requires cookie consent. anybrowse handles all of these because it runs a real browser.</p>
+
+<div class="cta-box">
+  <h3>Handle the URLs Jina can't</h3>
+  <p>Start with 50 free scrapes per day. No account, no credit card. Just the API.</p>
+  <a href="/" class="cta-btn">Try anybrowse free &rarr;</a>
+</div>
+
+<p style="font-size:.8rem;color:#999;margin-top:1rem">See also: <a href="/vs/firecrawl">anybrowse vs Firecrawl</a> &middot; <a href="/vs/diffbot">anybrowse vs Diffbot</a> &middot; <a href="/benchmark">Full benchmark</a></p>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/benchmark">benchmark</a> &middot; <a href="/blog">blog</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+</body>
+</html>

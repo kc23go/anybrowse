@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credit Packs — anybrowse</title>
+<meta name="description" content="Buy API credits for anybrowse. One-time purchase, credits never expire. From $5.">
+<link rel="canonical" href="https://anybrowse.dev/credits">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:820px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a;text-decoration:none}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:2.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover,.nav-links a.active{color:#d94400}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
+.page-sub{font-size:1rem;color:#555;margin-bottom:.75rem}
+.page-note{font-size:.85rem;color:#767676;margin-bottom:3rem;padding:.75rem 1rem;background:#fff;border-left:3px solid #d94400;border-radius:0 6px 6px 0}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+
+/* Pricing grid */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1rem 0 2.5rem}
+.pricing-card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.5rem 1.25rem;display:flex;flex-direction:column;position:relative}
+.pricing-card.featured{border-color:#d94400;background:#fff9f7}
+.featured-label{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#d94400;color:#fff;padding:2px 14px;border-radius:100px;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.card-name{font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#767676;margin-bottom:.25rem}
+.card-price{font-size:2rem;font-weight:800;color:#1a1a1a;line-height:1.1;margin-bottom:.2rem}
+.card-scrapes{font-size:1.05rem;font-weight:700;color:#1a1a1a;margin-bottom:.15rem}
+.card-rate{font-size:.78rem;color:#767676;margin-bottom:.75rem}
+.card-never{font-size:.75rem;color:#16a34a;font-weight:600;margin-bottom:1rem}
+.features{list-style:none;margin-bottom:1.25rem;flex-grow:1;font-size:.78rem}
+.features li{padding:.3rem 0;border-bottom:1px solid #f0ece6;color:#555;display:flex;align-items:flex-start;gap:.5rem}
+.features li:last-child{border-bottom:none}
+.features li .ck{color:#16a34a;font-weight:700;flex-shrink:0}
+
+.btn{display:block;width:100%;padding:.6rem .75rem;border-radius:5px;font-weight:700;text-align:center;text-decoration:none;transition:background .15s,border-color .15s;cursor:pointer;border:none;font-size:.85rem;font-family:inherit;letter-spacing:.01em}
+.btn-primary{background:#d94400;color:#fff}
+.btn-primary:hover{background:#c03800}
+.btn-featured{background:#d94400;color:#fff;font-size:.9rem;padding:.7rem .75rem}
+.btn-featured:hover{background:#c03800}
+.btn-ghost{background:#f4f0eb;border:1px solid #ccc;color:#1a1a1a}
+.btn-ghost:hover{background:#e8e4df}
+.loading{opacity:.6;cursor:not-allowed}
+
+/* Details */
+.details-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin:1rem 0 2rem}
+.detail-item{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem 1.25rem}
+.detail-icon{font-size:1.25rem;margin-bottom:.35rem}
+.detail-title{font-size:.82rem;font-weight:700;color:#1a1a1a;margin-bottom:.15rem}
+.detail-desc{font-size:.78rem;color:#767676;line-height:1.5}
+
+/* Balance check */
+.balance-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem 1.5rem;margin:1rem 0 2rem}
+.balance-box h3{font-size:.82rem;font-weight:700;color:#1a1a1a;margin-bottom:.75rem}
+.balance-form{display:flex;gap:.75rem;flex-wrap:wrap}
+.balance-input{flex:1;min-width:200px;padding:.5rem .75rem;border:1px solid #ccc;border-radius:5px;font-size:.85rem;font-family:inherit;background:#f4f0eb}
+.balance-input:focus{outline:2px solid #d94400;border-color:#d94400}
+.balance-btn{padding:.5rem 1rem;background:#1a1a1a;color:#fff;border:none;border-radius:5px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit}
+.balance-btn:hover{background:#333}
+.balance-result{margin-top:.75rem;font-size:.88rem;padding:.5rem .75rem;border-radius:5px;display:none}
+.balance-result.ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
+.balance-result.err{background:#fff1f2;color:#ef4444;border:1px solid #fecdd3;display:block}
+
+/* Endpoint costs */
+.cost-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0 2rem}
+.cost-table th{text-align:left;padding:.55rem .75rem;color:#767676;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-bottom:2px solid #e0dcd7}
+.cost-table td{padding:.55rem .75rem;border-bottom:1px solid #e0dcd7;color:#555}
+.cost-table tr:last-child td{border-bottom:none}
+.cost-table tr:hover td{background:#faf7f4}
+.ep{font-family:"SF Mono",monospace;font-size:.78rem;color:#1a1a1a;font-weight:500}
+.credits-badge{background:#d94400;color:#fff;padding:1px 7px;border-radius:3px;font-size:.65rem;font-weight:700;font-family:"SF Mono",monospace}
+
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s}
+footer a:hover{color:#1a1a1a}
+
+@media(max-width:600px){
+body{padding:2.5rem 1rem 1.5rem}
+.pricing-grid{grid-template-columns:1fr}
+.details-grid{grid-template-columns:1fr}
+h1{font-size:1.8rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+<a href="/">
+<svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="anybrowse logo" role="img">
+<defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
+<circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+<g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
+<line x1="28" y1="100" x2="172" y2="100"/>
+<line x1="36" y1="68" x2="164" y2="68"/>
+<line x1="36" y1="132" x2="164" y2="132"/>
+<ellipse cx="100" cy="100" rx="26" ry="72"/>
+<ellipse cx="100" cy="100" rx="56" ry="72"/>
+</g>
+<line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
+<polygon points="85,148 100,172 115,148" fill="#d94400"/>
+</svg>
+</a>
+<a href="/" class="wordmark">any<b>browse</b></a>
+</div>
+
+<div class="nav-links">
+<a href="/docs">Documentation</a>
+<a href="/pricing">Pricing</a>
+<a href="/credits" class="active">Credit Packs</a>
+</div>
+
+<h1>Pay-as-you-go Credits</h1>
+<p class="page-sub">Buy once, use whenever. No subscription. No monthly fee.</p>
+<p class="page-note">Credits never expire &mdash; top up when you run low. One credit = one scrape.</p>
+
+<!-- Pricing Cards -->
+<div class="pricing-grid">
+
+  <div class="pricing-card">
+    <div class="card-name">Starter</div>
+    <div class="card-price">$5</div>
+    <div class="card-scrapes">3,000 scrapes</div>
+    <div class="card-rate">$0.0017 per scrape</div>
+    <div class="card-never">✓ Credits never expire</div>
+    <ul class="features">
+      <li><span class="ck">+</span> 3,000 /scrape credits</li>
+      <li><span class="ck">+</span> 600 /crawl calls (5 cr each)</li>
+      <li><span class="ck">+</span> API key issued instantly</li>
+      <li><span class="ck">+</span> Real Chrome rendering</li>
+      <li><span class="ck">+</span> No monthly commitment</li>
+    </ul>
+    <button class="btn btn-ghost" onclick="buy('starter', this)">Buy Starter &rarr;</button>
+  </div>
+
+  <div class="pricing-card featured">
+    <div class="featured-label">Best Value</div>
+    <div class="card-name">Growth</div>
+    <div class="card-price">$20</div>
+    <div class="card-scrapes">15,000 scrapes</div>
+    <div class="card-rate">$0.0013 per scrape</div>
+    <div class="card-never">✓ Credits never expire</div>
+    <ul class="features">
+      <li><span class="ck">+</span> 15,000 /scrape credits</li>
+      <li><span class="ck">+</span> 3,000 /crawl calls (5 cr each)</li>
+      <li><span class="ck">+</span> API key issued instantly</li>
+      <li><span class="ck">+</span> Real Chrome rendering</li>
+      <li><span class="ck">+</span> No monthly commitment</li>
+    </ul>
+    <button class="btn btn-featured" onclick="buy('growth', this)">Buy Growth &rarr;</button>
+  </div>
+
+  <div class="pricing-card">
+    <div class="card-name">Scale</div>
+    <div class="card-price">$50</div>
+    <div class="card-scrapes">50,000 scrapes</div>
+    <div class="card-rate">$0.001 per scrape</div>
+    <div class="card-never">✓ Credits never expire</div>
+    <ul class="features">
+      <li><span class="ck">+</span> 50,000 /scrape credits</li>
+      <li><span class="ck">+</span> 10,000 /crawl calls (5 cr each)</li>
+      <li><span class="ck">+</span> API key issued instantly</li>
+      <li><span class="ck">+</span> Real Chrome rendering</li>
+      <li><span class="ck">+</span> No monthly commitment</li>
+    </ul>
+    <button class="btn btn-ghost" onclick="buy('scale', this)">Buy Scale &rarr;</button>
+  </div>
+
+</div>
+
+<h2>WHAT COSTS WHAT</h2>
+<table class="cost-table">
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Credits per call</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="ep">POST /scrape</td>
+<td><span class="credits-badge">1 credit</span></td>
+<td>Convert any URL to Markdown (real Chrome)</td>
+</tr>
+<tr>
+<td class="ep">POST /crawl</td>
+<td><span class="credits-badge">5 credits</span></td>
+<td>Search + scrape top results</td>
+</tr>
+<tr>
+<td class="ep">POST /extract</td>
+<td><span class="credits-badge">5 credits</span></td>
+<td>Extract structured JSON from any URL</td>
+</tr>
+<tr>
+<td class="ep">POST /serp/search</td>
+<td><span class="credits-badge">1 credit</span></td>
+<td>Google SERP results as JSON</td>
+</tr>
+<tr>
+<td class="ep">POST /batch</td>
+<td><span class="credits-badge">1 credit per URL</span></td>
+<td>Batch scrape up to 10 URLs in parallel</td>
+</tr>
+</tbody>
+</table>
+
+<h2>HOW IT WORKS</h2>
+<div class="details-grid">
+  <div class="detail-item">
+    <div class="detail-icon">💳</div>
+    <div class="detail-title">Buy with card</div>
+    <div class="detail-desc">Click Buy, complete Stripe checkout. Your API key lands in your inbox instantly after payment.</div>
+  </div>
+  <div class="detail-item">
+    <div class="detail-icon">🔑</div>
+    <div class="detail-title">API key auth</div>
+    <div class="detail-desc">Add <code style="font-family:monospace;font-size:.78rem">Authorization: Bearer ab_xxx</code> to every request. No other setup needed.</div>
+  </div>
+  <div class="detail-item">
+    <div class="detail-icon">⏱️</div>
+    <div class="detail-title">Credits never expire</div>
+    <div class="detail-desc">Buy once, use for as long as you need. No monthly resets, no pressure.</div>
+  </div>
+  <div class="detail-item">
+    <div class="detail-icon">➕</div>
+    <div class="detail-title">Top up anytime</div>
+    <div class="detail-desc">Same API key works with multiple purchases. Each top-up adds to your balance.</div>
+  </div>
+</div>
+
+<h2>CHECK YOUR BALANCE</h2>
+<div class="balance-box">
+  <h3>Already have a key? Check remaining credits →</h3>
+  <div class="balance-form">
+    <input type="text" class="balance-input" id="balKey" placeholder="ab_your_api_key_here" autocomplete="off">
+    <button class="balance-btn" onclick="checkBalance()">Check Balance</button>
+  </div>
+  <div class="balance-result" id="balResult"></div>
+</div>
+
+<footer>
+<a href="/">Home</a> &middot; <a href="/pricing">Pricing</a> &middot; <a href="/docs">Docs</a> &middot; <a href="/checkout">Pro Subscription</a>
+</footer>
+
+<script>
+async function buy(packId, btn) {
+  const email = prompt('Enter your email address to receive the API key (optional, press Cancel to skip):') || undefined;
+  btn.textContent = 'Redirecting...';
+  btn.classList.add('loading');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/credits/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pack: packId, email }),
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+      btn.textContent = packId === 'growth' ? 'Buy Growth →' : 'Buy ' + packId.charAt(0).toUpperCase() + packId.slice(1) + ' →';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  } catch (err) {
+    alert('Network error. Please try again.');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+async function checkBalance() {
+  const key = document.getElementById('balKey').value.trim();
+  const result = document.getElementById('balResult');
+  if (!key) { result.className = 'balance-result err'; result.textContent = 'Enter your API key first.'; return; }
+  result.className = 'balance-result'; result.textContent = 'Checking...';
+  try {
+    const res = await fetch('/credits/balance', { headers: { 'Authorization': 'Bearer ' + key } });
+    const data = await res.json();
+    if (res.ok) {
+      result.className = 'balance-result ok';
+      result.textContent = '✓ ' + data.credits.toLocaleString() + ' credits remaining';
+    } else {
+      result.className = 'balance-result err';
+      result.textContent = data.error || 'Key not found or invalid.';
+    }
+  } catch (err) {
+    result.className = 'balance-result err';
+    result.textContent = 'Network error. Try again.';
+  }
+}
+</script>
+</body>
+</html>

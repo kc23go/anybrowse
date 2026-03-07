@@ -235,6 +235,7 @@ h1{font-size:2rem}
 <div class="nav-links">
 <a href="/docs">Documentation</a>
 <a href="/pricing">Pricing</a>
+<a href="/vault">Vault</a>
 </div>
 
 <h1><span class="q">ANY URL</span> <span class="arrow">&rarr;</span> MARKDOWN</h1>
@@ -264,9 +265,20 @@ h1{font-size:2rem}
 
 <div class="demo-wrap" id="demo-wrap">
   <div class="demo-label">Live demo</div>
-  <div class="demo-row">
+  <div class="demo-row" id="demo-row-wrap">
     <input id="demo-url" class="demo-input" type="url" placeholder="https://example.com" value="" autocomplete="off" spellcheck="false">
     <button id="demo-btn" class="demo-submit" onclick="runDemo()">Scrape</button>
+  </div>
+  <div id="email-gate" style="display:none;margin-bottom:.75rem">
+    <p style="font-size:.82rem;color:#1a1a1a;font-weight:600;margin-bottom:.2rem">Enter your email to see the result</p>
+    <p style="font-size:.76rem;color:#767676;margin-bottom:.6rem">No spam. Just your markdown.</p>
+    <div class="demo-row" style="flex-wrap:nowrap">
+      <input id="demo-email" class="demo-input" type="email" placeholder="you@example.com" autocomplete="email" spellcheck="false">
+      <button class="demo-submit" onclick="submitEmail()">Get Result</button>
+    </div>
+    <div style="text-align:center;margin-top:.35rem">
+      <a href="javascript:void(0)" onclick="skipEmail()" style="font-size:.72rem;color:#999;text-decoration:underline">skip</a>
+    </div>
   </div>
   <div id="demo-error" class="demo-error"></div>
   <div id="demo-result" class="demo-result"></div>
@@ -331,17 +343,64 @@ h1{font-size:2rem}
 <strong>Permissionless (x402):</strong> Pay $0.002/scrape with USDC on Base via the <a href="https://www.x402.org">x402</a> protocol. Send a request, receive a <code>402</code> with instructions, sign with your wallet, resend with <code>X-PAYMENT</code> header. No account ever needed. Best for AI agents.</p>
 
 <footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/vault">vault</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
 <span class="mn">anybrowse.base.eth</span><br>
 <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span><br>
 <span id="ps"></span>
 </footer>
 
 <script>
+var _pendingUrl=null;
 function cp(e){try{navigator.clipboard.writeText('curl -X POST https://anybrowse.dev/scrape -H "Content-Type: application/json" -d \'{"url":"https://example.com"}\'');e.classList.add("ok");setTimeout(function(){e.classList.remove("ok")},1400)}catch(err){}}
 function showDemo(btn){var w=document.getElementById("demo-wrap");var open=w.style.display==="block";w.style.display=open?"none":"block";btn.setAttribute("aria-expanded",open?"false":"true");if(!open){setTimeout(function(){document.getElementById("demo-url").focus()},50)}}
-function runDemo(){var url=document.getElementById("demo-url").value.trim();var btn=document.getElementById("demo-btn");var res=document.getElementById("demo-result");var err=document.getElementById("demo-error");if(!url){err.style.display="block";err.textContent="Enter a URL first.";return;}if(!/^https?:\/\//.test(url)){err.style.display="block";err.textContent="URL must start with http:// or https://";return;}err.style.display="none";res.style.display="none";btn.disabled=true;btn.textContent="Scraping...";fetch("https://anybrowse.dev/scrape",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url})}).then(function(r){if(r.status===402){return r.json().then(function(j){throw{code:402,msg:j.error||"Free limit reached (10/day). Upgrade to keep going.",upgrade:j.upgrade||"/checkout"}});}if(!r.ok){return r.json().then(function(j){throw{code:r.status,msg:j.error||"Request failed ("+r.status+")"};}).catch(function(){throw{code:r.status,msg:"Request failed ("+r.status+")"}});}return r.text();}).then(function(text){var preview=text.length>500?text.slice(0,500)+"\n\n[... truncated]":text;res.style.display="block";res.textContent=preview;}).catch(function(e){err.style.display="block";if(e&&e.code===402){err.innerHTML='Rate limit reached. <a href="'+(e.upgrade||"/checkout")+'" style="color:#d94400">Upgrade to Pro &rarr;</a>';} else{err.textContent=(e&&e.msg)||"Something went wrong. Try again.";} }).finally(function(){btn.disabled=false;btn.textContent="Scrape";});}
+function runDemo(){
+  var url=document.getElementById("demo-url").value.trim();
+  var err=document.getElementById("demo-error");
+  document.getElementById("demo-result").style.display="none";
+  if(!url){err.style.display="block";err.textContent="Enter a URL first.";return;}
+  if(!/^https?:\/\//.test(url)){err.style.display="block";err.textContent="URL must start with http:// or https://";return;}
+  err.style.display="none";
+  var savedEmail=localStorage.getItem('ab_email');
+  if(savedEmail){
+    callScrapeApi(url);
+  } else {
+    _pendingUrl=url;
+    document.getElementById("demo-row-wrap").style.display="none";
+    document.getElementById("email-gate").style.display="block";
+    setTimeout(function(){document.getElementById("demo-email").focus()},50);
+  }
+}
+function submitEmail(){
+  var email=document.getElementById("demo-email").value.trim();
+  var err=document.getElementById("demo-error");
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    err.style.display="block";err.textContent="Please enter a valid email address.";return;
+  }
+  err.style.display="none";
+  localStorage.setItem('ab_email',email);
+  fetch('/capture-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'try-it'})}).catch(function(){});
+  hideEmailGate();
+  callScrapeApi(_pendingUrl);
+}
+function skipEmail(){hideEmailGate();callScrapeApi(_pendingUrl);}
+function hideEmailGate(){
+  document.getElementById("email-gate").style.display="none";
+  document.getElementById("demo-row-wrap").style.display="flex";
+}
+function callScrapeApi(url){
+  var btn=document.getElementById("demo-btn");
+  var res=document.getElementById("demo-result");
+  var err=document.getElementById("demo-error");
+  err.style.display="none";res.style.display="none";
+  btn.disabled=true;btn.textContent="Scraping...";
+  fetch("https://anybrowse.dev/scrape",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url})})
+    .then(function(r){if(r.status===402){return r.json().then(function(j){throw{code:402,msg:j.error||"Free limit reached (10/day). Upgrade to keep going.",upgrade:j.upgrade||"/checkout"}});}if(!r.ok){return r.json().then(function(j){throw{code:r.status,msg:j.error||"Request failed ("+r.status+")"};}).catch(function(){throw{code:r.status,msg:"Request failed ("+r.status+")"}});}return r.text();})
+    .then(function(text){var preview=text.length>500?text.slice(0,500)+"\n\n[... truncated]":text;res.style.display="block";res.textContent=preview;})
+    .catch(function(e){err.style.display="block";if(e&&e.code===402){err.innerHTML='Rate limit reached. <a href="'+(e.upgrade||"/checkout")+'" style="color:#d94400">Upgrade to Pro &rarr;</a>';}else{err.textContent=(e&&e.msg)||"Something went wrong. Try again.";}})
+    .finally(function(){btn.disabled=false;btn.textContent="Scrape";});
+}
 document.getElementById("demo-url").addEventListener("keydown",function(e){if(e.key==="Enter")runDemo();});
+document.getElementById("demo-email").addEventListener("keydown",function(e){if(e.key==="Enter")submitEmail();});
 function ls(){
 fetch("/stats").then(function(r){return r.json()}).then(function(s){
 var h=Math.floor(s.uptimeSeconds/3600),m=Math.floor((s.uptimeSeconds%3600)/60);

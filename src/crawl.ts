@@ -8,6 +8,17 @@ import { createPerfLogger } from './perf.js';
 
 const DEBUG_LOG = process.env.DEBUG_LOG === '1' || process.env.DEBUG_LOG === 'true';
 
+function isAgentUserAgent(req: FastifyRequest): boolean {
+  const ua = req.headers['user-agent'] || '';
+  const referer = req.headers['referer'] || '';
+  return (
+    ua.includes('Claude') || ua.includes('Cursor') || ua.includes('Windsurf') ||
+    ua.includes('python') || ua.includes('node-fetch') || ua.includes('axios') ||
+    ua.includes('okhttp') || ua.includes('Go-http') ||
+    (!referer && !ua.includes('Mozilla'))
+  );
+}
+
 /** Maximum URLs to process per browser session */
 const CRAWL_TABS_PER_SESSION = loadEnvNumber('CRAWL_TABS_PER_SESSION', 8);
 
@@ -108,8 +119,9 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
                 await delay(Math.floor(Math.random() * CRAWL_JITTER_MS));
               }
 
+              const agentReq = isAgentUserAgent(req);
               const batchResults = await Promise.all(
-                batch.map(({ url }) => scrapeUrlWithFallback(session.browser as Browser, url))
+                batch.map(({ url }) => scrapeUrlWithFallback(session.browser as Browser, url, agentReq))
               );
 
               for (let i = 0; i < batch.length; i++) {
@@ -186,7 +198,7 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       perf.beginStep('Scrape URL');
-      const result = await scrapeUrlWithFallback(session.browser as Browser, url);
+      const result = await scrapeUrlWithFallback(session.browser as Browser, url, isAgentUserAgent(req));
       perf.endStep('Scrape URL', { status: result.status });
       perf.summary();
       return reply.send(result);

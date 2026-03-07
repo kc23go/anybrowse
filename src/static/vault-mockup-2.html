@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; font-family: 'Courier New', monospace; color: #e8e4de; }
+nav { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
+.logo { font-size: 13px; letter-spacing: 0.1em; font-weight: 600; color: #d94400; }
+.nav-links { display: flex; gap: 24px; font-size: 11px; letter-spacing: 0.12em; color: #555; text-transform: uppercase; }
+
+.header { padding: 40px 32px 16px; border-bottom: 1px solid #222; }
+.header h1 { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+.header h2 { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+.header h2 span { color: #d94400; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.12em; color: #555; margin-top: 6px; text-transform: uppercase; }
+.live-dot { width: 6px; height: 6px; background: #00cc66; border-radius: 50%; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
+
+.controls { padding: 16px 32px; display: flex; gap: 10px; align-items: center; background: #0a0a0a; border-bottom: 1px solid #222; }
+.search { flex: 1; max-width: 280px; border: 1px solid #333; background: #1a1a1a; padding: 7px 12px; font-size: 12px; color: #e8e4de; font-family: monospace; }
+.search::placeholder { color: #444; }
+.filter-btn { padding: 6px 12px; font-size: 10px; letter-spacing: 0.1em; border: 1px solid #333; background: transparent; cursor: pointer; text-transform: uppercase; color: #555; font-family: monospace; }
+.filter-btn.active { border-color: #d94400; color: #d94400; }
+.count { margin-left: auto; font-size: 10px; color: #444; letter-spacing: 0.1em; }
+
+.grid { padding: 24px 32px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.card { border: 1px solid #222; background: #0f0f0f; overflow: hidden; cursor: pointer; }
+.card:hover { border-color: #d94400; }
+.card-img { width: 100%; height: 90px; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #333; position: relative; }
+.card-img::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #d94400, transparent); }
+.card-body { padding: 8px 10px; }
+.card-domain { font-size: 10px; letter-spacing: 0.05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ccc; }
+.card-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.badge { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; padding: 1px 5px; text-transform: uppercase; }
+.badge-agent { color: #d94400; border: 1px solid #d94400; }
+.badge-human { color: #4488ff; border: 1px solid #4488ff; }
+.card-count { font-size: 9px; color: #444; margin-left: auto; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">anybrowse</div>
+  <div class="nav-links"><span>Docs</span><span>Pricing</span><span style="color:#d94400">Vault</span></div>
+</nav>
+<div class="header">
+  <div class="header h1" style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#555;margin-bottom:8px;">anybrowse</div>
+  <h2>The <span>Vault</span></h2>
+  <div class="live"><span class="live-dot"></span> 47 sites indexed — updating live</div>
+</div>
+<div class="controls">
+  <input class="search" placeholder="_ search domains">
+  <button class="filter-btn active">All</button>
+  <button class="filter-btn">Agent</button>
+  <button class="filter-btn">Human</button>
+  <select style="padding:6px 10px;font-size:10px;border:1px solid #333;background:#1a1a1a;color:#555;font-family:monospace;letter-spacing:.08em"><option>LATEST FIRST</option></select>
+  <span class="count">47 DOMAINS // 183 SCRAPES</span>
+</div>
+<div class="grid">
+  ${['youngcapital.nl','bilibili.com','github.com','openai.com','vercel.com','stripe.com','linear.app','notion.so','figma.com','ycombinator.com','techcrunch.com','producthunt.com'].map((d,i) => `
+  <div class="card">
+    <div class="card-img">${d[0].toUpperCase()}</div>
+    <div class="card-body">
+      <div class="card-domain">${d}</div>
+      <div class="card-meta">
+        <span class="badge ${i%3===2?'badge-human':'badge-agent'}">${i%3===2?'Human':'Agent'}</span>
+        <span class="card-count">${[14,20,8,3,1,5,2,7,1,4,2,1][i]}x</span>
+      </div>
+    </div>
+  </div>`).join('')}
+</div>
+</body>
+</html>

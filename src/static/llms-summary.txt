@@ -1,6 +1,6 @@
 # AnyBrowse - Web Scraping for AI Agents
 
-Web scraping → Markdown extraction for AI agents. 10 free scrapes/day. No signup required for free tier.
+Web scraping → Markdown extraction for AI agents. 84% scrape success rate. Real-time web search via Brave Search API. 10 free scrapes/day. No signup required for free tier.
 
 ## What It Does
 
@@ -20,6 +20,7 @@ After free tier, choose your authentication method:
 - **x402 micropayments** - Wallet-based, permissionless payments
   - USDC on Base - Fast, cheap transactions
   - No signup required
+- **Credit packs** (coming soon) - One-time credit packs from $5, no subscription
 
 ## Pricing
 
@@ -29,39 +30,51 @@ After free tier, choose your authentication method:
 
 ## Key Features
 
-- **90%+ success rate** with stealth browser mode (anti-bot bypass)
+- **84% measured scrape success rate** — JS-heavy SPAs, Cloudflare-protected sites, government pages
+- **Real-time web search** via Brave Search API — 62% success, fast and reliable
+- **Automatic CAPTCHA solving** via CapSolver
+- **Stealth mode** via rebrowser-patches + 50 real Chrome workers
 - **Proxy fallback** — automatically retries blocked sites via residential proxies
 - **30s timeout** for JS-heavy single-page applications
 - **Structured error responses** with machine-readable reason codes (`TIMEOUT`, `BLOCKED`, `NOT_FOUND`, etc.)
 - Real Chrome browser rendering (not headless scripts)
 - MCP server for Claude/Cursor/Windsurf
 - Clean markdown output (removes ads, navigation)
-- Flexible authentication: free tier, API keys, OR wallet-based
+- Flexible authentication: free tier, API keys, x402 micropayments, or credit packs (coming soon)
 
 ## API Endpoints
 
 ### POST /scrape
-Extract markdown from single URL.
-```json
-{
-  "url": "https://example.com",
-  "render": true,
-  "waitFor": 2000
-}
-```
+Extract markdown from a single URL. $0.002/call.
 
 ### POST /crawl
-Crawl multiple URLs from starting point.
+Search Google and scrape top results. $0.01/call.
+
+### POST /serp/search
+Real-time web search via Brave Search API. Returns titles, URLs, and snippets as structured JSON. $0.002/call.
+
+### POST /batch
+Scrape up to 10 URLs in parallel, single request.
 ```json
-{
-  "url": "https://example.com/docs",
-  "maxPages": 10,
-  "maxDepth": 2
-}
+{ "urls": ["https://site1.com", "https://site2.com"] }
+```
+Free: 5 batches/day. Pro: unlimited.
+
+### POST /watch
+Monitor a URL for content changes, get webhook alerts.
+```json
+{ "url": "https://example.com", "webhook_url": "https://your-server.com/hook", "interval_minutes": 60 }
+```
+GET /watches — list your watches. DELETE /watch/:id — remove a watch.
+
+### POST /extract
+Extract structured data from any URL as JSON. $0.01/call.
+```json
+{ "url": "https://shop.example.com/product", "schema": {"price": "number", "title": "string", "in_stock": "boolean"} }
 ```
 
 ### GET /mcp
-MCP server endpoint for AI tool integration.
+MCP server: scrape, crawl, search, batch_scrape, extract tools.
 
 ## MCP Integration
 
@@ -90,6 +103,28 @@ Add to Claude/Cursor/Windsurf config:
 **Network:** Base
 **Token:** USDC
 **Contract:** 0x...
+
+## x402 Micropayments (AI agents with crypto wallets)
+
+Pay per-request with USDC on Base — no subscription needed.
+
+- Use `wrapFetch` from the `x402` npm package: `npm install x402`
+- Or use Coinbase AgentKit — x402 is handled automatically
+- $0.002 USDC per /scrape, $0.01 per /crawl
+- The API returns HTTP 402 with payment requirements when you hit the free tier limit
+
+**Common error:** "paymentPayload is invalid" — always use the x402 client library. Do NOT manually construct the X-PAYMENT header.
+**Docs:** https://anybrowse.dev/docs/x402
+
+```javascript
+import { wrapFetch } from 'x402/client';
+const fetch402 = wrapFetch(fetch, wallet);
+const response = await fetch402('https://anybrowse.dev/scrape', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ url: 'https://example.com' })
+});
+```
 
 ## Quick Links
 

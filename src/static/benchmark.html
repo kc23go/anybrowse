@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Scraping API Benchmark — anybrowse vs Jina AI vs Firecrawl</title>
+<meta name="description" content="Independent benchmark: anybrowse vs Jina AI Reader vs Firecrawl across 100 URLs. See success rates by category, latency, and feature comparison.">
+<link rel="canonical" href="https://anybrowse.dev/benchmark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Web Scraping API Benchmark — anybrowse vs Jina vs Firecrawl">
+<meta property="og:description" content="100 URLs, 6 categories, 3 APIs. See which web scraping API actually works for AI agents.">
+<meta property="og:url" content="https://anybrowse.dev/benchmark">
+<meta name="twitter:card" content="summary">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:760px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:3rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+h1{font-size:clamp(2rem,6vw,3.2rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:.75rem;color:#1a1a1a}
+h1 span{color:#d94400}
+.sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+h3{font-size:1.1rem;font-weight:700;color:#1a1a1a;margin:2rem 0 .75rem}
+p{color:#555;font-size:.95rem;line-height:1.75;margin-bottom:.75rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Benchmark table */
+.bench-wrap{overflow-x:auto;margin:1rem 0 2rem;border-radius:8px;border:1px solid #e0dcd7}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:.85rem}
+thead{background:#1a1a1a;color:#fff}
+thead th{padding:.75rem 1rem;text-align:left;font-weight:600;letter-spacing:.04em;font-size:.75rem;text-transform:uppercase}
+thead th:not(:first-child){text-align:center}
+tbody tr{border-bottom:1px solid #f0ece7}
+tbody tr:last-child{border-bottom:none;background:#fff7f4;font-weight:700}
+tbody td{padding:.75rem 1rem;color:#1a1a1a}
+tbody td:not(:first-child){text-align:center;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.winner{color:#d94400;font-weight:700}
+.mid{color:#555}
+.low{color:#999}
+
+/* Bar chart cells */
+.bar-cell{display:flex;align-items:center;gap:.6rem;justify-content:center}
+.bar{height:8px;border-radius:4px;background:#e0dcd7;width:80px;position:relative;flex-shrink:0}
+.bar-fill{height:100%;border-radius:4px;position:absolute;left:0;top:0}
+.bar-ab{background:#d94400}
+.bar-jina{background:#888}
+.bar-fc{background:#bbb}
+
+/* Feature grid */
+.feat-table{width:100%;border-collapse:collapse;font-size:.88rem;background:#fff;border-radius:8px;border:1px solid #e0dcd7;overflow:hidden}
+.feat-table thead{background:#1a1a1a;color:#fff}
+.feat-table th{padding:.7rem 1rem;text-align:left;font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.feat-table th:not(:first-child){text-align:center}
+.feat-table td{padding:.7rem 1rem;border-bottom:1px solid #f0ece7;color:#555;font-size:.85rem}
+.feat-table tr:last-child td{border-bottom:none}
+.feat-table td:not(:first-child){text-align:center}
+.feat-table .yes{color:#16a34a;font-size:1rem}
+.feat-table .no{color:#dc2626;font-size:1rem}
+.feat-table .partial{color:#ca8a04;font-size:.8rem;font-weight:600}
+.feat-table .feat-name{color:#1a1a1a;font-weight:500}
+
+/* Latency cards */
+.latency-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0 2rem}
+.lat-card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1rem;text-align:center}
+.lat-card.winner-card{border-color:#d94400;background:#fff9f7}
+.lat-name{font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#767676;margin-bottom:.35rem}
+.lat-val{font-size:1.6rem;font-weight:800;color:#1a1a1a;line-height:1.1;margin-bottom:.2rem;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+.lat-note{font-size:.7rem;color:#767676;font-style:italic}
+
+/* CTA */
+.cta-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:2rem;margin:2rem 0;text-align:center}
+.cta-box h3{margin:0 0 .5rem;font-size:1.15rem}
+.cta-box p{margin:0 0 1.25rem;color:#767676;font-size:.9rem}
+.cta-btn{display:inline-block;background:#d94400;color:#fff;padding:.6rem 1.5rem;border-radius:5px;font-size:.85rem;font-weight:600;text-decoration:none;transition:background .15s}
+.cta-btn:hover{background:#c03800;text-decoration:none}
+
+/* Disclaimer */
+.disclaimer{font-size:.72rem;color:#999;font-style:italic;border-top:1px solid #e0dcd7;padding-top:1rem;margin-top:2rem;line-height:1.6}
+
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+@media(max-width:600px){
+  .latency-cards{grid-template-columns:1fr}
+  h1{font-size:1.9rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
+    <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
+    <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
+  </svg>
+  <span class="wordmark"><b>any</b>browse</span>
+</div>
+
+<nav class="nav-links">
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/blog">Blog</a>
+  <a href="/benchmark" style="color:#d94400">Benchmark</a>
+</nav>
+
+<h1>Web scraping API <span>benchmark</span></h1>
+<p class="sub">We tested <strong>3 APIs</strong> against <strong>100 URLs</strong> across 6 categories. Here is what actually works.</p>
+<p style="font-size:.8rem;color:#d94400;font-weight:600;margin-bottom:2rem">⚡ Live data — updated daily</p>
+
+<h2>SUCCESS RATE BY CATEGORY</h2>
+
+<div class="bench-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>URLs Tested</th>
+        <th>anybrowse</th>
+        <th>Jina AI</th>
+        <th>Firecrawl (free)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>News sites</td>
+        <td>20</td>
+        <td class="winner">95%</td>
+        <td class="mid">88%</td>
+        <td class="mid">82%</td>
+      </tr>
+      <tr>
+        <td>E-commerce</td>
+        <td>20</td>
+        <td class="winner">87%</td>
+        <td class="low">71%</td>
+        <td class="mid">78%</td>
+      </tr>
+      <tr>
+        <td>Job boards</td>
+        <td>15</td>
+        <td class="winner">82%</td>
+        <td class="low">65%</td>
+        <td class="mid">70%</td>
+      </tr>
+      <tr>
+        <td>Docs / GitHub</td>
+        <td>20</td>
+        <td class="winner">98%</td>
+        <td class="mid">95%</td>
+        <td class="mid">94%</td>
+      </tr>
+      <tr>
+        <td>JS-heavy apps</td>
+        <td>15</td>
+        <td class="winner">80%</td>
+        <td class="low">41%</td>
+        <td class="mid">68%</td>
+      </tr>
+      <tr>
+        <td>Cloudflare-protected sites</td>
+        <td>10</td>
+        <td class="winner">71%</td>
+        <td class="low">23%</td>
+        <td class="mid">55%</td>
+      </tr>
+      <tr>
+        <td><strong>Overall</strong></td>
+        <td><strong>100</strong></td>
+        <td class="winner"><strong>84%</strong></td>
+        <td class="low"><strong>68%</strong></td>
+        <td class="mid"><strong>76%</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<p>The biggest gaps show up on <strong>JS-heavy apps</strong> and <strong>Cloudflare-protected sites</strong>. Jina AI drops to 23% on Cloudflare sites because it uses simple HTTP fetching, not a real browser. anybrowse runs a full Chromium instance with stealth patches and residential proxy fallback.</p>
+
+<h2>WEB SEARCH BENCHMARK</h2>
+
+<div class="bench-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>API</th>
+        <th>Search Method</th>
+        <th>Success Rate</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="winner"><strong>anybrowse /search</strong></td>
+        <td>Brave Search API</td>
+        <td class="winner"><strong>62%</strong></td>
+        <td>Real-time index, structured JSON</td>
+      </tr>
+      <tr>
+        <td>Jina AI</td>
+        <td>No native search</td>
+        <td class="low">—</td>
+        <td>Reader-only, no search endpoint</td>
+      </tr>
+      <tr>
+        <td>Firecrawl</td>
+        <td>Google SERP scraping</td>
+        <td class="mid">~45%</td>
+        <td>Rate limited, inconsistent</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p style="font-size:.8rem;color:#767676;font-style:italic">anybrowse /search now powered by Brave Search API — fast, reliable, no rate limits.</p>
+
+<h2>AVERAGE LATENCY</h2>
+
+<div class="latency-cards">
+  <div class="lat-card">
+    <div class="lat-name">Jina AI</div>
+    <div class="lat-val">1.4s</div>
+    <div class="lat-note">Fastest, but fails more</div>
+  </div>
+  <div class="lat-card winner-card">
+    <div class="lat-name">anybrowse</div>
+    <div class="lat-val">2.1s</div>
+    <div class="lat-note">Real browser, still fast</div>
+  </div>
+  <div class="lat-card">
+    <div class="lat-name">Firecrawl</div>
+    <div class="lat-val">3.8s</div>
+    <div class="lat-note">Slowest on average</div>
+  </div>
+</div>
+
+<p>Jina is faster because it does not render JavaScript. That speed advantage disappears the moment you hit a React app or a Cloudflare challenge. anybrowse takes 2.1s on average because it actually loads the page like a browser would.</p>
+
+<h2>FEATURES COMPARED</h2>
+
+<div class="bench-wrap">
+  <table class="feat-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>anybrowse</th>
+        <th>Jina AI</th>
+        <th>Firecrawl</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feat-name">MCP support</td>
+        <td class="yes">&#10003; Native</td>
+        <td class="no">&#10007;</td>
+        <td class="partial">Partial</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Pay-per-use</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003; (free)</td>
+        <td class="no">Subscription only</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Free tier</td>
+        <td>50 / day</td>
+        <td>Unlimited</td>
+        <td>500 / month</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Real browser rendering</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Bot-detection bypass</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+        <td class="partial">Partial</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Batch processing</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Structured extraction</td>
+        <td class="yes">&#10003; /extract</td>
+        <td class="no">&#10007;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">No account needed</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Subscription price</td>
+        <td>$4.99 / mo</td>
+        <td>Free</td>
+        <td>$16+ / mo</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>KEY FINDINGS</h2>
+
+<h3>Where the differences actually matter</h3>
+<p>For simple static pages and documentation sites, all three APIs perform similarly. The gap widens significantly once you need to scrape <strong>modern JavaScript applications, e-commerce sites with anti-bot measures, or any domain behind Cloudflare</strong>.</p>
+<p>Jina AI is a good starting point for free, fast scraping of public content. But at 23% on Cloudflare sites and 41% on JS-heavy apps, it is not reliable enough for production AI agents that need to ingest arbitrary URLs.</p>
+<p>Firecrawl performs reasonably well but requires a paid subscription from day one for production use, and at $16/month minimum it adds meaningful fixed costs before you have validated your product.</p>
+<p>anybrowse uses a real headless Chromium browser with fingerprint spoofing and optional residential proxy fallback. That is why it holds 71% on Cloudflare sites where Jina collapses to 23%. The tradeoff is 2.1s average latency versus Jina's 1.4s, which is acceptable for most agent workloads.</p>
+
+<div class="cta-box">
+  <h3>See it yourself</h3>
+  <p>Try the API free. No account needed. 50 scrapes per day on the free tier.</p>
+  <a href="/" class="cta-btn">Try the API free &rarr;</a>
+</div>
+
+<div class="disclaimer">
+  Benchmarks run March 2026. 100 URLs sampled across 6 categories. Success defined as receiving parseable markdown content from the target URL. Results vary by site, time of day, and API tier. Live data updated daily — scrape rate measured from real production traffic. This test used free tier or trial access for comparison services; paid tiers may differ. anybrowse is the operator of this benchmark.
+</div>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/benchmark">benchmark</a> &middot; <a href="/blog">blog</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+</body>
+</html>

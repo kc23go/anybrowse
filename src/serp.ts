@@ -12,6 +12,7 @@ interface SerpResult {
 
 interface SerpRequestBody {
   q?: string;
+  query?: string; // alias for q
   count?: number;
 }
 
@@ -96,10 +97,37 @@ async function extractDdgResults(page: Page, count: number): Promise<SerpResult[
 }
 
 /**
- * Perform a search query using a real browser via the pool.
- * Tries Google first, falls back to DuckDuckGo HTML if Google fails.
+ * Perform a search query.
+ * If BRAVE_SEARCH_API_KEY is set, uses Brave Search API (no browser needed).
+ * Otherwise falls back to browser-based Google + DuckDuckGo scraping.
  */
 export async function runSerpQuery(query: string, count = 5): Promise<SerpResult[]> {
+  const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
+
+  if (BRAVE_KEY) {
+    if (DEBUG_LOG) console.log(`[serp] Using Brave Search API for: ${query}`);
+    const res = await fetch(
+      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count || 10}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Encoding': 'gzip',
+          'X-Subscription-Token': BRAVE_KEY,
+        },
+      }
+    );
+    if (!res.ok) {
+      throw new Error(`Brave Search API error: ${res.status} ${res.statusText}`);
+    }
+    const data = (await res.json()) as { web?: { results?: Array<{ url: string; title: string; description: string }> } };
+    return (data.web?.results || []).map((r) => ({
+      url: r.url,
+      title: r.title,
+      description: r.description,
+    }));
+  }
+
+  // ── Browser-based fallback ──────────────────────────────────────────────
   const session = await acquireSession();
   let hadError = false;
 
@@ -158,7 +186,7 @@ export async function registerSerpRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/serp/search', async (req: FastifyRequest, reply: FastifyReply) => {
     const body = req.body as SerpRequestBody;
-    const query = (body?.q ?? '').toString().trim();
+    const query = (body?.q ?? body?.query ?? '').toString().trim();
     const count = Math.max(1, Math.min(20, Number(body?.count ?? 5)));
 
     if (!query) {
@@ -182,5 +210,6 @@ export async function registerSerpRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  console.log('[serp] Browser-based search registered (Google + DuckDuckGo fallback)');
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  console.log(`[serp] Search registered — ${braveKey ? 'Brave API' : 'browser-based (Google + DuckDuckGo fallback)'}`);
 }

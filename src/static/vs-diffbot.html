@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anybrowse vs Diffbot: Enterprise Pricing vs Developer-Friendly API</title>
+<meta name="description" content="Diffbot starts at $299/month and requires a sales call. anybrowse is $4.99/month or pay-per-use with no contract. Both do structured extraction — one doesn't require a lawyer to buy.">
+<link rel="canonical" href="https://anybrowse.dev/vs/diffbot">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<meta property="og:type" content="website">
+<meta property="og:title" content="anybrowse vs Diffbot: Enterprise Pricing vs Developer-Friendly API">
+<meta property="og:description" content="Diffbot is $299/month minimum with enterprise contracts. anybrowse is $4.99/month or pay-per-use. Both handle structured extraction.">
+<meta property="og:url" content="https://anybrowse.dev/vs/diffbot">
+<meta name="twitter:card" content="summary">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:760px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:3rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+h1{font-size:clamp(1.8rem,5.5vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:.75rem;color:#1a1a1a}
+h1 span{color:#d94400}
+.sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+h3{font-size:1.05rem;font-weight:700;color:#1a1a1a;margin:1.5rem 0 .6rem}
+p{color:#555;font-size:.95rem;line-height:1.75;margin-bottom:.75rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+ul{margin:.5rem 0 1rem 1.25rem;color:#555;font-size:.95rem;line-height:1.8}
+
+/* Price comparison hero */
+.price-hero{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin:1rem 0 2.5rem}
+.ph-card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.5rem;text-align:center}
+.ph-card.ab{border-color:#d94400;background:#fff9f7}
+.ph-name{font-size:.6rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#767676;margin-bottom:.5rem}
+.ph-price{font-size:2rem;font-weight:800;line-height:1;margin-bottom:.3rem}
+.ph-card.ab .ph-price{color:#d94400}
+.ph-card:not(.ab) .ph-price{color:#1a1a1a}
+.ph-sub{font-size:.75rem;color:#767676;line-height:1.5}
+
+/* Comparison table */
+.cmp-wrap{overflow-x:auto;margin:1rem 0 2rem;border-radius:8px;border:1px solid #e0dcd7}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:.85rem}
+thead{background:#1a1a1a;color:#fff}
+thead th{padding:.75rem 1rem;text-align:left;font-weight:600;letter-spacing:.04em;font-size:.72rem;text-transform:uppercase}
+thead th:not(:first-child){text-align:center}
+tbody tr{border-bottom:1px solid #f0ece7}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:.7rem 1rem;color:#555}
+tbody td:not(:first-child){text-align:center}
+.feat-name{color:#1a1a1a!important;font-weight:500}
+.yes{color:#16a34a}
+.no{color:#dc2626}
+.winner-cell{color:#d94400;font-weight:700}
+
+/* CTA */
+.cta-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:2rem;margin:2rem 0;text-align:center}
+.cta-box h3{margin:0 0 .5rem;font-size:1.15rem}
+.cta-box p{margin:0 0 1.25rem;color:#767676;font-size:.9rem}
+.cta-btn{display:inline-block;background:#d94400;color:#fff;padding:.6rem 1.5rem;border-radius:5px;font-size:.85rem;font-weight:600;text-decoration:none;transition:background .15s}
+.cta-btn:hover{background:#c03800;text-decoration:none}
+
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+@media(max-width:540px){
+  .price-hero{grid-template-columns:1fr}
+  h1{font-size:1.7rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
+    <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
+    <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
+  </svg>
+  <span class="wordmark"><b>any</b>browse</span>
+</div>
+
+<nav class="nav-links">
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/benchmark">Benchmark</a>
+  <a href="/blog">Blog</a>
+</nav>
+
+<h1>anybrowse vs Diffbot: <span>Enterprise pricing vs developer-friendly API</span></h1>
+<p class="sub">Diffbot and anybrowse both do structured data extraction from web pages. The difference is who can actually buy them.</p>
+
+<h2>PRICING AT A GLANCE</h2>
+
+<div class="price-hero">
+  <div class="ph-card ab">
+    <div class="ph-name">anybrowse</div>
+    <div class="ph-price">$4.99</div>
+    <div class="ph-sub">per month, or $0.002 per scrape. Free tier: 50/day. No contract, cancel anytime.</div>
+  </div>
+  <div class="ph-card">
+    <div class="ph-name">Diffbot</div>
+    <div class="ph-price">$299</div>
+    <div class="ph-sub">per month minimum. Enterprise contract required. Sales call before purchase. Annual billing common.</div>
+  </div>
+</div>
+
+<h2>FEATURE COMPARISON</h2>
+
+<div class="cmp-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>anybrowse</th>
+        <th>Diffbot</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="feat-name">Starting price</td>
+        <td class="winner-cell">$4.99/mo or pay-per-use</td>
+        <td>$299/mo (enterprise)</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Free tier</td>
+        <td class="yes">&#10003; 50 / day</td>
+        <td class="no">&#10007; Trial only</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Self-serve signup</td>
+        <td class="yes">&#10003;</td>
+        <td class="no">Sales call required</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Contract required</td>
+        <td class="yes">&#10003; No contract</td>
+        <td class="no">Enterprise contract</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Structured extraction</td>
+        <td class="yes">&#10003; /extract endpoint</td>
+        <td class="yes">&#10003; Core product</td>
+      </tr>
+      <tr>
+        <td class="feat-name">MCP support</td>
+        <td class="yes">&#10003; Native</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">URL to markdown</td>
+        <td class="yes">&#10003; Core product</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Real browser rendering</td>
+        <td class="yes">&#10003;</td>
+        <td class="yes">&#10003;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">Pay-per-use</td>
+        <td class="yes">&#10003; x402 micropayments</td>
+        <td class="no">&#10007;</td>
+      </tr>
+      <tr>
+        <td class="feat-name">AI agent / LLM-ready output</td>
+        <td class="yes">&#10003; Markdown</td>
+        <td>JSON structured data</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>THE REAL DIFFERENCE</h2>
+
+<h3>Diffbot is built for enterprise procurement</h3>
+<p>Diffbot is a powerful platform with a decade of investment in structured data extraction. If you are a large enterprise that needs to ingest product catalogs, news feeds, or knowledge graph data at scale, Diffbot has the depth you need.</p>
+<p>But you cannot just sign up and start using it. Diffbot's lowest published tier is $299/month, requires an enterprise contract, and often involves a sales call before you can access the API. For solo developers or small teams validating an idea, that is not an option.</p>
+
+<h3>anybrowse is built for developers</h3>
+<p>anybrowse lets you make your first API call in under a minute with no account. The free tier gives you 50 scrapes per day to test against real URLs. If it works, you pay $4.99/month for 10,000 scrapes, or use x402 micropayments to pay $0.002 per scrape with no subscription at all.</p>
+
+<h3>Structured extraction: anybrowse's /extract endpoint</h3>
+<p>anybrowse includes a <code style="background:#fff;border:1px solid #e0dcd7;padding:2px 5px;border-radius:3px;font-family:monospace;font-size:.8rem">/extract</code> endpoint that uses an LLM to pull structured JSON from any page. You define the fields you want, and the API returns them. It is not as deep as Diffbot's knowledge graph, but for most AI agent use cases, pulling specific fields from a product page or job listing is exactly what you need.</p>
+
+<h3>MCP-native for modern AI agents</h3>
+<p>anybrowse ships a native MCP (Model Context Protocol) server. If your agent runs inside Claude Code, Cursor, or Windsurf, you can add anybrowse as an MCP tool and let the model call it directly without any wrapper code. Diffbot has no MCP support.</p>
+
+<h2>WHO SHOULD USE EACH</h2>
+
+<h3>Use anybrowse if</h3>
+<ul>
+  <li>You are a solo developer or small team building an AI agent or product</li>
+  <li>You want to start for free and pay only when you have validated your use case</li>
+  <li>You need LLM-ready markdown output rather than structured JSON</li>
+  <li>You want MCP integration for Claude, Cursor, or Windsurf</li>
+  <li>You need pay-per-use with no subscription commitment</li>
+</ul>
+
+<h3>Use Diffbot if</h3>
+<ul>
+  <li>You are at an enterprise with existing procurement and legal processes</li>
+  <li>You need large-scale structured data extraction (millions of pages/month)</li>
+  <li>You need Diffbot's pre-built entity extraction and knowledge graph features</li>
+  <li>Budget is not a constraint and you need enterprise SLAs</li>
+</ul>
+
+<div class="cta-box">
+  <h3>Start building without a sales call</h3>
+  <p>50 free scrapes per day, no account required. If you need structured extraction, /extract is included.</p>
+  <a href="/" class="cta-btn">Try anybrowse free &rarr;</a>
+</div>
+
+<p style="font-size:.8rem;color:#999;margin-top:1rem">See also: <a href="/vs/firecrawl">anybrowse vs Firecrawl</a> &middot; <a href="/vs/jina">anybrowse vs Jina AI</a> &middot; <a href="/benchmark">Full benchmark</a></p>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/benchmark">benchmark</a> &middot; <a href="/blog">blog</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+</body>
+</html>

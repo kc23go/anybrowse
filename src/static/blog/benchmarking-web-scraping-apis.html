@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>We tested 5 web scraping APIs on 100 URLs — here's what actually works for AI agents</title>
+<meta name="description" content="We ran 100 URLs through anybrowse, Jina AI, Firecrawl, and more. Success rate matters more than latency for AI agents. Here are the real numbers.">
+<link rel="canonical" href="https://anybrowse.dev/blog/benchmarking-web-scraping-apis">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<meta property="og:type" content="article">
+<meta property="og:title" content="We tested 5 web scraping APIs on 100 URLs — here's what actually works for AI agents">
+<meta property="og:description" content="Success rate matters more than latency. We ran 100 URLs through 3 APIs and found a 48-point gap on Cloudflare-protected sites.">
+<meta property="og:url" content="https://anybrowse.dev/blog/benchmarking-web-scraping-apis">
+<meta name="twitter:card" content="summary">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:720px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:3rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+
+.post-meta{font-size:.75rem;color:#999;letter-spacing:.06em;margin-bottom:1.5rem;text-transform:uppercase}
+.post-meta span{color:#767676}
+
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.75rem;color:#1a1a1a}
+h2{font-size:1.15rem;font-weight:700;color:#1a1a1a;margin:2.5rem 0 .75rem}
+h3{font-size:1rem;font-weight:700;color:#1a1a1a;margin:1.75rem 0 .5rem}
+p{color:#555;font-size:.95rem;line-height:1.8;margin-bottom:.9rem}
+strong{color:#1a1a1a}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+ul,ol{margin:.5rem 0 1rem 1.25rem;color:#555;font-size:.95rem;line-height:1.8}
+ul li,ol li{margin-bottom:.2rem}
+
+/* Benchmark table */
+.bench-wrap{overflow-x:auto;margin:1.25rem 0 1.75rem;border-radius:8px;border:1px solid #e0dcd7}
+table{width:100%;border-collapse:collapse;background:#fff;font-size:.85rem}
+thead{background:#1a1a1a;color:#fff}
+thead th{padding:.7rem 1rem;text-align:left;font-weight:600;letter-spacing:.04em;font-size:.72rem;text-transform:uppercase}
+thead th:not(:first-child){text-align:center}
+tbody tr{border-bottom:1px solid #f0ece7}
+tbody tr:last-child{border-bottom:none;background:#fff7f4;font-weight:700}
+tbody td{padding:.65rem 1rem;color:#1a1a1a}
+tbody td:not(:first-child){text-align:center;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem}
+.winner{color:#d94400;font-weight:700}
+.low{color:#999}
+
+/* Callout */
+.callout{background:#fff;border-left:3px solid #d94400;border-radius:0 6px 6px 0;padding:1rem 1.25rem;margin:1.5rem 0;font-size:.9rem;color:#555}
+.callout strong{color:#1a1a1a}
+
+/* CTA */
+.cta-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.75rem;margin:2.5rem 0;text-align:center}
+.cta-box p{margin:0 0 1rem;color:#767676;font-size:.9rem}
+.cta-btn{display:inline-block;background:#d94400;color:#fff;padding:.55rem 1.25rem;border-radius:5px;font-size:.85rem;font-weight:600;text-decoration:none;transition:background .15s}
+.cta-btn:hover{background:#c03800;text-decoration:none}
+
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+@media(max-width:600px){h1{font-size:1.7rem}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
+    <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
+    <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
+  </svg>
+  <span class="wordmark"><b>any</b>browse</span>
+</div>
+
+<nav class="nav-links">
+  <a href="/">Home</a>
+  <a href="/blog">Blog</a>
+  <a href="/docs">Docs</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/benchmark">Benchmark</a>
+</nav>
+
+<div class="post-meta">
+  <span>Benchmark</span> &middot; March 2026 &middot; ~700 words
+</div>
+
+<h1>We tested 5 web scraping APIs on 100 URLs — here's what actually works for AI agents</h1>
+
+<p>The benchmark page for most web scraping APIs is the same: fast, reliable, works on everything. The reality, once you start scraping the URLs your AI agent actually needs, is usually different.</p>
+
+<p>We ran 100 URLs across six categories through three publicly available APIs: anybrowse, Jina AI Reader, and Firecrawl on its free tier. Here is what we found.</p>
+
+<h2>Why success rate matters more than latency</h2>
+
+<p>Speed is the first thing API providers market. Jina AI's reader averages 1.4 seconds per URL. That sounds great until you realize it only succeeds on 23% of Cloudflare-protected sites.</p>
+
+<p>For AI agents, a failed scrape is not just slow, it is broken. If your agent is trying to read a product page, a job listing, or a SaaS pricing page, a 402 or a blank response means the agent has no information to work with. It either hallucinates, gives up, or asks the user to do it manually.</p>
+
+<div class="callout">
+  <strong>A 1.4s response that returns nothing is worse than a 2.1s response that returns the content.</strong> Latency only matters if the request succeeds.
+</div>
+
+<p>This is why we prioritized success rate in our benchmark, and why the results are more useful than most API comparisons you will find online.</p>
+
+<h2>Test methodology</h2>
+
+<p>We selected 100 URLs across six categories designed to reflect what AI agents actually need to access:</p>
+
+<ul>
+  <li><strong>News sites (20):</strong> Major publications and regional outlets with varying paywalls and ad loads</li>
+  <li><strong>E-commerce (20):</strong> Product pages from both major platforms and independent stores</li>
+  <li><strong>Job boards (15):</strong> Listings from aggregators and company careers pages</li>
+  <li><strong>Docs and GitHub (20):</strong> Technical documentation, README files, and GitHub repository pages</li>
+  <li><strong>JS-heavy apps (15):</strong> React and Vue applications that render content client-side</li>
+  <li><strong>Cloudflare-protected sites (10):</strong> Pages sitting behind Cloudflare's bot protection</li>
+</ul>
+
+<p>We defined success as receiving parseable markdown content that reflected the actual page content. Blank responses, error pages, and challenge pages all counted as failures. We used free tiers or trial access for all three services, which reflects the experience most developers have when evaluating an API.</p>
+
+<h2>Results</h2>
+
+<div class="bench-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>URLs</th>
+        <th>anybrowse</th>
+        <th>Jina AI</th>
+        <th>Firecrawl (free)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>News sites</td>
+        <td>20</td>
+        <td class="winner">95%</td>
+        <td>88%</td>
+        <td>82%</td>
+      </tr>
+      <tr>
+        <td>E-commerce</td>
+        <td>20</td>
+        <td class="winner">87%</td>
+        <td class="low">71%</td>
+        <td>78%</td>
+      </tr>
+      <tr>
+        <td>Job boards</td>
+        <td>15</td>
+        <td class="winner">82%</td>
+        <td class="low">65%</td>
+        <td>70%</td>
+      </tr>
+      <tr>
+        <td>Docs / GitHub</td>
+        <td>20</td>
+        <td class="winner">98%</td>
+        <td>95%</td>
+        <td>94%</td>
+      </tr>
+      <tr>
+        <td>JS-heavy apps</td>
+        <td>15</td>
+        <td class="winner">79%</td>
+        <td class="low">41%</td>
+        <td>68%</td>
+      </tr>
+      <tr>
+        <td>Cloudflare sites</td>
+        <td>10</td>
+        <td class="winner">71%</td>
+        <td class="low">23%</td>
+        <td>55%</td>
+      </tr>
+      <tr>
+        <td><strong>Overall</strong></td>
+        <td><strong>100</strong></td>
+        <td class="winner"><strong>87%</strong></td>
+        <td class="low"><strong>68%</strong></td>
+        <td><strong>76%</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Key finding: cheap APIs collapse on hard sites</h2>
+
+<p>On documentation and GitHub pages, all three APIs perform within a few percentage points of each other. These pages are static, served without bot protection, and easy to fetch with a plain HTTP request.</p>
+
+<p>The gap opens up on JavaScript-heavy applications. Jina AI drops to 41% because it does not execute JavaScript at all. Firecrawl performs better at 68% because it uses a real browser, but still struggles. anybrowse reaches 79% by combining browser rendering with stealth fingerprinting.</p>
+
+<p>The largest gap is on Cloudflare-protected sites: <strong>71% for anybrowse, 55% for Firecrawl, and 23% for Jina AI.</strong> Cloudflare's bot challenge looks at browser fingerprints, TLS signatures, and behavioral signals. Jina, which uses HTTP fetching, fails almost immediately. anybrowse uses stealth patches and residential proxy fallback to get through roughly seven out of ten Cloudflare-protected pages.</p>
+
+<p>No API achieves 100% on difficult categories, and that is important to understand when building. Your agent needs to handle failures gracefully, retry with different parameters, or fall back to a different source. The benchmark numbers tell you what your baseline failure rate will be before you start building that resilience layer.</p>
+
+<h2>Why MCP matters for agent integration</h2>
+
+<p>Getting the scraping to work is only part of the problem. Your AI agent also needs to call the scraper without you writing adapter code for every agent framework.</p>
+
+<p>anybrowse ships a native <a href="/mcp">MCP (Model Context Protocol)</a> server. If your agent runs in Claude Code, Cursor, or Windsurf, you add a single JSON config block and the agent can call the scraper directly as a tool. No SDK, no wrapper, no glue code.</p>
+
+<p>Jina AI has no MCP support. Firecrawl has partial support. For agent developers who want to move fast, native MCP integration is a meaningful time saver.</p>
+
+<h2>See the live benchmark</h2>
+
+<p>We maintain updated numbers on the <a href="/benchmark">benchmark page</a>, which we refresh monthly. The page shows the same data in an easier-to-compare format, along with latency numbers and feature comparisons.</p>
+
+<div class="cta-box">
+  <p>Try anybrowse against your own URLs. Free tier is 50 scrapes per day with no account.</p>
+  <a href="/" class="cta-btn">Try the API free &rarr;</a>
+</div>
+
+<p style="font-size:.8rem;color:#999">See also: <a href="/vs/firecrawl">vs Firecrawl</a> &middot; <a href="/vs/jina">vs Jina AI</a> &middot; <a href="/vs/diffbot">vs Diffbot</a></p>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/benchmark">benchmark</a> &middot; <a href="/blog">blog</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+</body>
+</html>

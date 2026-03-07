@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anybrowse Relay — Earn free API credits</title>
+<meta name="description" content="Install the anybrowse Relay extension. Help us browse the web, earn free API credits. No cookies, no logins, no private data.">
+<link rel="canonical" href="https://anybrowse.dev/relay">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:760px;margin:0 auto;padding:4rem 1.5rem 4rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+
+/* Header */
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.4rem}
+.logo{width:40px;height:40px;flex-shrink:0}
+.wordmark{font-size:1.1rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.back{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;color:#767676;text-decoration:none;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2.5rem;transition:color .15s}
+.back:hover{color:#d94400}
+.back svg{width:14px;height:14px}
+
+/* Hero */
+.badge{display:inline-block;background:#d94400;color:#fff;font-size:.6rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;padding:3px 10px;border-radius:3px;margin-bottom:1.25rem}
+h1{font-size:clamp(2.2rem,6vw,3.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.05;margin-bottom:1rem;color:#1a1a1a}
+h1 span{color:#d94400}
+.sub{font-size:1.05rem;color:#555;margin-bottom:3rem;max-width:580px}
+.sub strong{color:#1a1a1a}
+
+/* CTA buttons */
+.cta-group{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:4rem}
+.btn-primary{display:inline-flex;align-items:center;gap:.5rem;background:#1a1a1a;color:#f4f0eb;font-size:.9rem;font-weight:600;letter-spacing:.01em;padding:.75rem 1.5rem;border-radius:6px;text-decoration:none;transition:background .15s}
+.btn-primary:hover{background:#333}
+.btn-primary svg{width:18px;height:18px}
+.btn-secondary{display:inline-flex;align-items:center;gap:.5rem;background:transparent;color:#1a1a1a;font-size:.9rem;font-weight:500;padding:.75rem 1.5rem;border-radius:6px;text-decoration:none;border:1.5px solid #ccc;transition:border-color .15s}
+.btn-secondary:hover{border-color:#999}
+
+/* Steps */
+.section-label{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin-bottom:1.25rem;font-style:italic}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.5rem;margin-bottom:4rem}
+.step{background:#fff;border:1px solid #e8e4df;border-radius:10px;padding:1.5rem;position:relative}
+.step-num{width:32px;height:32px;background:#d94400;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;margin-bottom:1rem}
+.step h3{font-size:.95rem;font-weight:700;margin-bottom:.4rem;letter-spacing:-.01em}
+.step p{font-size:.82rem;color:#555;line-height:1.6}
+.step-arrow{display:none}
+@media(min-width:640px){
+  .step-arrow{display:flex;align-items:center;color:#ccc;font-size:1.5rem;margin-top:2rem;align-self:flex-start;padding-top:1.5rem}
+  .steps{align-items:start}
+}
+
+/* Credit box */
+.credit-box{background:#fff;border:1.5px solid #d94400;border-radius:10px;padding:1.5rem 2rem;margin-bottom:4rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.credit-icon{font-size:2rem;flex-shrink:0}
+.credit-text h3{font-size:1rem;font-weight:700;margin-bottom:.25rem}
+.credit-text p{font-size:.85rem;color:#555}
+.credit-rate{margin-left:auto;text-align:center;flex-shrink:0}
+.credit-rate .num{font-size:2rem;font-weight:800;color:#d94400;line-height:1}
+.credit-rate .label{font-size:.65rem;letter-spacing:.12em;text-transform:uppercase;color:#767676}
+
+/* FAQ */
+.faq{margin-bottom:4rem}
+details{background:#fff;border:1px solid #e8e4df;border-radius:8px;margin-bottom:.5rem;overflow:hidden}
+summary{font-size:.9rem;font-weight:600;padding:1rem 1.25rem;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem}
+summary::-webkit-details-marker{display:none}
+summary::after{content:'+';font-size:1.1rem;font-weight:300;color:#999;flex-shrink:0;transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details[open] summary{border-bottom:1px solid #e8e4df}
+.faq-body{padding:1rem 1.25rem;font-size:.85rem;color:#444;line-height:1.7}
+.faq-body a{color:#d94400}
+
+/* Relay ID lookup */
+.lookup-box{background:#fff;border:1px solid #e8e4df;border-radius:10px;padding:1.75rem 2rem;margin-bottom:4rem}
+.lookup-box h3{font-size:1rem;font-weight:700;margin-bottom:.35rem}
+.lookup-box p{font-size:.82rem;color:#555;margin-bottom:1rem}
+.input-row{display:flex;gap:.5rem;flex-wrap:wrap}
+.input-row input{flex:1;min-width:200px;font-size:.85rem;padding:.65rem 1rem;border:1.5px solid #ccc;border-radius:6px;background:#f9f7f4;outline:none;font-family:inherit;transition:border-color .15s}
+.input-row input:focus{border-color:#d94400}
+.input-row button{background:#1a1a1a;color:#f4f0eb;font-size:.85rem;font-weight:600;padding:.65rem 1.25rem;border:none;border-radius:6px;cursor:pointer;font-family:inherit;transition:background .15s;white-space:nowrap}
+.input-row button:hover{background:#333}
+.status-result{margin-top:1rem;font-size:.85rem;padding:.75rem 1rem;border-radius:6px;display:none}
+.status-result.ok{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+.status-result.err{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b}
+
+/* Register */
+.register-box{background:#1a1a1a;color:#f4f0eb;border-radius:10px;padding:1.75rem 2rem;margin-bottom:4rem}
+.register-box h3{font-size:1rem;font-weight:700;margin-bottom:.35rem;color:#f4f0eb}
+.register-box p{font-size:.82rem;color:#aaa;margin-bottom:1rem}
+.register-box input{flex:1;min-width:200px;font-size:.85rem;padding:.65rem 1rem;border:1.5px solid #333;border-radius:6px;background:#2a2a2a;color:#f4f0eb;outline:none;font-family:inherit;transition:border-color .15s}
+.register-box input:focus{border-color:#d94400}
+.register-box button{background:#d94400;color:#fff;font-size:.85rem;font-weight:600;padding:.65rem 1.25rem;border:none;border-radius:6px;cursor:pointer;font-family:inherit;transition:opacity .15s;white-space:nowrap}
+.register-box button:hover{opacity:.85}
+.relay-id-result{margin-top:1rem;font-size:.85rem;padding:.75rem 1rem;border-radius:6px;background:#2a2a2a;border:1px solid #d94400;color:#f4f0eb;display:none;word-break:break-all}
+.relay-id-result strong{color:#d94400}
+
+/* Privacy callout */
+.privacy{display:flex;gap:1rem;align-items:flex-start;background:#fff;border:1px solid #e8e4df;border-radius:8px;padding:1rem 1.25rem;margin-bottom:4rem;font-size:.82rem;color:#555}
+.privacy svg{flex-shrink:0;margin-top:2px;color:#16a34a}
+
+/* Footer */
+footer{font-size:.75rem;color:#999;border-top:1px solid #e8e4df;padding-top:1.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+footer a{color:#999;text-decoration:none}
+footer a:hover{color:#1a1a1a}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
+    <circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+    <g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
+      <line x1="28" y1="100" x2="172" y2="100"/>
+      <line x1="36" y1="68" x2="164" y2="68"/>
+      <line x1="36" y1="132" x2="164" y2="132"/>
+      <ellipse cx="100" cy="100" rx="26" ry="72"/>
+      <ellipse cx="100" cy="100" rx="56" ry="72"/>
+    </g>
+    <line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
+    <polygon points="85,148 100,172 115,148" fill="#d94400"/>
+  </svg>
+  <span class="wordmark">any<b>browse</b></span>
+</div>
+
+<a class="back" href="/">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  Back to anybrowse
+</a>
+
+<div class="badge">Browser Relay</div>
+<h1>Earn free API credits by<br><span>helping us browse</span> the web</h1>
+<p class="sub">
+  Install the anybrowse Relay extension. When our AI agents get blocked by Cloudflare or paywalls,
+  your browser handles the fetch. You earn <strong>1 free API call per relay</strong>. Unlimited earning.
+</p>
+
+<div class="cta-group">
+  <a href="https://chrome.google.com/webstore" class="btn-primary" id="storeBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><circle cx="12" cy="12" r="4"/></svg>
+    Add to Chrome
+    <span style="font-size:.7rem;opacity:.7;font-weight:400">(Web Store — coming soon)</span>
+  </a>
+  <a href="/anybrowse-relay.zip" class="btn-secondary" id="directBtn">
+    Download .zip
+  </a>
+</div>
+
+<!-- How it works -->
+<p class="section-label">How it works</p>
+<div class="steps">
+  <div class="step">
+    <div class="step-num">1</div>
+    <h3>Install Extension</h3>
+    <p>Add the anybrowse Relay extension to Chrome. Enter your relay ID to connect your account.</p>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <h3>Stay Connected</h3>
+    <p>Keep Chrome open with the extension active. The badge turns green when you're in the relay pool.</p>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <h3>Earn Credits</h3>
+    <p>Each time your browser handles a relay request, you earn 1 free anybrowse API call. No cap.</p>
+  </div>
+</div>
+
+<!-- Credit rate -->
+<div class="credit-box">
+  <div class="credit-icon">⚡</div>
+  <div class="credit-text">
+    <h3>Credit rate</h3>
+    <p>Every successful relay = 1 free API call. Credits never expire. No daily limit on earning.</p>
+  </div>
+  <div class="credit-rate">
+    <div class="num">1:1</div>
+    <div class="label">relay → API call</div>
+  </div>
+</div>
+
+<!-- Privacy -->
+<div class="privacy">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <polyline points="9 12 11 14 15 10"/>
+  </svg>
+  <div>
+    <strong style="color:#166534">Your privacy is protected.</strong>
+    The extension only fetches public URLs that we send it — using your browser's normal <code>fetch()</code>.
+    It never sends cookies, never accesses your browsing history, and never touches private data or logged-in sessions.
+    Every URL is safety-checked before relay. Adult and gambling sites are always blocked.
+  </div>
+</div>
+
+<!-- Register -->
+<div class="register-box">
+  <h3>Get your Relay ID</h3>
+  <p>Enter your email to create an account and get a relay ID. We'll never spam you — this is just for credit tracking.</p>
+  <div class="input-row">
+    <input type="email" id="regEmail" placeholder="you@example.com">
+    <button onclick="registerRelay()">Get Relay ID</button>
+  </div>
+  <div class="relay-id-result" id="regResult"></div>
+</div>
+
+<!-- Relay ID status lookup -->
+<div class="lookup-box">
+  <h3>Check your credits</h3>
+  <p>Already have a relay ID? Enter it here to see your relay count and credits earned.</p>
+  <div class="input-row">
+    <input type="text" id="relayIdInput" placeholder="relay_xxxxxxxxxxxxxxxx">
+    <button onclick="checkStatus()">Check Status</button>
+  </div>
+  <div class="status-result" id="statusResult"></div>
+</div>
+
+<!-- FAQ -->
+<p class="section-label">FAQ</p>
+<div class="faq">
+  <details>
+    <summary>What exactly does the extension access?</summary>
+    <div class="faq-body">
+      Only the public URLs that anybrowse sends via WebSocket. The extension calls <code>fetch(url, { credentials: 'omit' })</code> — this means:
+      <ul style="margin:.5rem 0 0 1rem">
+        <li>No cookies are sent with the request</li>
+        <li>No logins or authenticated sessions are used</li>
+        <li>No browsing history or private data is accessed</li>
+        <li>Only publicly accessible pages are fetched</li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>What do I earn?</summary>
+    <div class="faq-body">
+      <strong>1 free anybrowse API call per successful relay.</strong> Credits accumulate in your account and can be used for any /scrape, /crawl, or /serp request. There's no cap on how much you can earn. Credits never expire.
+    </div>
+  </details>
+  <details>
+    <summary>What kinds of URLs will be sent to my browser?</summary>
+    <div class="faq-body">
+      Only URLs that our normal scraper couldn't access — usually because of Cloudflare protection, LinkedIn, or similar bot-detection. All URLs are safety-checked before relay. Adult, gambling, and other inappropriate categories are always blocked. No authentication tokens or private URLs are ever relayed.
+    </div>
+  </details>
+  <details>
+    <summary>Can I be connected 24/7?</summary>
+    <div class="faq-body">
+      Yes! Leave Chrome open with the extension and you'll passively earn credits. Note: you must be connected for at least 10 minutes before credits start accumulating (to prevent abuse).
+    </div>
+  </details>
+  <details>
+    <summary>Is there a daily limit?</summary>
+    <div class="faq-body">
+      There's a limit of 500 relays per day per relay ID — but this is an extremely high ceiling. Most users will never hit it. Earning is unlimited across days.
+    </div>
+  </details>
+  <details>
+    <summary>How do I use my credits?</summary>
+    <div class="faq-body">
+      Credits are applied to your relay account and used automatically when you make API calls with your relay ID as the billing key. Documentation coming soon. <a href="mailto:hello@anybrowse.dev">Contact us</a> if you need early access.
+    </div>
+  </details>
+  <details>
+    <summary>Is this safe? Will it slow down my browser?</summary>
+    <div class="faq-body">
+      Yes, it's safe. The extension is a lightweight service worker — it only activates when a relay request comes in and immediately goes back to sleep. Most users see no performance impact. The extension doesn't run any background tabs or inject scripts into pages you visit.
+    </div>
+  </details>
+</div>
+
+<footer>
+  <span>© 2026 anybrowse</span>
+  <a href="/">Home</a>
+  <a href="/docs">Docs</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/tos">Terms</a>
+  <a href="/privacy">Privacy</a>
+</footer>
+
+<script>
+async function registerRelay() {
+  const email = document.getElementById('regEmail').value.trim();
+  const resultEl = document.getElementById('regResult');
+  if (!email || !email.includes('@')) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '⚠ Please enter a valid email address.';
+    return;
+  }
+  resultEl.style.display = 'none';
+  try {
+    const resp = await fetch('/relay/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await resp.json();
+    if (data.relayId) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `
+        ✅ Your Relay ID: <strong>${data.relayId}</strong><br>
+        <span style="font-size:.8em;opacity:.7">Save this — you'll need it to connect the Chrome extension.</span>
+      `;
+      document.getElementById('relayIdInput').value = data.relayId;
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '⚠ ' + (data.error || 'Registration failed. Try again.');
+    }
+  } catch (e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '⚠ Network error. Please try again.';
+  }
+}
+
+async function checkStatus() {
+  const relayId = document.getElementById('relayIdInput').value.trim();
+  const resultEl = document.getElementById('statusResult');
+  if (!relayId) {
+    resultEl.className = 'status-result err';
+    resultEl.style.display = 'block';
+    resultEl.textContent = 'Please enter a relay ID.';
+    return;
+  }
+  resultEl.style.display = 'none';
+  try {
+    const resp = await fetch('/relay/status?relayId=' + encodeURIComponent(relayId));
+    const data = await resp.json();
+    if (resp.ok) {
+      const connDot = data.connected ? '🟢' : '⚫';
+      resultEl.className = 'status-result ok';
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `
+        ${connDot} <strong>Status:</strong> ${data.connected ? 'Connected' : 'Offline'}<br>
+        📊 <strong>Total relays:</strong> ${data.relays}<br>
+        ⚡ <strong>Credits earned:</strong> ${data.credits} free API calls<br>
+        ${data.sessionRelays > 0 ? `🔄 <strong>This session:</strong> ${data.sessionRelays} relays<br>` : ''}
+        🕐 <strong>Last seen:</strong> ${data.lastSeen ? new Date(data.lastSeen).toLocaleString() : 'Never'}
+      `;
+    } else {
+      resultEl.className = 'status-result err';
+      resultEl.style.display = 'block';
+      resultEl.textContent = data.error || 'Unknown relay ID.';
+    }
+  } catch (e) {
+    resultEl.className = 'status-result err';
+    resultEl.style.display = 'block';
+    resultEl.textContent = 'Network error. Please try again.';
+  }
+}
+
+// Allow Enter key in inputs
+document.getElementById('relayIdInput').addEventListener('keydown', e => { if(e.key==='Enter') checkStatus(); });
+document.getElementById('regEmail').addEventListener('keydown', e => { if(e.key==='Enter') registerRelay(); });
+</script>
+</body>
+</html>

@@ -1,13 +1,14 @@
 {
   "name": "anybrowse",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Autonomous web browsing agent — converts any URL to clean, LLM-ready Markdown via x402 micropayments",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node dist/patch-playwright.js 2>/dev/null || true"
   },
   "keywords": [
     "agent",
@@ -20,14 +21,17 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@browsercash/pool": "git+https://github.com/Mega-Tera/browser-pool.git",
     "@browsercash/sdk": "^0.4.0",
     "@coinbase/cdp-sdk": "^1.44.1",
     "@farcaster/core": "^0.18.10",
     "@fastify/cors": "^10.0.1",
     "@neynar/nodejs-sdk": "^3.137.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@x402/core": "^2.4.0",
     "@x402/evm": "^2.4.0",
+    "better-sqlite3": "^12.6.2",
     "dotenv": "^16.4.5",
     "fastify": "^5.7.4",
     "fastify-plugin": "^5.1.0",
@@ -35,6 +39,7 @@
     "playwright-core": "^1.57.0",
     "playwright-extra": "^4.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "rebrowser-patches": "^1.0.19",
     "ssh2": "^1.17.0",
     "stripe": "^17.7.0",
     "viem": "^2.46.2",

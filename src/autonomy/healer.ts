@@ -9,7 +9,7 @@ const ERROR_RATE_THRESHOLD = 0.5;
 const MEMORY_CRITICAL_THRESHOLD = 0.95;
 const ZOMBIE_AGE_MS = 6 * 60 * 1000; // 6 minutes — slightly longer than pool maxAgeMs (5 min)
 
-const BROWSER_API_KEY = loadEnvString("BROWSER_API_KEY");
+const BROWSER_API_KEY = loadEnvString("BROWSER_API_KEY", "");
 const BROWSER_API_BASE = "https://api.browser.cash/v1/browser";
 
 // Only count these paths for error rate — ignore bot scanner noise

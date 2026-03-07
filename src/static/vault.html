@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Vault -- anybrowse</title>
+<meta name="description" content="Every URL ever scraped through anybrowse. A living archive of the web as seen by AI agents.">
+<link rel="canonical" href="https://anybrowse.dev/vault">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden}
+
+/* Top nav matches landing.html */
+.site-header{padding:2.5rem 1.5rem 0}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin:.75rem 0 1.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+.nav-links a.active{color:#d94400}
+
+/* Vault title */
+.vault-title-bar{padding:0 1.5rem 1.5rem}
+.vault-title-bar h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:.4rem}
+.vault-title-bar .sub{font-size:.9rem;color:#555}
+
+/* Controls bar */
+.controls{position:sticky;top:0;z-index:100;background:#f4f0eb;border-bottom:1px solid #e0dcd7;padding:.75rem 1.5rem;display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+.search-input{flex:1;min-width:160px;padding:.45rem .75rem;border:1px solid #ccc;border-radius:5px;font-size:.82rem;font-family:inherit;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s}
+.search-input:focus{border-color:#d94400}
+.filter-group{display:flex;gap:.35rem}
+.filter-btn{padding:.4rem .75rem;border:1px solid #ccc;border-radius:5px;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:#fff;color:#767676;transition:all .15s;font-family:inherit}
+.filter-btn:hover{border-color:#d94400;color:#d94400}
+.filter-btn.active{background:#d94400;border-color:#d94400;color:#fff}
+.sort-select{padding:.4rem .65rem;border:1px solid #ccc;border-radius:5px;font-size:.75rem;font-family:inherit;background:#fff;color:#1a1a1a;cursor:pointer;outline:none}
+.sort-select:focus{border-color:#d94400}
+.control-right{margin-left:auto;display:flex;gap:.5rem;align-items:center}
+.reset-btn{padding:.5rem 1rem;border:1.5px solid #d94400;border-radius:5px;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;background:#fff;color:#d94400;transition:all .15s;font-family:inherit}
+.reset-btn:hover{background:#d94400;color:#fff}
+.count-badge{font-size:.7rem;color:#767676;letter-spacing:.06em}
+
+/* Viewport + grid */
+.vault-viewport{width:100%;overflow:hidden;min-height:60vh;cursor:grab;user-select:none;position:relative}
+.vault-viewport.panning{cursor:grabbing}
+.grid-container{display:inline-grid;grid-template-columns:repeat(5,200px);gap:12px;padding:1.5rem;transform-origin:top left;transition:none;will-change:transform}
+
+/* Cards */
+.card{background:#fff;border:1px solid #e0dcd7;border-radius:8px;overflow:hidden;cursor:pointer;transition:box-shadow .2s,transform .15s;opacity:0;animation:fadeIn .3s ease forwards}
+.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12);transform:translateY(-2px)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.card-thumb{width:100%;height:110px;overflow:hidden;background:#f0ece7;display:flex;align-items:center;justify-content:center;position:relative}
+.card-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.card-thumb .no-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:800;color:#ccc;letter-spacing:-.02em}
+.card-body{padding:.65rem .75rem .75rem}
+.card-domain{font-size:.78rem;font-weight:700;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.3rem}
+.card-meta{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.badge{font-size:.52rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:1px 5px;border-radius:3px}
+.badge.agent{background:#d94400;color:#fff}
+.badge.human{background:#e0dcd7;color:#767676}
+.card-count{font-size:.65rem;color:#767676}
+.card-first{font-size:.62rem;color:#aaa;margin-top:.2rem}
+
+/* Empty state */
+.empty-state{text-align:center;padding:5rem 2rem;color:#767676}
+.empty-state h2{font-size:1.2rem;font-weight:700;color:#1a1a1a;margin-bottom:.5rem}
+.empty-state p{font-size:.9rem}
+.empty-state a{color:#d94400;text-decoration:none}
+.empty-state a:hover{text-decoration:underline}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center;padding:1.5rem}
+.modal-backdrop.open{display:flex}
+.modal{background:#fff;border-radius:10px;max-width:540px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{padding:1.25rem 1.5rem .75rem;border-bottom:1px solid #e0dcd7;display:flex;align-items:flex-start;gap:1rem}
+.modal-domain{font-size:1.1rem;font-weight:800;color:#1a1a1a;flex:1;word-break:break-all}
+.modal-close{background:none;border:none;font-size:1.4rem;color:#999;cursor:pointer;padding:.1rem .3rem;line-height:1;flex-shrink:0;transition:color .15s}
+.modal-close:hover{color:#1a1a1a}
+.modal-body{padding:1.25rem 1.5rem 1.5rem}
+.modal-thumb{width:100%;height:180px;border-radius:6px;overflow:hidden;background:#f0ece7;margin-bottom:1rem;display:flex;align-items:center;justify-content:center}
+.modal-thumb img{width:100%;height:100%;object-fit:cover;object-position:top}
+.modal-thumb .no-img{font-size:3rem;font-weight:800;color:#ccc}
+.modal-row{display:flex;justify-content:space-between;align-items:baseline;padding:.4rem 0;border-bottom:1px solid #f0ece7;font-size:.82rem}
+.modal-row:last-of-type{border-bottom:none}
+.modal-label{color:#767676;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.modal-val{color:#1a1a1a;font-weight:500;text-align:right;word-break:break-all;max-width:60%}
+.modal-badge{font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px}
+.modal-badge.agent{background:#d94400;color:#fff}
+.modal-badge.human{background:#e0dcd7;color:#767676}
+.modal-actions{margin-top:1.25rem;display:flex;gap:.6rem;flex-wrap:wrap}
+.btn-orange{padding:.5rem 1.1rem;background:#d94400;color:#fff;border:none;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;transition:background .15s}
+.btn-orange:hover{background:#c03800}
+.btn-ghost{padding:.5rem 1rem;background:#fff;color:#767676;border:1px solid #ccc;border-radius:5px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;transition:all .15s}
+.btn-ghost:hover{border-color:#1a1a1a;color:#1a1a1a}
+
+/* Footer matches landing.html */
+.site-footer{margin:4rem 0 0;padding:1.5rem 1.5rem 2.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+.site-footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
+.site-footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+/* Live indicator */
+.live-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:#767676}
+.dot{width:5px;height:5px;border-radius:50%;background:#16a34a;box-shadow:0 0 5px #16a34a60;animation:p 2s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+
+@media(max-width:600px){
+.grid-container{grid-template-columns:repeat(2,160px);gap:10px;padding:1rem}
+.controls{padding:.6rem 1rem;gap:.5rem}
+.filter-btn{padding:.35rem .55rem;font-size:.65rem}
+.site-header{padding:2.5rem 1rem 0}
+.vault-title-bar{padding:0 1rem 1.5rem}
+}
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <div class="header">
+    <a href="/" aria-label="anybrowse home">
+      <svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
+        <circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+        <g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
+          <line x1="28" y1="100" x2="172" y2="100"/>
+          <line x1="36" y1="68" x2="164" y2="68"/>
+          <line x1="36" y1="132" x2="164" y2="132"/>
+          <ellipse cx="100" cy="100" rx="26" ry="72"/>
+          <ellipse cx="100" cy="100" rx="56" ry="72"/>
+        </g>
+        <line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
+        <polygon points="85,148 100,172 115,148" fill="#d94400"/>
+      </svg>
+    </a>
+    <span class="wordmark">any<b>browse</b></span>
+  </div>
+  <div class="nav-links">
+    <a href="/docs">Documentation</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/vault" class="active">Vault</a>
+  </div>
+</div>
+
+<div class="vault-title-bar">
+  <h1>THE VAULT</h1>
+  <p class="sub">Every website scraped through anybrowse &middot; <span class="live-badge"><span class="dot"></span> live</span></p>
+</div>
+
+<div class="controls">
+  <input class="search-input" type="search" id="search" placeholder="Search domains..." aria-label="Search domains">
+  <div class="filter-group" role="group" aria-label="Filter by type">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="agent">Agent</button>
+    <button class="filter-btn" data-filter="human">Human</button>
+  </div>
+  <select class="sort-select" id="sort" aria-label="Sort order">
+    <option value="latest">Latest first</option>
+    <option value="oldest">Oldest first</option>
+    <option value="count">Most scraped</option>
+    <option value="az">A to Z</option>
+  </select>
+  <div class="control-right">
+    <span class="count-badge" id="count-badge">-- sites</span>
+    <button class="reset-btn" id="reset-zoom" title="Reset zoom and pan">Reset view</button>
+  </div>
+</div>
+
+<div class="vault-viewport" id="viewport" role="main">
+  <div class="grid-container" id="grid"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-domain-title">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-domain" id="modal-domain-title">--</div>
+      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+    </div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/vault">vault</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+  <span class="mn">anybrowse.base.eth</span><br>
+  <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────
+var allData = [];
+var currentFilter = 'all';
+var currentSort = 'latest';
+var searchQuery = '';
+var scale = 1;
+var panX = 0;
+var panY = 0;
+var isPanning = false;
+var panStart = { x: 0, y: 0 };
+var panOrigin = { x: 0, y: 0 };
+var knownDomains = new Set();
+
+var grid = document.getElementById('grid');
+var viewport = document.getElementById('viewport');
+
+// ── Date formatter ───────────────────────────────────────────────────
+function fmtDate(iso) {
+  try {
+    var d = new Date(iso);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+  } catch(e) { return iso; }
+}
+
+// ── Render ───────────────────────────────────────────────────────────
+function getFiltered() {
+  var data = allData.slice();
+
+  // Filter by type
+  if (currentFilter === 'agent') data = data.filter(function(d){ return d.isAgent; });
+  else if (currentFilter === 'human') data = data.filter(function(d){ return !d.isAgent; });
+
+  // Search
+  if (searchQuery) {
+    var q = searchQuery.toLowerCase();
+    data = data.filter(function(d){ return d.domain.toLowerCase().indexOf(q) !== -1; });
+  }
+
+  // Sort
+  if (currentSort === 'latest') {
+    data.sort(function(a,b){ return b.lastScraped.localeCompare(a.lastScraped); });
+  } else if (currentSort === 'oldest') {
+    data.sort(function(a,b){ return a.firstScraped.localeCompare(b.firstScraped); });
+  } else if (currentSort === 'count') {
+    data.sort(function(a,b){ return b.count - a.count; });
+  } else if (currentSort === 'az') {
+    data.sort(function(a,b){ return a.domain.localeCompare(b.domain); });
+  }
+
+  return data;
+}
+
+function renderCards(animate) {
+  var data = getFiltered();
+  document.getElementById('count-badge').textContent = data.length + ' site' + (data.length !== 1 ? 's' : '');
+
+  if (data.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h2>Nothing here yet</h2><p>No scrapes match your filter.<br>Try the API: <a href="/docs">/docs</a></p></div>';
+    return;
+  }
+
+  // Find domains already rendered
+  var rendered = new Set();
+  grid.querySelectorAll('.card').forEach(function(c){ rendered.add(c.dataset.domain); });
+
+  // Full re-render if filter/sort changed (not just live update)
+  if (!animate) {
+    grid.innerHTML = '';
+    rendered.clear();
+  }
+
+  data.forEach(function(item, idx) {
+    var existing = grid.querySelector('[data-domain="' + CSS.escape(item.domain) + '"]');
+    if (existing) {
+      // Update count text only
+      var countEl = existing.querySelector('.card-count');
+      if (countEl) countEl.textContent = item.count + (item.count === 1 ? ' scrape' : ' scrapes');
+      return;
+    }
+
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.domain = item.domain;
+    card.dataset.isAgent = item.isAgent ? '1' : '0';
+    card.style.animationDelay = (animate ? Math.min(idx * 30, 300) : 0) + 'ms';
+
+    var imgSrc = '/screenshots/' + encodeURIComponent(item.screenshotDomain || item.domain) + '.jpg';
+    var initial = item.domain.charAt(0).toUpperCase();
+
+    card.innerHTML =
+      '<div class="card-thumb">' +
+        '<img src="' + imgSrc + '" alt="' + item.domain + '" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=no-img>' + initial + '</div>\'">' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="card-domain" title="' + item.domain + '">' + item.domain + '</div>' +
+        '<div class="card-meta">' +
+          '<span class="badge ' + (item.isAgent ? 'agent' : 'human') + '">' + (item.isAgent ? 'AGENT' : 'HUMAN') + '</span>' +
+          '<span class="card-count">' + item.count + (item.count === 1 ? ' scrape' : ' scrapes') + '</span>' +
+        '</div>' +
+        '<div class="card-first">First seen: ' + fmtDate(item.firstScraped) + '</div>' +
+      '</div>';
+
+    card.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openModal(item);
+    });
+    grid.appendChild(card);
+  });
+}
+
+// ── Modal ────────────────────────────────────────────────────────────
+function openModal(item) {
+  document.getElementById('modal-domain-title').textContent = item.domain;
+
+  var imgSrc = '/screenshots/' + encodeURIComponent(item.screenshotDomain || item.domain) + '.jpg';
+  var initial = item.domain.charAt(0).toUpperCase();
+
+  var body = document.getElementById('modal-body');
+  body.innerHTML =
+    '<div class="modal-thumb">' +
+      '<img src="' + imgSrc + '" alt="' + item.domain + '" onerror="this.parentNode.innerHTML=\'<div class=no-img>' + initial + '</div>\'">' +
+    '</div>' +
+    '<div class="modal-row"><span class="modal-label">Domain</span><span class="modal-val">' + item.domain + '</span></div>' +
+    '<div class="modal-row"><span class="modal-label">URL</span><span class="modal-val"><a href="' + item.url + '" target="_blank" rel="noopener" style="color:#d94400">' + item.url + '</a></span></div>' +
+    '<div class="modal-row"><span class="modal-label">Type</span><span class="modal-val"><span class="modal-badge ' + (item.isAgent ? 'agent' : 'human') + '">' + (item.isAgent ? 'AGENT' : 'HUMAN') + '</span></span></div>' +
+    '<div class="modal-row"><span class="modal-label">Scrapes</span><span class="modal-val">' + item.count + '</span></div>' +
+    '<div class="modal-row"><span class="modal-label">First scraped</span><span class="modal-val">' + fmtDate(item.firstScraped) + '</span></div>' +
+    '<div class="modal-row"><span class="modal-label">Last scraped</span><span class="modal-val">' + fmtDate(item.lastScraped) + '</span></div>' +
+    '<div class="modal-actions">' +
+      '<a class="btn-orange" href="' + item.url + '" target="_blank" rel="noopener">Visit site</a>' +
+      '<button class="btn-ghost" onclick="rescrape(\'' + encodeURIComponent(item.url) + '\')">Scrape again</button>' +
+      '<button class="btn-ghost" onclick="copyMarkdown(\'' + encodeURIComponent(item.url) + '\')">Copy as markdown</button>' +
+    '</div>';
+
+  document.getElementById('modal-backdrop').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function rescrape(encodedUrl) {
+  var url = decodeURIComponent(encodedUrl);
+  var btn = event.target;
+  btn.textContent = 'Scraping...';
+  btn.disabled = true;
+  fetch('/scrape', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url })
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    btn.textContent = data.status === 'success' ? 'Done!' : 'Failed';
+    setTimeout(function(){ btn.textContent = 'Scrape again'; btn.disabled = false; }, 2000);
+  }).catch(function(){
+    btn.textContent = 'Error';
+    setTimeout(function(){ btn.textContent = 'Scrape again'; btn.disabled = false; }, 2000);
+  });
+}
+
+function copyMarkdown(encodedUrl) {
+  var url = decodeURIComponent(encodedUrl);
+  var btn = event.target;
+  btn.textContent = 'Fetching...';
+  btn.disabled = true;
+  fetch('/scrape', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url })
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    if (data.markdown) {
+      navigator.clipboard.writeText(data.markdown).then(function(){
+        btn.textContent = 'Copied!';
+        setTimeout(function(){ btn.textContent = 'Copy as markdown'; btn.disabled = false; }, 2000);
+      });
+    } else {
+      btn.textContent = 'Failed';
+      setTimeout(function(){ btn.textContent = 'Copy as markdown'; btn.disabled = false; }, 2000);
+    }
+  }).catch(function(){
+    btn.textContent = 'Error';
+    setTimeout(function(){ btn.textContent = 'Copy as markdown'; btn.disabled = false; }, 2000);
+  });
+}
+
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-backdrop').addEventListener('click', function(e){
+  if (e.target === this) closeModal();
+});
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+
+// ── Zoom / Pan ───────────────────────────────────────────────────────
+function applyTransform() {
+  grid.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
+}
+
+viewport.addEventListener('wheel', function(e) {
+  e.preventDefault();
+  var rect = viewport.getBoundingClientRect();
+  var mx = e.clientX - rect.left;
+  var my = e.clientY - rect.top;
+
+  var delta = e.deltaY > 0 ? -0.04 : 0.04;
+  var newScale = Math.max(0.3, Math.min(2, scale + delta * scale));
+  var ratio = newScale / scale;
+
+  // Zoom toward cursor
+  panX = mx - ratio * (mx - panX);
+  panY = my - ratio * (my - panY);
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
+
+viewport.addEventListener('mousedown', function(e) {
+  if (e.button !== 0) return;
+  isPanning = true;
+  panStart = { x: e.clientX, y: e.clientY };
+  panOrigin = { x: panX, y: panY };
+  viewport.classList.add('panning');
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (!isPanning) return;
+  panX = panOrigin.x + (e.clientX - panStart.x);
+  panY = panOrigin.y + (e.clientY - panStart.y);
+  applyTransform();
+});
+
+document.addEventListener('mouseup', function() {
+  isPanning = false;
+  viewport.classList.remove('panning');
+});
+
+// Touch support
+var touchStart = null;
+var touchPanOrigin = null;
+var lastTouchDist = null;
+
+viewport.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 1) {
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchPanOrigin = { x: panX, y: panY };
+  } else if (e.touches.length === 2) {
+    var dx = e.touches[0].clientX - e.touches[1].clientX;
+    var dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastTouchDist = Math.sqrt(dx*dx + dy*dy);
+  }
+}, { passive: true });
+
+viewport.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  if (e.touches.length === 1 && touchStart) {
+    panX = touchPanOrigin.x + (e.touches[0].clientX - touchStart.x);
+    panY = touchPanOrigin.y + (e.touches[0].clientY - touchStart.y);
+    applyTransform();
+  } else if (e.touches.length === 2 && lastTouchDist) {
+    var dx = e.touches[0].clientX - e.touches[1].clientX;
+    var dy = e.touches[0].clientY - e.touches[1].clientY;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    var ratio = dist / lastTouchDist;
+    scale = Math.max(0.3, Math.min(2, scale * ratio));
+    lastTouchDist = dist;
+    applyTransform();
+  }
+}, { passive: false });
+
+viewport.addEventListener('touchend', function() {
+  touchStart = null; lastTouchDist = null;
+}, { passive: true });
+
+document.getElementById('reset-zoom').addEventListener('click', function() {
+  scale = 1; panX = 0; panY = 0; applyTransform();
+});
+
+// ── Filters / Search / Sort ──────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderCards(false);
+  });
+});
+
+document.getElementById('sort').addEventListener('change', function() {
+  currentSort = this.value;
+  renderCards(false);
+});
+
+var searchTimeout;
+document.getElementById('search').addEventListener('input', function() {
+  clearTimeout(searchTimeout);
+  var q = this.value;
+  searchTimeout = setTimeout(function() {
+    searchQuery = q.trim();
+    renderCards(false);
+  }, 200);
+});
+
+// ── Data fetching ────────────────────────────────────────────────────
+function fetchData(isLive) {
+  fetch("/vault-data")
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var hasNew = false;
+      data.forEach(function(item) {
+        if (!knownDomains.has(item.domain)) {
+          knownDomains.add(item.domain);
+          hasNew = true;
+        }
+      });
+      allData = data;
+      renderCards(isLive && hasNew);
+    })
+    .catch(function(err) {
+      console.warn('[vault] fetch failed:', err);
+      if (allData.length === 0) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h2>No scrapes yet</h2><p>Try the API to start populating the vault.<br><a href="/docs">Read the docs</a></p></div>';
+      }
+    });
+}
+
+// Initial load
+fetchData(false);
+
+// Live updates every 30 seconds
+setInterval(function(){ fetchData(true); }, 30000);
+</script>
+</body>
+</html>

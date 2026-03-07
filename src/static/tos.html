@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service — anybrowse</title>
+<meta name="description" content="anybrowse Terms of Service">
+<link rel="canonical" href="https://anybrowse.dev/tos">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:720px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:2rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+h1{font-size:2.2rem;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
+.updated{font-size:.75rem;color:#767676;margin-bottom:3rem;letter-spacing:.04em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3rem 0 .75rem;font-style:italic}
+p{font-size:.95rem;color:#444;margin-bottom:1rem;line-height:1.75}
+ul{font-size:.95rem;color:#444;margin-bottom:1rem;padding-left:1.25rem;line-height:1.75}
+ul li{margin-bottom:.35rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus{outline:2px solid #d94400;outline-offset:2px}
+.highlight{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem 1.25rem;margin-bottom:1rem;font-size:.9rem;color:#555}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+@media(max-width:520px){
+body{padding:2.5rem 1rem 1.5rem}
+h1{font-size:1.8rem}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
+    <line x1="50" y1="10" x2="50" y2="80" stroke="#d94400" stroke-width="5"/>
+    <polygon points="40,75 50,92 60,75" fill="#d94400"/>
+  </svg>
+  <div class="wordmark"><b>any</b>browse</div>
+</div>
+
+<div class="nav-links">
+  <a href="/">Home</a>
+  <a href="/docs">Documentation</a>
+  <a href="/pricing">Pricing</a>
+  <a href="/vault">Vault</a>
+</div>
+
+<h1>Terms of Service</h1>
+<p class="updated">Last updated: March 2025</p>
+
+<p style="font-size:.85rem;color:#767676;margin-bottom:2rem">anybrowse is a product of <strong>Heimat LLC</strong>, a Wyoming LLC.</p>
+
+<h2>1. What anybrowse does</h2>
+<p>anybrowse is a web scraping API operated by <strong>Heimat LLC, operating as anybrowse</strong>, that converts any URL to clean, LLM-ready Markdown. We use real Chrome browsers to render pages (including JavaScript-heavy sites) and return the content as Markdown text. The API is available at <strong>anybrowse.dev</strong>.</p>
+<p>Our endpoints include:</p>
+<ul>
+  <li><strong>/scrape</strong> — convert a single URL to Markdown</li>
+  <li><strong>/crawl</strong> — follow links and convert multiple pages</li>
+  <li><strong>/serp/search</strong> — run a Google search and return Markdown results</li>
+  <li><strong>/mcp</strong> — Model Context Protocol server for AI agents</li>
+</ul>
+
+<h2>2. Plans and pricing</h2>
+<p><strong>Free tier:</strong> You get 10 free scrapes per day, no signup required. Limits reset at midnight UTC.</p>
+<p><strong>Pro subscription:</strong> $4.99/month, billed via Stripe. Pro subscribers get 1,000 scrapes/day, priority rendering, and an API key for authenticated access. You can cancel at any time (see Section 5).</p>
+<p><strong>Pay-per-use (x402):</strong> You can also pay per request using USDC on Base via the x402 micropayment protocol. Rates are $0.002/scrape, $0.01/crawl, and $0.002/search query. No account or API key needed.</p>
+
+<h2>3. Acceptable use</h2>
+<p>By using anybrowse, you agree to the following rules:</p>
+<ul>
+  <li>You will not use this service to scrape content for illegal purposes, including but not limited to fraud, harassment, or stalking.</li>
+  <li>You will not use this service to collect, distribute, or generate child sexual abuse material (CSAM). Violations will be reported to law enforcement.</li>
+  <li>You will not use this service to systematically collect personal data in ways that violate applicable privacy laws (GDPR, CCPA, etc.).</li>
+  <li>You will not attempt to circumvent rate limits or abuse the free tier through automation.</li>
+  <li>You will not use this service to attack, damage, or interfere with websites or infrastructure.</li>
+  <li>You are responsible for complying with the terms of service of any website you scrape.</li>
+</ul>
+<p>We reserve the right to terminate access for any violation of these rules, with or without notice.</p>
+
+<h2>4. Data collection</h2>
+<p>We collect anonymized, aggregated usage data including request patterns, geographic region, and client type. This data may be used for research, product improvement, and may be licensed to third parties in anonymized, aggregate form. We do not sell individually identifiable data. See our <a href="/privacy">Privacy Policy</a> for full details.</p>
+
+<h2>5. Stripe subscriptions and cancellation</h2>
+<p>Pro subscriptions are processed through Stripe. When you subscribe:</p>
+<ul>
+  <li>You will be billed $4.99/month starting immediately.</li>
+  <li>You can cancel your subscription at any time from your account dashboard or by contacting us at <a href="mailto:hello@anybrowse.dev">hello@anybrowse.dev</a>.</li>
+  <li>After cancellation, you retain Pro access until the end of the current billing period.</li>
+  <li>We do not offer refunds for partial months.</li>
+</ul>
+
+<h2>6. x402 micropayments (crypto)</h2>
+<p>When you pay via x402 using USDC on Base:</p>
+<ul>
+  <li>Payments are processed on-chain and are final. We cannot reverse or refund crypto transactions.</li>
+  <li>If a payment is sent but the request fails for a technical reason on our end, we will credit the equivalent amount to your account.</li>
+  <li>You are responsible for sending the correct payment amount to the correct address.</li>
+</ul>
+
+<h2>7. DMCA and copyright</h2>
+<p>anybrowse is a tool for accessing publicly available web content. You are solely responsible for what you do with the content you retrieve, including any potential copyright implications.</p>
+<p>If you believe content has been scraped in a way that infringes your copyright, please send a DMCA notice to <a href="mailto:dmca@anybrowse.dev">dmca@anybrowse.dev</a> with the following information:</p>
+<ul>
+  <li>Your name and contact information</li>
+  <li>A description of the copyrighted work</li>
+  <li>The URL(s) you believe are being misused</li>
+  <li>A statement that the use is not authorized</li>
+  <li>Your electronic or physical signature</li>
+</ul>
+<p>We respond to valid DMCA notices promptly.</p>
+
+<h2>8. No warranty</h2>
+<div class="highlight">
+  <p style="margin:0">anybrowse is provided "as is" and "as available" without warranties of any kind, express or implied. We do not guarantee uptime, accuracy of content conversion, or fitness for any particular purpose. Use of this service is at your own risk.</p>
+</div>
+
+<h2>9. Limitation of liability</h2>
+<p>To the maximum extent permitted by law, Heimat LLC, operating as anybrowse, shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of (or inability to use) this service. Our total liability to you for any claim shall not exceed the amount you paid us in the 30 days prior to the claim.</p>
+
+<h2>10. Governing law</h2>
+<p>These Terms are governed by the laws of the State of Wyoming, USA, without regard to conflict of law principles. Any disputes shall be resolved in courts located in Wyoming.</p>
+
+<h2>11. Changes to these terms</h2>
+<p>We may update these terms from time to time. When we do, we will update the "Last updated" date at the top. Continued use of the service after changes means you accept the new terms.</p>
+
+<h2>12. Contact</h2>
+<p>Questions about these terms? Email us at <a href="mailto:hello@anybrowse.dev">hello@anybrowse.dev</a>.</p>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/vault">vault</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</footer>
+
+</body>
+</html>

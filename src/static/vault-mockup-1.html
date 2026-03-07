@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #f4f0eb; font-family: 'Helvetica Neue', sans-serif; }
+nav { padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd8d0; }
+.logo { font-size: 13px; letter-spacing: 0.1em; font-weight: 600; }
+.nav-links { display: flex; gap: 24px; font-size: 12px; letter-spacing: 0.08em; color: #666; text-transform: uppercase; }
+
+.header { padding: 40px 32px 24px; }
+.header h1 { font-size: 42px; font-weight: 700; letter-spacing: -0.02em; }
+.header h1 span { color: #d94400; }
+.header p { font-size: 14px; color: #888; margin-top: 8px; }
+
+.controls { padding: 0 32px 24px; display: flex; gap: 12px; align-items: center; }
+.search { flex: 1; max-width: 320px; border: 1px solid #ccc8c0; background: white; padding: 8px 14px; font-size: 13px; border-radius: 4px; }
+.filter-btn { padding: 7px 14px; font-size: 12px; letter-spacing: 0.06em; border: 1px solid #ccc8c0; background: white; cursor: pointer; border-radius: 4px; text-transform: uppercase; }
+.filter-btn.active { background: #d94400; color: white; border-color: #d94400; }
+.sort-select { padding: 7px 14px; font-size: 12px; border: 1px solid #ccc8c0; background: white; border-radius: 4px; }
+.count { margin-left: auto; font-size: 12px; color: #888; }
+
+.grid { padding: 0 32px 32px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.card { background: white; border: 1px solid #e8e4de; border-radius: 6px; overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.card-img { width: 100%; height: 120px; background: #f0ece6; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: #ccc8c0; letter-spacing: -0.02em; }
+.card-img.has-shot { background: #e8e4de; }
+.card-body { padding: 10px 12px; }
+.card-domain { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.badge { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
+.badge-agent { background: #fff3ee; color: #d94400; border: 1px solid #ffd5c2; }
+.badge-human { background: #f0f4ff; color: #4466cc; border: 1px solid #c4d0ff; }
+.card-count { font-size: 10px; color: #aaa; margin-left: auto; }
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">anybrowse</div>
+  <div class="nav-links"><span>Docs</span><span>Pricing</span><span style="color:#d94400;font-weight:600">Vault</span></div>
+</nav>
+<div class="header">
+  <h1>The <span>Vault</span></h1>
+  <p>Every site ever scraped through anybrowse. Live.</p>
+</div>
+<div class="controls">
+  <input class="search" placeholder="Search domains...">
+  <button class="filter-btn active">All</button>
+  <button class="filter-btn">Agent</button>
+  <button class="filter-btn">Human</button>
+  <select class="sort-select"><option>Latest first</option><option>Oldest first</option><option>Most scraped</option><option>A to Z</option></select>
+  <span class="count">47 sites indexed</span>
+</div>
+<div class="grid">
+  ${['youngcapital.nl','bilibili.com','github.com','openai.com','vercel.com','stripe.com','linear.app','notion.so','figma.com','hacker news'].map((d,i) => `
+  <div class="card">
+    <div class="card-img ${i<4?'has-shot':''}">${d[0].toUpperCase()}</div>
+    <div class="card-body">
+      <div class="card-domain">${d}</div>
+      <div class="card-meta">
+        <span class="badge ${i%3===2?'badge-human':'badge-agent'}">${i%3===2?'Human':'Agent'}</span>
+        <span class="card-count">${[14,20,8,3,1,5,2,7,1,4][i]}x</span>
+      </div>
+    </div>
+  </div>`).join('')}
+</div>
+</body>
+</html>

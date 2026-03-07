@@ -1,12 +1,15 @@
 # anybrowse
 
-> Convert any URL to LLM-ready Markdown via real Chrome browsers with stealth mode and proxy fallback. 90%+ success rate. Start with 10 free scrapes/day (no signup), then pay per request with API keys ($4.99/month Pro) or x402 micropayments on Base.
+> Convert any URL to LLM-ready Markdown via real Chrome browsers with stealth mode, CAPTCHA solving, and proxy fallback. 84% measured scrape success rate. Real-time web search via Brave Search API. Start with 10 free scrapes/day (no signup), then pay per request with API keys ($4.99/month Pro), x402 micropayments on Base, or one-time credit packs from $5 (coming soon).
 
 ## API Endpoints
 
-- Scrape: POST /scrape - Convert a single URL to clean Markdown (10 free/day, then $0.002)
-- Crawl: POST /crawl - Search Google and scrape top results to Markdown (10 free/day, then $0.01)
-- Search: POST /serp/search - Google SERP results as structured JSON (10 free/day, then $0.002)
+- Scrape: POST /scrape - Convert a single URL to clean Markdown — 84% success rate (10 free/day, then $0.002)
+- Crawl: POST /crawl - Search and scrape top results to Markdown — 75% success rate (10 free/day, then $0.01)
+- Search: POST /serp/search - Real-time web search via Brave Search API, structured JSON — 62% success rate (10 free/day, then $0.002)
+- Batch: POST /batch - Scrape up to 10 URLs in parallel (free: 5 batches/day, pro: unlimited)
+- Watch: POST /watch - Register a URL for change monitoring with webhook alerts (free: 3 watches, pro: 50)
+- Extract: POST /extract - Extract structured JSON from any URL using a field schema ($0.01/call)
 
 ## Free Tier
 
@@ -14,7 +17,11 @@ All users get 10 free scrapes per day with no signup required. Just make request
 
 ## Key Capabilities
 
-- **90%+ success rate** with stealth browser mode (anti-bot bypass)
+- **84% measured scrape success rate** — tested across news, e-commerce, JS-heavy SPAs, Cloudflare-protected sites
+- **Real-time web search** via Brave Search API — fast, reliable, 62% search success rate
+- **Automatic CAPTCHA solving** via CapSolver — handles reCAPTCHA, hCaptcha, and more
+- **Stealth mode** via rebrowser-patches — bypasses bot detection
+- **50 Chrome workers** (Windows relay) with real browser fingerprints
 - **Proxy fallback** automatically retries blocked sites via residential proxies
 - **30s timeout** for JS-heavy single-page applications
 - **Structured error responses** with machine-readable reason codes (e.g. `TIMEOUT`, `BLOCKED`, `NOT_FOUND`)
@@ -25,12 +32,13 @@ All users get 10 free scrapes per day with no signup required. Just make request
 1. **Free tier**: 10 scrapes/day, no auth required
 2. **API key (Pro)**: $4.99/month for 10,000 scrapes/month
 3. **x402**: Wallet-based micropayments (USDC on Base, $0.002/scrape)
+4. **Credit packs** (coming soon): One-time credit packs from $5 — no subscription required
 
 ## MCP Server
 
 Endpoint: https://anybrowse.dev/mcp
 Protocol: Streamable HTTP
-Tools: scrape, crawl, search
+Tools: scrape, crawl, search, batch_scrape, extract
 
 Add to Claude Code, Cursor, or Windsurf:
 
@@ -46,6 +54,22 @@ Asset: USDC
 Wallet: 0x8D76E8FB38541d70dF74b14660c39b4c5d737088
 
 For x402: Send a request without payment, receive a 402 with payment instructions, sign with your wallet, resend with the X-PAYMENT header.
+
+## PAYMENT: x402 Micropayments (for AI agents with crypto wallets)
+
+If your agent has a Coinbase wallet, you can pay per-request using x402:
+
+1. Use `wrapFetch` from the `x402` npm package with your wallet
+2. Or use Coinbase AgentKit — it handles x402 automatically
+3. The API returns HTTP 402 with payment requirements if you haven't paid
+4. Payment is $0.002 USDC per /scrape, $0.01 per /crawl
+
+Most agents should use the free tier or Stripe subscription instead.
+x402 is for agents with on-chain wallets (e.g. Coinbase AgentKit).
+
+Common error: "paymentPayload is invalid" — use the x402 client library,
+do not manually construct the X-PAYMENT header.
+Docs: https://anybrowse.dev/docs/x402
 
 ## Agent Discovery
 
