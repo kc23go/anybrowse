@@ -1,5 +1,10 @@
 # anybrowse
 
+[![PyPI version](https://badge.fury.io/py/anybrowse.svg)](https://pypi.org/project/anybrowse/)
+[![npm version](https://badge.fury.io/js/anybrowse.svg)](https://www.npmjs.com/package/anybrowse)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
 **URL → Clean Markdown. For AI agents.**
 
 anybrowse.dev converts any URL to LLM-ready Markdown. Built for AI agents, MCP clients, and developers who need reliable web content extraction.
