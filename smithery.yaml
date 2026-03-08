@@ -1,0 +1,18 @@
+# Smithery configuration for anybrowse MCP server
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      apiKey:
+        type: string
+        description: "Your anybrowse API key (optional - 10 free scrapes/day without key)"
+    required: []
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@anybrowse/mcp-server"],
+      env: {
+        ANYBROWSE_API_KEY: config.apiKey || ""
+      }
+    })
