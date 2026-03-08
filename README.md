@@ -9,6 +9,10 @@
 
 anybrowse.dev converts any URL to LLM-ready Markdown. Built for AI agents, MCP clients, and developers who need reliable web content extraction.
 
+<a href="https://glama.ai/mcp/servers/kc23go/anybrowse">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/kc23go/anybrowse/badge" alt="Anybrowse MCP server" />
+</a>
+
 ## Why anybrowse?
 
 - **84% scrape success rate** — including Cloudflare-protected sites, JavaScript SPAs, government portals
