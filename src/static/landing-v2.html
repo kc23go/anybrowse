@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>anybrowse -- any URL to clean Markdown</title>
-<meta name="description" content="Convert any URL to clean, LLM-ready Markdown. For AI agents. No config. No API key required. 10 free scrapes/day. Enter your email for 50.">
+<meta name="description" content="Convert any URL to clean, LLM-ready Markdown. For AI agents. No config. No API key required. 10 free scrapes/day.">
 <link rel="canonical" href="https://anybrowse.dev/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,11 +12,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <meta property="og:type" content="website">
 <meta property="og:title" content="anybrowse -- any URL to clean Markdown">
-<meta property="og:description" content="For AI agents. No config. No API key required. 10 free scrapes/day. Enter your email for 50/day free.">
+<meta property="og:description" content="For AI agents. No config. No API key required. 10 free scrapes/day.">
 <meta property="og:url" content="https://anybrowse.dev/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="anybrowse -- any URL to clean Markdown">
-<meta name="twitter:description" content="For AI agents. No config. No API key required. 10 free scrapes/day. Enter your email for 50/day free.">
+<meta name="twitter:description" content="For AI agents. No config. No API key required. 10 free scrapes/day.">
 
 <style>
 /* ---- RESET ---- */
@@ -1121,9 +1121,9 @@ result = client.<span class="t-fn">scrape</span>(<span class="t-string">"https:/
       <div class="price-card">
         <div class="price-tier-name">Free</div>
         <div class="price-amount">10<small>/day</small></div>
-        <p class="price-desc">10 scrapes/day. Enter your email for 50. No card. No catch.</p>
+        <p class="price-desc">10 scrapes/day. No card. No catch.</p>
         <ul class="price-features">
-          <li>10 scrapes per day (50 with email)</li>
+          <li>10 scrapes per day</li>
           <li>Full JavaScript rendering</li>
           <li>MCP server access</li>
           <li>No API key needed</li>
@@ -1191,6 +1191,7 @@ result = client.<span class="t-fn">scrape</span>(<span class="t-string">"https:/
         <a href="/docs">Docs</a>
         <a href="#pricing">Pricing</a>
         <a href="https://github.com/kc23go/anybrowse" target="_blank" rel="noopener">GitHub</a>
+        <a href="/manage">Manage subscription</a>
         <a href="/privacy">Privacy</a>
         <a href="/tos">Terms</a>
       </nav>
@@ -1201,9 +1202,8 @@ result = client.<span class="t-fn">scrape</span>(<span class="t-string">"https:/
 
 <!-- Upgrade bar -->
 <div id="upgrade-bar">
-  <span>Need more? Enter your email for 50 free/day.</span>
-  <a href="/upgrade-free">Get 50 free &rarr;</a> &nbsp;
-  <a href="/credits">Or get 3,000 scrapes for $5 &rarr;</a>
+  <span>Need more than 10 scrapes/day?</span>
+  <a href="/credits">Get 3,000 scrapes for $5 &rarr;</a>
   <button id="upgrade-bar-close" onclick="document.getElementById('upgrade-bar').style.display='none'" aria-label="Close">&#215;</button>
 </div>
 
@@ -1286,7 +1286,7 @@ async function runDemo(url) {
     if (res.status === 402) {
       var j = await res.json();
       err.style.display = 'block';
-      err.innerHTML = '&#x1F6AB; You\'ve used your free scrapes today. <strong><a href="/upgrade-free">Enter your email for 50/day free &rarr;</a></strong> or <a href="/credits">get 3,000 scrapes for $5</a>';
+      err.innerHTML = '&#x1F6AB; You\'ve used your 10 free scrapes today. <strong><a href="/credits">Get 3,000 scrapes for $5 &rarr;</a></strong>';
       outputWrap.style.display = 'none';
       var bar = document.getElementById('upgrade-bar');
       if (bar) bar.style.display = 'flex';

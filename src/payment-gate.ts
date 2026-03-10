@@ -6,6 +6,7 @@ import { getConfig } from "./autonomy/optimizer.js";
 import { checkSubscription, incrementUsage } from "./stripe-subscriptions.js";
 import { getCredits, deductCredits } from "./stripe-credits.js";
 import { sendEmail, hashIp, lookupEmailByIpHash, buildPaymentRecoveryEmail, isMailerEnabled } from "./mailer.js";
+import { trackEvent } from "./analytics.js";
 
 const PAY_TO = "0x8D76E8FB38541d70dF74b14660c39b4c5d737088";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -79,10 +80,16 @@ export function getInternalToken(): string {
   return INTERNAL_BYPASS_TOKEN;
 }
 
-// ── Free tier rate limiting (50 scrapes/day per IP for direct API) ──────────
+// ── Free tier rate limiting ──────────────────────────────────────────────────
 // MCP endpoint (/mcp) is handled separately and is UNLIMITED for agents.
-const FREE_TIER_DAILY_LIMIT = 50;
+// Anonymous IP:    10 scrapes/day
+// Email verified:  50 scrapes/day (stored in emailVerifiedIps Set, persisted in DB)
+const FREE_TIER_DAILY_LIMIT_ANON = 10;
+const FREE_TIER_DAILY_LIMIT_EMAIL = 50;
 const FREE_TIER_DAY_MS = 86_400_000; // 24h in ms
+
+// In-memory set of IPs that have verified an email (source of truth: DB)
+export const emailVerifiedIps = new Set<string>();
 
 interface FreeTierEntry {
   count: number;
@@ -110,9 +117,11 @@ function nextMidnightUtc(): number {
 
 /**
  * Check (and consume) a free-tier slot for the given IP.
- * Returns { allowed: true } if under limit, or { allowed: false } when exhausted.
+ * Returns { allowed: true/false, isEmailVerified } based on tier.
  */
-function checkFreeTier(ip: string): { allowed: boolean } {
+function checkFreeTier(ip: string): { allowed: boolean; isEmailVerified: boolean } {
+  const isEmailVerified = emailVerifiedIps.has(ip);
+  const limit = isEmailVerified ? FREE_TIER_DAILY_LIMIT_EMAIL : FREE_TIER_DAILY_LIMIT_ANON;
   const now = Date.now();
   let entry = freeTierMap.get(ip);
 
@@ -121,12 +130,12 @@ function checkFreeTier(ip: string): { allowed: boolean } {
     freeTierMap.set(ip, entry);
   }
 
-  if (entry.count >= FREE_TIER_DAILY_LIMIT) {
-    return { allowed: false };
+  if (entry.count >= limit) {
+    return { allowed: false, isEmailVerified };
   }
 
   entry.count++;
-  return { allowed: true };
+  return { allowed: true, isEmailVerified };
 }
 
 // Payment replay protection
@@ -343,7 +352,11 @@ export default fp(async function paymentGate(app: FastifyInstance) {
       const ownerAuthHeader = (req.headers["authorization"] as string) || "";
       const ownerApiKeyHeader = (req.headers["x-api-key"] as string) || "";
       const ownerBearer = ownerAuthHeader.startsWith("Bearer ") ? ownerAuthHeader.slice(7) : ownerAuthHeader;
-      if (isOwnerKey(ownerBearer || ownerApiKeyHeader)) return;
+      if (isOwnerKey(ownerBearer || ownerApiKeyHeader)) {
+        // Mark request as excluded from stats — owner traffic should never inflate metrics
+        (req as any).excludeFromStats = true;
+        return;
+      }
 
       const amount = getCurrentPrice(path);
       if (!amount) return;
@@ -409,35 +422,116 @@ export default fp(async function paymentGate(app: FastifyInstance) {
       // ── end Stripe / free tier gate ───────────────────────────────
       const xPayment = req.headers["x-payment"] as string | undefined;
 
-      // If no x402 payment header is present, apply free tier (10/day per IP)
+      // If no x402 payment header is present, apply free tier (10/day anon, 50/day email-verified)
       if (!xPayment) {
         const clientIp = req.ip || "unknown";
         const freeTierOk = checkFreeTier(clientIp);
         if (!freeTierOk.allowed) {
+          reply.header('X-Upgrade-URL', 'https://anybrowse.dev/credits?limit=1');
           const agentReq = isAgentRequest(req);
-          if (agentReq) {
-            // Developer/agent hitting limit via direct API call
+          const ipHashForTracking = hashIp(clientIp);
+          trackEvent('rate_limit_hit', {
+            endpoint: req.url,
+            client: agentReq ? 'agent' : 'browser',
+            isAgent: agentReq,
+            upgradeShown: true,
+            isEmailVerified: freeTierOk.isEmailVerified,
+          }, ipHashForTracking);
+
+          if (!freeTierOk.isEmailVerified) {
+            // Anonymous user — prompt for email to get 50/day
             reply.status(402).send({
-              error: "Daily free limit reached (50 scrapes/day for direct API). Use the MCP endpoint for unlimited agent access.",
-              mcp_endpoint: "https://anybrowse.dev/mcp",
-              upgrade: "https://anybrowse.dev/checkout",
+              error: "Free tier limit reached (10 scrapes/day)",
+              message: "Enter your email for 50 free scrapes per day.\n\ncurl -X POST https://anybrowse.dev/upgrade-free -H 'Content-Type: application/json' -d '{\"email\":\"you@example.com\"}'",
+              emailUpgradeUrl: "https://anybrowse.dev/upgrade-free",
+              upgradeUrl: "https://anybrowse.dev/credits",
+              upgrade_url: "https://anybrowse.dev/credits?limit=1",
+              freeCreditsUsed: true,
+              upgrade: {
+                free_email: {
+                  url: "https://anybrowse.dev/upgrade-free",
+                  note: "Enter your email for 50 free scrapes/day — no credit card needed",
+                },
+                credits: {
+                  url: "https://anybrowse.dev/credits",
+                  starter: "$5 for 3,000 scrapes",
+                  growth: "$20 for 15,000 scrapes",
+                  scale: "$50 for 50,000 scrapes",
+                },
+                subscription: {
+                  url: "https://anybrowse.dev/pricing",
+                  price: "$4.99/month for 10,000 scrapes",
+                },
+                x402: {
+                  url: "https://anybrowse.dev/docs/x402",
+                  price: "$0.002 per scrape via USDC on Base",
+                },
+              },
+              hint: "POST { email, ip } to /upgrade-free to unlock 50 free scrapes/day",
+              docs: "https://anybrowse.dev/docs",
               reset: "Resets at midnight UTC",
-              pro: "$4.99/month for 10,000 scrapes",
-              notify_me: "POST your email to https://anybrowse.dev/capture-email to get notified about Pro deals",
-              x402: X402_FORMAT_GUIDE,
+            });
+          } else if (agentReq) {
+            // Email-verified agent hitting 50/day limit
+            reply.status(402).send({
+              error: "Free tier limit reached (50 scrapes/day)",
+              message: "You've used your 50 free scrapes for today. Get more instantly:",
+              upgradeUrl: "https://anybrowse.dev/credits",
+              upgrade_url: "https://anybrowse.dev/credits?limit=1",
+              freeCreditsUsed: true,
+              upgrade: {
+                credits: {
+                  url: "https://anybrowse.dev/credits",
+                  starter: "$5 for 3,000 scrapes",
+                  growth: "$20 for 15,000 scrapes",
+                  scale: "$50 for 50,000 scrapes",
+                },
+                subscription: {
+                  url: "https://anybrowse.dev/pricing",
+                  price: "$4.99/month for 10,000 scrapes",
+                },
+                x402: {
+                  url: "https://anybrowse.dev/docs/x402",
+                  price: "$0.002 per scrape via USDC on Base",
+                },
+                mcp: {
+                  url: "https://anybrowse.dev/mcp",
+                  note: "MCP endpoint is UNLIMITED for AI agents — no rate limit",
+                },
+              },
+              hint: "Add 'Authorization: Bearer YOUR_KEY' header with a credit pack key",
+              docs: "https://anybrowse.dev/docs",
+              reset: "Resets at midnight UTC",
+              x402_protocol: X402_FORMAT_GUIDE,
               accepts: [buildPaymentRequirements(path, req.method, amount)],
             });
           } else {
-            // Human browser - encourage email capture on the landing page
+            // Email-verified human browser hitting 50/day limit
             reply.status(402).send({
-              error: "Daily free limit reached (50 scrapes/day)",
-              upgrade: "https://anybrowse.dev/checkout",
+              error: "Free tier limit reached (50 scrapes/day)",
+              message: "You've used your 50 free scrapes for today. Get more instantly:",
+              upgradeUrl: "https://anybrowse.dev/credits",
+              upgrade_url: "https://anybrowse.dev/credits?limit=1",
+              freeCreditsUsed: true,
+              upgrade: {
+                credits: {
+                  url: "https://anybrowse.dev/credits",
+                  starter: "$5 for 3,000 scrapes",
+                  growth: "$20 for 15,000 scrapes",
+                  scale: "$50 for 50,000 scrapes",
+                },
+                subscription: {
+                  url: "https://anybrowse.dev/pricing",
+                  price: "$4.99/month for 10,000 scrapes",
+                },
+                x402: {
+                  url: "https://anybrowse.dev/docs/x402",
+                  price: "$0.002 per scrape via USDC on Base",
+                },
+              },
+              hint: "Add 'Authorization: Bearer YOUR_KEY' header with a credit pack key",
+              docs: "https://anybrowse.dev/docs",
               reset: "Resets at midnight UTC",
-              pro: "$4.99/month for 10,000 scrapes",
-              capture_email: true,
-              capture_url: "https://anybrowse.dev",
-              x402: X402_FORMAT_GUIDE,
-              accepts: [buildPaymentRequirements(path, req.method, amount)],
             });
           }
           return;
@@ -531,6 +625,9 @@ export default fp(async function paymentGate(app: FastifyInstance) {
   app.addHook(
     "onSend",
     async (req: FastifyRequest, reply: FastifyReply, payload: unknown) => {
+      // Guard: if response already sent (e.g. HEAD request cleanup or client timeout), skip
+      if (reply.sent) return payload;
+
       // ── Credit pack deduction ─────────────────────────────────────
       const creditKey = (req as any).creditKey as string | undefined;
       if (creditKey && reply.statusCode < 400) {
@@ -580,7 +677,7 @@ export default fp(async function paymentGate(app: FastifyInstance) {
             status: "settlement_failed",
             error: settleResult.errorReason,
           });
-          reply.status(402);
+          if (!reply.sent) reply.status(402);
           return JSON.stringify({
             x402Version: 1,
             error: `Payment settlement failed: ${settleResult.errorReason}`,
@@ -601,7 +698,7 @@ export default fp(async function paymentGate(app: FastifyInstance) {
         });
 
         const proof = Buffer.from(JSON.stringify(settleResult)).toString("base64");
-        reply.header("X-PAYMENT-RESPONSE", proof);
+        if (!reply.sent) reply.header("X-PAYMENT-RESPONSE", proof);
       } catch (err: any) {
         console.error(`[payment-gate] Settle error:`, err.message || err);
         recordPayment({
@@ -614,7 +711,7 @@ export default fp(async function paymentGate(app: FastifyInstance) {
           status: "settlement_failed",
           error: err.message || String(err),
         });
-        reply.status(402);
+        if (!reply.sent) reply.status(402);
         return JSON.stringify({ x402Version: 1, error: "Payment settlement error" });
       }
 

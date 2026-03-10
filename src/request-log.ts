@@ -13,6 +13,7 @@ import {
   appendFileSync,
   existsSync,
   readFileSync,
+  writeFileSync,
   statSync,
   renameSync,
   mkdirSync,
@@ -25,6 +26,171 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
 // Endpoints where the URL is meaningful to log
 const LOG_URL_ENDPOINTS = new Set(["/scrape", "/crawl"]);
+
+// ─── Stats Exclusion Logic ────────────────────────────────────────────────────
+
+const EXCLUDED_IPS_FILE = "/agent/data/excluded-ips.json";
+
+/** Hard-coded excluded IP hashes (first 8 chars of sha256) */
+const EXCLUDED_IP_HASHES_STATIC = new Set([
+  '5c2a3f8f',  // KC's own IP (owner/internal testing)
+]);
+
+/** Registry bots, health probers, and scanner UAs — case-insensitive match */
+const EXCLUDED_UA_PATTERNS = [
+  'mcpdd',
+  'glama',
+  'mcpscoringengine',
+  'mcp-verify',
+  'mcp-gateway',
+  'mcp-probe',
+  'registry-health-checker',
+  'smithery',
+  'libredtail',
+  'python-httpx/0',  // generic httpx without custom UA — often bots
+];
+
+/** Endpoints that should never count toward user-facing stats */
+const EXCLUDED_STAT_ENDPOINTS = new Set([
+  '/health',
+  '/stats',
+  '/earnings',
+  '/relay/stats',
+]);
+
+/** Dynamic exclusion list (persisted JSON), reloaded every 30s */
+let _dynamicExcludedIps = new Map<string, string>(); // ip_hash_prefix -> reason
+let _dynamicLoadedAt = 0;
+const DYNAMIC_RELOAD_MS = 30_000;
+
+function loadDynamicExclusions(): void {
+  try {
+    if (existsSync(EXCLUDED_IPS_FILE)) {
+      const data = JSON.parse(readFileSync(EXCLUDED_IPS_FILE, 'utf-8'));
+      _dynamicExcludedIps = new Map(Object.entries(data as Record<string, string>));
+    }
+  } catch {
+    // ignore parse errors
+  }
+  _dynamicLoadedAt = Date.now();
+}
+
+function maybeReloadDynamic(): void {
+  if (Date.now() - _dynamicLoadedAt > DYNAMIC_RELOAD_MS) loadDynamicExclusions();
+}
+
+// Load on module startup
+loadDynamicExclusions();
+
+/**
+ * Add an IP hash to the dynamic exclusion list and persist it.
+ * Returns true on success.
+ */
+export function addExcludedIp(ipHash: string, reason: string): boolean {
+  try {
+    let data: Record<string, string> = {};
+    if (existsSync(EXCLUDED_IPS_FILE)) {
+      data = JSON.parse(readFileSync(EXCLUDED_IPS_FILE, 'utf-8'));
+    }
+    const prefix = ipHash.slice(0, 8);
+    data[prefix] = reason;
+    writeFileSync(EXCLUDED_IPS_FILE, JSON.stringify(data, null, 2));
+    _dynamicExcludedIps.set(prefix, reason);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns the full dynamic exclusion map (prefix -> reason).
+ */
+export function getDynamicExclusions(): Record<string, string> {
+  maybeReloadDynamic();
+  return Object.fromEntries(_dynamicExcludedIps);
+}
+
+/**
+ * Determine whether a request should be excluded from all stats/analytics.
+ * Called before writing to SQLite, JSONL, or the in-memory stats counter.
+ * @param ipHash     - 8+ char hex hash of the IP
+ * @param userAgent  - raw User-Agent header value
+ * @param endpoint   - request path (e.g. "/scrape")
+ * @param clientName - optional parsed client name (from MCP clientInfo.name or UA)
+ */
+export function shouldExcludeFromStats(ipHash: string, userAgent: string, endpoint: string, clientName?: string): boolean {
+  maybeReloadDynamic();
+
+  const prefix = ipHash.slice(0, 8);
+  if (EXCLUDED_IP_HASHES_STATIC.has(prefix)) return true;
+  if (_dynamicExcludedIps.has(prefix)) return true;
+  if (EXCLUDED_STAT_ENDPOINTS.has(endpoint)) return true;
+  // WP-admin / WordPress vulnerability scanners
+  if (endpoint.includes('wp-admin') || endpoint.includes('wordpress') || endpoint.startsWith('/wp-')) return true;
+
+  // Check UA patterns
+  const uaLower = (userAgent || '').toLowerCase();
+  if (EXCLUDED_UA_PATTERNS.some(p => uaLower.includes(p))) return true;
+
+  // Also check client name (from MCP clientInfo.name — registry bots identify themselves here)
+  if (clientName) {
+    const clientLower = clientName.toLowerCase();
+    if (EXCLUDED_UA_PATTERNS.some(p => clientLower.includes(p))) return true;
+  }
+
+  return false;
+}
+
+/**
+ * SQL WHERE fragment to filter bot/internal requests at read time.
+ * Used by computeInsightsFromSQLite so historical data is also cleaned.
+ * Checks both ua (HTTP User-Agent) AND client/mcp_client_name (from MCP clientInfo).
+ */
+const BOT_FILTER_SQL = `
+  AND ip_hash NOT LIKE '5c2a3f8f%'
+  AND endpoint NOT IN ('/health', '/stats', '/earnings', '/relay/stats')
+  AND endpoint NOT LIKE '/wp-%'
+  AND endpoint NOT LIKE '%wordpress%'
+  AND (ua IS NULL OR (
+    ua NOT LIKE '%mcpdd%'
+    AND ua NOT LIKE '%glama%'
+    AND ua NOT LIKE '%MCPScoringEngine%'
+    AND ua NOT LIKE '%mcp-verify%'
+    AND ua NOT LIKE '%mcp-gateway%'
+    AND ua NOT LIKE '%mcp-probe%'
+    AND ua NOT LIKE '%registry-health-checker%'
+    AND ua NOT LIKE '%Smithery%'
+    AND ua NOT LIKE '%smithery%'
+    AND ua NOT LIKE '%libredtail%'
+    AND ua NOT LIKE '%python-httpx/0%'
+  ))
+  AND (client IS NULL OR (
+    client NOT LIKE '%mcpdd%'
+    AND client NOT LIKE '%glama%'
+    AND client NOT LIKE '%MCPScoringEngine%'
+    AND client NOT LIKE '%mcp-verify%'
+    AND client NOT LIKE '%mcp-gateway%'
+    AND client NOT LIKE '%mcp-probe%'
+    AND client NOT LIKE '%registry-health-checker%'
+    AND client NOT LIKE '%Smithery%'
+    AND client NOT LIKE '%smithery%'
+    AND client NOT LIKE '%libredtail%'
+    AND client NOT LIKE '%smithery-probe%'
+    AND client NOT LIKE '%mcp-introspector%'
+  ))
+  AND (mcp_client_name IS NULL OR (
+    mcp_client_name NOT LIKE '%mcpdd%'
+    AND mcp_client_name NOT LIKE '%glama%'
+    AND mcp_client_name NOT LIKE '%Smithery%'
+    AND mcp_client_name NOT LIKE '%smithery%'
+    AND mcp_client_name NOT LIKE '%mcp-verify%'
+    AND mcp_client_name NOT LIKE '%mcp-gateway%'
+    AND mcp_client_name NOT LIKE '%mcp-probe%'
+    AND mcp_client_name NOT LIKE '%registry-health-checker%'
+    AND mcp_client_name NOT LIKE '%libredtail%'
+    AND mcp_client_name NOT LIKE '%mcp-introspector%'
+  ))
+`;
 
 export type RequestStatus = "success" | "failed" | "payment" | "ratelimited";
 
@@ -281,8 +447,14 @@ export async function buildLogEntry(opts: {
 /**
  * Write one log entry to SQLite (primary) and JSONL (backup).
  * Best-effort — never throws, never breaks request pipeline.
+ * Silently skips entries that are excluded from stats (bots, owner IP, health checks).
  */
-export function logRequest(entry: RequestLogEntry): void {
+export function logRequest(entry: RequestLogEntry, skipExclusionCheck = false): void {
+  // Drop bot/internal traffic — do not write to SQLite or JSONL
+  // Pass client name so MCP registry bots (mcpdd, Glama, Smithery, etc.) are caught
+  if (!skipExclusionCheck && shouldExcludeFromStats(entry.ip_hash, entry.ua, entry.endpoint, entry.client)) {
+    return;
+  }
   // ── Primary: SQLite ───────────────────────────────────────────────
   try {
     const targetDomain = entry.url ? extractDomain(entry.url) : null;
@@ -411,6 +583,21 @@ export function readLogSince(sinceMs: number): LogLine[] {
 }
 
 /**
+ * Get clean request count from SQLite (excludes bots/health/internal).
+ * Returns { clean, total, filteredOut } for the last N days.
+ */
+export function getCleanRequestCount(days = 7): { clean: number; total: number; filteredOut: number } {
+  const since = Date.now() - days * 24 * 60 * 60 * 1000;
+  try {
+    const total = (db.prepare('SELECT COUNT(*) as cnt FROM requests WHERE ts >= ?').get(since) as any).cnt as number;
+    const clean = (db.prepare(`SELECT COUNT(*) as cnt FROM requests WHERE ts >= ? ${BOT_FILTER_SQL}`).get(since) as any).cnt as number;
+    return { clean, total, filteredOut: total - clean };
+  } catch {
+    return { clean: 0, total: 0, filteredOut: 0 };
+  }
+}
+
+/**
  * Get client breakdown from last N days.
  * Returns { "claude-code": 800, "cursor": 300, ... }
  */
@@ -430,6 +617,8 @@ export function getClientBreakdown(days: number): Record<string, number> {
 export interface InsightsData {
   period: string;
   totalRequests: number;
+  filteredOut: number;
+  note: string;
   byClient: Record<string, number>;
   byEndpoint: Record<string, number>;
   topUrls: Array<{ url: string; count: number }>;
@@ -469,89 +658,94 @@ export function computeInsights(): InsightsData {
 
 /**
  * Fast insights via SQLite queries.
+ * All counts exclude bot/internal traffic via BOT_FILTER_SQL.
  */
 function computeInsightsFromSQLite(since7d: number, since1d: number, now: number): InsightsData {
-  // Total requests
-  const total = (db.prepare('SELECT COUNT(*) as cnt FROM requests WHERE ts >= ?').get(since7d) as any).cnt as number;
+  // Total (raw) vs filtered counts — to compute filteredOut
+  const rawTotal = (db.prepare(`SELECT COUNT(*) as cnt FROM requests WHERE ts >= ?`).get(since7d) as any).cnt as number;
+  const cleanTotal = (db.prepare(`SELECT COUNT(*) as cnt FROM requests WHERE ts >= ? ${BOT_FILTER_SQL}`).get(since7d) as any).cnt as number;
+  const filteredOut = rawTotal - cleanTotal;
 
-  // By client
+  // By client (filtered)
   const clientRows = db.prepare(
-    'SELECT client, COUNT(*) as cnt FROM requests WHERE ts >= ? GROUP BY client ORDER BY cnt DESC'
+    `SELECT client, COUNT(*) as cnt FROM requests WHERE ts >= ? ${BOT_FILTER_SQL} GROUP BY client ORDER BY cnt DESC`
   ).all(since7d) as Array<{ client: string; cnt: number }>;
   const byClient: Record<string, number> = {};
   for (const r of clientRows) byClient[r.client || 'unknown'] = r.cnt;
 
-  // By endpoint
+  // By endpoint (filtered)
   const endpointRows = db.prepare(
-    'SELECT endpoint, COUNT(*) as cnt FROM requests WHERE ts >= ? GROUP BY endpoint ORDER BY cnt DESC'
+    `SELECT endpoint, COUNT(*) as cnt FROM requests WHERE ts >= ? ${BOT_FILTER_SQL} GROUP BY endpoint ORDER BY cnt DESC`
   ).all(since7d) as Array<{ endpoint: string; cnt: number }>;
   const byEndpoint: Record<string, number> = {};
   for (const r of endpointRows) byEndpoint[r.endpoint] = r.cnt;
 
-  // Top URLs (target_url)
+  // Top URLs (filtered)
   const urlRows = db.prepare(
-    'SELECT target_url as url, COUNT(*) as cnt FROM requests WHERE ts >= ? AND target_url IS NOT NULL GROUP BY target_url ORDER BY cnt DESC LIMIT 10'
+    `SELECT target_url as url, COUNT(*) as cnt FROM requests WHERE ts >= ? AND target_url IS NOT NULL ${BOT_FILTER_SQL} GROUP BY target_url ORDER BY cnt DESC LIMIT 10`
   ).all(since7d) as Array<{ url: string; cnt: number }>;
   const topUrls = urlRows.map(r => ({ url: r.url, count: r.cnt }));
 
-  // Unique IP hashes
+  // Unique IP hashes (filtered)
   const uniqueIps = (db.prepare(
-    'SELECT COUNT(DISTINCT ip_hash) as cnt FROM requests WHERE ts >= ?'
+    `SELECT COUNT(DISTINCT ip_hash) as cnt FROM requests WHERE ts >= ? ${BOT_FILTER_SQL}`
   ).get(since7d) as any).cnt as number;
 
-  // Peak hour (SQLite strftime trick using ts ms → seconds)
+  // Peak hour (filtered)
   const peakHourRow = db.prepare(
     `SELECT strftime('%H', ts/1000, 'unixepoch') as hour, COUNT(*) as cnt
-     FROM requests WHERE ts >= ?
+     FROM requests WHERE ts >= ? ${BOT_FILTER_SQL}
      GROUP BY hour ORDER BY cnt DESC LIMIT 1`
   ).get(since7d) as { hour: string; cnt: number } | undefined;
   const peakHour = peakHourRow ? peakHourRow.hour : '00';
 
-  // Unique sessions
+  // Unique sessions (filtered)
   const uniqueSessions = (db.prepare(
-    'SELECT COUNT(DISTINCT mcp_session) as cnt FROM requests WHERE ts >= ? AND mcp_session IS NOT NULL'
+    `SELECT COUNT(DISTINCT mcp_session) as cnt FROM requests WHERE ts >= ? AND mcp_session IS NOT NULL ${BOT_FILTER_SQL}`
   ).get(since7d) as any).cnt as number;
 
-  // New clients today (present in last 24h, not in prior 6d)
+  // New clients today (filtered)
   const clientsToday = new Set(
-    (db.prepare('SELECT DISTINCT client FROM requests WHERE ts >= ?').all(since1d) as Array<{ client: string }>).map(r => r.client)
+    (db.prepare(`SELECT DISTINCT client FROM requests WHERE ts >= ? ${BOT_FILTER_SQL}`).all(since1d) as Array<{ client: string }>).map(r => r.client)
   );
   const clientsBefore1d = new Set(
-    (db.prepare('SELECT DISTINCT client FROM requests WHERE ts >= ? AND ts < ?').all(since7d, since1d) as Array<{ client: string }>).map(r => r.client)
+    (db.prepare(`SELECT DISTINCT client FROM requests WHERE ts >= ? AND ts < ? ${BOT_FILTER_SQL}`).all(since7d, since1d) as Array<{ client: string }>).map(r => r.client)
   );
   const newClientsToday = [...clientsToday].filter(c => !clientsBefore1d.has(c)).length;
 
-  // Top countries
+  // Top countries (filtered)
   const countryRows = db.prepare(
-    'SELECT country_code as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND country_code IS NOT NULL GROUP BY country_code ORDER BY cnt DESC LIMIT 20'
+    `SELECT country_code as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND country_code IS NOT NULL ${BOT_FILTER_SQL} GROUP BY country_code ORDER BY cnt DESC LIMIT 20`
   ).all(since7d) as Array<{ k: string; cnt: number }>;
   const topCountries: Record<string, number> = {};
   for (const r of countryRows) topCountries[r.k] = r.cnt;
 
-  // Top cities
+  // Top cities (filtered)
   const cityRows = db.prepare(
-    'SELECT city as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND city IS NOT NULL GROUP BY city ORDER BY cnt DESC LIMIT 20'
+    `SELECT city as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND city IS NOT NULL ${BOT_FILTER_SQL} GROUP BY city ORDER BY cnt DESC LIMIT 20`
   ).all(since7d) as Array<{ k: string; cnt: number }>;
   const topCities: Record<string, number> = {};
   for (const r of cityRows) topCities[r.k] = r.cnt;
 
-  // Top orgs
+  // Top orgs (filtered)
   const orgRows = db.prepare(
-    'SELECT org as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND org IS NOT NULL GROUP BY org ORDER BY cnt DESC LIMIT 20'
+    `SELECT org as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND org IS NOT NULL ${BOT_FILTER_SQL} GROUP BY org ORDER BY cnt DESC LIMIT 20`
   ).all(since7d) as Array<{ k: string; cnt: number }>;
   const topOrgs: Record<string, number> = {};
   for (const r of orgRows) topOrgs[r.k] = r.cnt;
 
-  // MCP tools
+  // MCP tools (filtered)
   const toolRows = db.prepare(
-    'SELECT mcp_tool as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND mcp_tool IS NOT NULL GROUP BY mcp_tool ORDER BY cnt DESC'
+    `SELECT mcp_tool as k, COUNT(*) as cnt FROM requests WHERE ts >= ? AND mcp_tool IS NOT NULL ${BOT_FILTER_SQL} GROUP BY mcp_tool ORDER BY cnt DESC`
   ).all(since7d) as Array<{ k: string; cnt: number }>;
   const mcpTools: Record<string, number> = {};
   for (const r of toolRows) mcpTools[r.k] = r.cnt;
 
   return {
     period: 'last 7 days',
-    totalRequests: total,
+    totalRequests: cleanTotal,
+    filteredOut,
+    note: 'Excludes registry probers, health checks, WP scanners, and internal/owner traffic',
     byClient,
     byEndpoint,
     topUrls,
@@ -568,9 +762,13 @@ function computeInsightsFromSQLite(since7d: number, since1d: number, now: number
 
 /**
  * Legacy JSONL-based insights (fallback when SQLite has no data).
+ * Applies shouldExcludeFromStats filter to clean historical data.
  */
 function computeInsightsFromJSONL(since7d: number, since1d: number): InsightsData {
-  const entries = readLogSince(since7d);
+  const rawEntries = readLogSince(since7d);
+  const rawTotal = rawEntries.length;
+  const entries = rawEntries.filter(e => !shouldExcludeFromStats(e.ip_hash || '', e.ua || '', e.endpoint || '', e.client || ''));
+  const filteredOut = rawTotal - entries.length;
 
   const byClient: Record<string, number> = {};
   const byEndpoint: Record<string, number> = {};
@@ -653,6 +851,8 @@ function computeInsightsFromJSONL(since7d: number, since1d: number): InsightsDat
   return {
     period: "last 7 days",
     totalRequests: entries.length,
+    filteredOut,
+    note: 'Excludes registry probers, health checks, WP scanners, and internal/owner traffic',
     byClient,
     byEndpoint,
     topUrls,

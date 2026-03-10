@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment Confirmed — anybrowse</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased}
+.content{max-width:620px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:3rem}
+.logo{width:40px;height:40px;flex-shrink:0}
+.wordmark{font-size:1.1rem;font-weight:300;letter-spacing:.04em;text-decoration:none;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.emoji{font-size:3rem;margin-bottom:1rem;display:block}
+h1{font-size:2rem;font-weight:800;margin-bottom:.5rem;color:#1a1a1a;letter-spacing:-.02em}
+.sub{color:#555;margin-bottom:2rem;font-size:.95rem}
+.credits-count{color:#d94400;font-weight:700}
+
+/* API key box */
+.key-box{background:#fff;border:2px solid #d94400;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0}
+.key-label{font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.5rem}
+.key-value{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.95rem;color:#1a1a1a;word-break:break-all;font-weight:600;line-height:1.6}
+.key-warning{font-size:.75rem;color:#999;margin-top:.5rem}
+.copy-btn{display:inline-block;margin-top:.75rem;padding:.4rem 1rem;background:#d94400;color:#fff;border:none;border-radius:4px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.04em;transition:background .15s}
+.copy-btn:hover{background:#c03800}
+.copy-btn.copied{background:#16a34a}
+
+/* Pending state */
+.pending-box{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.5rem;margin:1.5rem 0;text-align:center}
+.pending-box p{color:#555;font-size:.9rem;margin-bottom:.75rem}
+.pending-box .spinner{display:inline-block;width:20px;height:20px;border:2px solid #e0dcd7;border-top-color:#d94400;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:.5rem}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Usage block */
+.usage{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0;font-size:.875rem}
+.usage-title{font-size:.6rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#767676;margin-bottom:.75rem}
+pre.ex{background:#1a1a1a;color:#f4f0eb;border-radius:6px;padding:1rem 1.25rem;font-family:"SF Mono",monospace;font-size:.75rem;line-height:1.6;margin:.75rem 0;overflow-x:auto}
+.orange{color:#d94400}
+pre code{color:#f4f0eb}
+
+/* Balance button */
+.balance-btn{display:inline-block;margin:.25rem .25rem 0 0;padding:.4rem .9rem;background:#f4f0eb;border:1px solid #ccc;border-radius:5px;font-size:.8rem;font-weight:600;color:#1a1a1a;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s}
+.balance-btn:hover{background:#e8e4df;text-decoration:none}
+.balance-result{margin-top:.5rem;font-size:.88rem;padding:.5rem .75rem;border-radius:5px;display:none}
+.balance-result.ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;display:block}
+
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+.links{margin-top:2rem;font-size:.875rem;color:#767676}
+.links a{margin-right:1rem}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676}
+footer a{color:#767676;text-decoration:none}
+footer a:hover{color:#1a1a1a}
+</style>
+</head>
+<body>
+
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
+  </div>
+</nav>
+
+<div class="content">
+
+<span class="emoji">🎉</span>
+<h1>Payment confirmed!</h1>
+
+<div id="main-content">
+  <!-- Injected by server based on __API_KEY__ -->
+</div>
+
+<div class="usage" id="usage-block" style="display:none">
+  <div class="usage-title">How to use your key</div>
+  <pre class="ex"><span class="orange">curl</span> -X POST https://anybrowse.dev/scrape \
+  -H "<span class="orange">Authorization: Bearer ab_YOUR_KEY</span>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'</pre>
+  <p style="color:#555;font-size:.82rem;margin-top:.5rem">Or use <code style="font-family:monospace">X-API-Key: ab_YOUR_KEY</code> header instead.</p>
+</div>
+
+<div class="links">
+  <a href="/docs">Documentation</a>
+  <a href="/credits">Buy more credits</a>
+  <a href="/">← Home</a>
+</div>
+
+</div><!-- .content -->
+
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
+</footer>
+
+<script>
+// Values injected server-side (placeholders replaced)
+var API_KEY = "__API_KEY__";
+var CREDITS = "__CREDITS__";
+var SESSION_ID = "__SESSION_ID__";
+
+var mainContent = document.getElementById("main-content");
+var usageBlock = document.getElementById("usage-block");
+
+function showKey(key, credits) {
+  var creditsStr = credits || CREDITS;
+  mainContent.innerHTML = '<p class="sub">Here\'s your API key' + (creditsStr ? ' with <span class="credits-count">' + creditsStr + ' credits</span>' : '') + ' loaded and ready:</p>'
+    + '<div class="key-box">'
+    + '<div class="key-label">Your API Key</div>'
+    + '<div class="key-value" id="key-val">' + key + '</div>'
+    + '<p class="key-warning">⚠️ Copy this key now — store it safely. It won\'t be shown again here.</p>'
+    + '<button class="copy-btn" id="copy-btn" onclick="copyKey()">Copy Key</button>'
+    + '</div>'
+    + '<p style="color:#555;font-size:.82rem;margin-top:-.5rem">Credits never expire. <a href="/credits">Buy more</a> anytime — same key, stacked balance.</p>'
+    + '<div style="margin-top:1rem">'
+    + '<button class="balance-btn" onclick="checkBalance()">Check balance</button>'
+    + '<div class="balance-result" id="balResult"></div>'
+    + '</div>';
+  usageBlock.style.display = "block";
+  usageBlock.innerHTML = usageBlock.innerHTML.replace(/ab_YOUR_KEY/g, key);
+}
+
+function showPending() {
+  mainContent.innerHTML = '<div class="pending-box">'
+    + '<span class="spinner"></span>'
+    + '<p>Your API key is being generated...</p>'
+    + '<p style="font-size:.8rem;color:#999">This usually takes a few seconds. The key will also be emailed to you.</p>'
+    + '<p style="font-size:.8rem;margin-top:.5rem">If you didn\'t receive it within 5 minutes, <a href="/credits">contact us</a>.</p>'
+    + '</div>';
+}
+
+// If API key was injected server-side, show it
+if (API_KEY && API_KEY !== '__API_KEY__' && API_KEY.startsWith('ab_')) {
+  showKey(API_KEY, CREDITS !== '__CREDITS__' ? CREDITS : null);
+} else if (SESSION_ID && SESSION_ID !== '__SESSION_ID__') {
+  // Poll for the key (webhook may be a few seconds behind)
+  showPending();
+  var polls = 0;
+  var poller = setInterval(function() {
+    polls++;
+    if (polls > 12) { clearInterval(poller); return; } // Give up after ~24s
+    fetch('/credits/success?session_id=' + SESSION_ID)
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var match = html.match(/value="(ab_[a-zA-Z0-9]+)"/);
+        if (!match) {
+          // Try alternate: extract API key from <div class="key-value">
+          var m2 = html.match(/<div[^>]+class="key-value"[^>]*>(ab_[a-zA-Z0-9]+)<\/div>/);
+          if (m2) { clearInterval(poller); showKey(m2[1], null); }
+        } else {
+          clearInterval(poller); showKey(match[1], null);
+        }
+      })
+      .catch(function() {});
+  }, 2000);
+} else {
+  showPending();
+}
+
+function copyKey() {
+  var key = document.getElementById('key-val');
+  if (!key) return;
+  navigator.clipboard.writeText(key.textContent).then(function() {
+    var btn = document.getElementById('copy-btn');
+    if (btn) { btn.textContent = 'Copied!'; btn.classList.add('copied'); }
+    setTimeout(function() {
+      if (btn) { btn.textContent = 'Copy Key'; btn.classList.remove('copied'); }
+    }, 1500);
+  });
+}
+
+async function checkBalance() {
+  var key = document.getElementById('key-val');
+  if (!key) return;
+  var result = document.getElementById('balResult');
+  result.className = 'balance-result'; result.textContent = 'Checking...';
+  try {
+    var res = await fetch('/credits/balance', { headers: { 'Authorization': 'Bearer ' + key.textContent } });
+    var data = await res.json();
+    result.className = 'balance-result ok';
+    result.textContent = '✓ ' + data.credits.toLocaleString() + ' credits remaining';
+  } catch(e) {
+    result.className = 'balance-result ok';
+    result.textContent = 'Could not fetch balance — your credits are safe.';
+  }
+}
+</script>
+</body>
+</html>

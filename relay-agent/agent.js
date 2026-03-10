@@ -1,292 +1,413 @@
-/**
- * anybrowse relay agent — Windows edition
- * Runs on the LA Windows PC (C:\anybrowse-relay\agent.js)
- * Connects to anybrowse.dev relay WebSocket and fetches URLs on demand.
- *
- * Safety controls:
- *  - Domain/keyword blocklist
- *  - No adult/illegal/piracy content
- *  - Rate limiting (60/hr, 20/hr midnight–6am local)
- *  - Request logging (url_hash only, not full URL)
- *  - Private IP blocking
- */
+const { chromium } = require("playwright");
+const WebSocket = require("ws");
+const crypto = require("crypto");
+const fs = require("fs");
 
-'use strict';
+const WS_URL = "wss://anybrowse.dev/relay-ws";
+const WORKER_NUM = process.env.WORKER_ID || "0";
+const RELAY_ID = `relay_la_windows_primary_${WORKER_NUM}`;
+const MAX_WORKERS = 5;
+const LOG_FILE = "C:\\anybrowse-relay\\relay.log";
 
-const WebSocket = require('ws');
-const https = require('https');
-const http = require('http');
-const crypto = require('crypto');
-const fs = require('fs');
+const PROXY_POOL = [
+  "http://14aaa55fdc22e:5cc5f8b080@161.77.10.249:12323",
+  "http://14a3696c76e38:a7b82257a0@95.134.166.82:12323",
+  "http://14a3696c76e38:a7b82257a0@95.134.166.221:12323",
+  "http://14a3696c76e38:a7b82257a0@95.134.166.36:12323",
+  "http://14a3696c76e38:a7b82257a0@95.134.166.225:12323",
+  "http://14a3696c76e38:a7b82257a0@95.134.167.6:12323",
+];
+let proxyIndex = 0;
+function getNextProxy() { return PROXY_POOL[proxyIndex++ % PROXY_POOL.length]; }
+function parseProxy(p) { const m = p.match(/http:\/\/([^:]+):([^@]+)@(.+)/); return { server:"http://"+m[3], username:m[1], password:m[2] }; }
 
-// ─── Safety Config ────────────────────────────────────────────────────────────
+// �"?�"? Realistic Chrome user-agents (rotate to avoid fingerprint linkage) �"?�"?
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+];
+function randomUA() { return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]; }
 
-const BLOCKED_DOMAINS = new Set([
-  'pornhub.com', 'xvideos.com', 'xnxx.com', 'xhamster.com', 'redtube.com',
-  'youporn.com', 'spankbang.com', 'tube8.com', 'beeg.com',
-  'thepiratebay.org', '1337x.to', 'rarbg.to', 'nyaa.si',
-  'betway.com', 'bet365.com', 'draftkings.com', 'fanduel.com', 'pokerstars.com',
-]);
+// �"?�"? Realistic viewports �"?�"?
+const VIEWPORTS = [
+  { width: 1920, height: 1080 }, { width: 1536, height: 864 },
+  { width: 1440, height: 900 },  { width: 1366, height: 768 },
+  { width: 2560, height: 1440 }, { width: 1680, height: 1050 },
+];
+function randomViewport() { return VIEWPORTS[Math.floor(Math.random() * VIEWPORTS.length)]; }
 
-const BLOCKED_KEYWORDS = ['porn', 'xxx', 'warez', 'torrent', 'pirate', 'crack', 'keygen'];
+// �"?�"? Comprehensive stealth init script �"?�"?
+const STEALTH_SCRIPT = `
+  // 1. Remove webdriver flag
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  delete navigator.__proto__.webdriver;
 
-const LOG_FILE = 'C:\\anybrowse-relay\\relay.log';
+  // 2. Fix chrome runtime (Cloudflare checks this)
+  window.chrome = {
+    runtime: { onConnect: { addListener: function(){} }, connect: function(){}, id: undefined },
+    loadTimes: function(){ return {} },
+    csi: function(){ return {} },
+    app: { isInstalled: false, InstallState: { DISABLED: "disabled", INSTALLED: "installed", NOT_INSTALLED: "not_installed" }, getDetails: function(){}, getIsInstalled: function(){ return false }, runningState: function(){ return "cannot_run" } }
+  };
 
-// ─── Rate Limiting ────────────────────────────────────────────────────────────
+  // 3. Fix permissions API (Cloudflare/DataDome check notification permission)
+  const origQuery = window.Permissions.prototype.query;
+  window.Permissions.prototype.query = function(params) {
+    if (params.name === 'notifications') {
+      return Promise.resolve({ state: Notification.permission });
+    }
+    return origQuery.call(this, params);
+  };
 
-let requestsThisHour = 0;
+  // 4. Fix plugins array (headless has 0 plugins)
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => {
+      const plugins = [
+        { name: "PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+        { name: "Chrome PDF Viewer", filename: "internal-pdf-viewer", description: "" },
+        { name: "Chromium PDF Viewer", filename: "internal-pdf-viewer", description: "" },
+        { name: "Microsoft Edge PDF Viewer", filename: "internal-pdf-viewer", description: "" },
+        { name: "WebKit built-in PDF", filename: "internal-pdf-viewer", description: "" },
+      ];
+      plugins.length = 5;
+      return plugins;
+    }
+  });
 
-// Reset counter every hour
-setInterval(() => {
-  const prev = requestsThisHour;
-  requestsThisHour = 0;
-  if (prev > 0) log(`[rate] Hourly reset. ${prev} requests processed this hour.`);
-}, 60 * 60 * 1000);
+  // 5. Fix languages (headless often has empty)
+  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+  Object.defineProperty(navigator, 'language', { get: () => 'en-US' });
 
-function getRateLimit() {
-  const hour = new Date().getHours();
-  return (hour >= 0 && hour < 6) ? 20 : 60;
-}
+  // 6. Fix platform consistency
+  Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
+  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
 
-// ─── Logging ──────────────────────────────────────────────────────────────────
+  // 7. Fix WebGL vendor/renderer (headless gives "Google Inc. (Google)" which is a dead giveaway)
+  const getParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(param) {
+    if (param === 37445) return 'Google Inc. (NVIDIA)';
+    if (param === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    return getParameter.call(this, param);
+  };
+  const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+  WebGL2RenderingContext.prototype.getParameter = function(param) {
+    if (param === 37445) return 'Google Inc. (NVIDIA)';
+    if (param === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+    return getParameter2.call(this, param);
+  };
 
-function log(msg) {
-  const line = `${new Date().toISOString()} ${msg}\n`;
-  process.stdout.write(line);
-}
+  // 8. Fix connection API (headless reports different values)
+  Object.defineProperty(navigator, 'connection', {
+    get: () => ({
+      effectiveType: '4g', rtt: 50, downlink: 10, saveData: false,
+      addEventListener: function(){}, removeEventListener: function(){}
+    })
+  });
 
-function logRequest(url, status) {
-  try {
-    const hash = crypto.createHash('sha256').update(url).digest('hex').slice(0, 12);
-    const line = `${new Date().toISOString()} ${hash} ${status}\n`;
-    fs.appendFileSync(LOG_FILE, line);
-  } catch (e) {
-    log(`[warn] Could not write to log: ${e.message}`);
+  // 9. Prevent iframe contentWindow detection
+  const origGet = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow').get;
+  Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+    get: function() {
+      const result = origGet.call(this);
+      if (this.src && this.src.startsWith('about:')) return result;
+      return result;
+    }
+  });
+
+  // 10. Fix toString for overridden functions (anti-detection checks Function.toString)
+  const nativeToString = Function.prototype.toString;
+  const overrides = new Map();
+  function makeNative(fn, name) {
+    overrides.set(fn, \`function \${name || fn.name || ''}() { [native code] }\`);
   }
-}
+  Function.prototype.toString = function() {
+    if (overrides.has(this)) return overrides.get(this);
+    return nativeToString.call(this);
+  };
+  makeNative(Function.prototype.toString, 'toString');
+`;
 
-// ─── URL Safety Check ─────────────────────────────────────────────────────────
-
-function isSafeUrl(url) {
+const BLOCKED = new Set(["pornhub.com","xvideos.com","xnxx.com","thepiratebay.org","1337x.to"]);
+const BAD_KW = ["porn","xxx","warez","torrent","crack","keygen"];
+function isSafe(url) {
   try {
     const u = new URL(url);
-
-    // Must be http or https
-    if (!['http:', 'https:'].includes(u.protocol)) return false;
-
-    // No private/loopback IPs
-    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost|0\.0\.0\.0)/.test(u.hostname)) {
-      return false;
-    }
-
-    // No auth tokens in URL
-    if (u.search.includes('token=') || u.search.includes('api_key=') || u.search.includes('access_token=')) {
-      return false;
-    }
-
-    const domain = u.hostname.replace(/^www\./, '');
-
-    // Blocklist check
-    for (const blocked of BLOCKED_DOMAINS) {
-      if (domain === blocked || domain.endsWith('.' + blocked)) return false;
-    }
-
-    // Keyword check
-    const urlLower = url.toLowerCase();
-    if (BLOCKED_KEYWORDS.some(k => urlLower.includes(k))) return false;
-
+    if (!["http:","https:"].includes(u.protocol)) return false;
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost)/.test(u.hostname)) return false;
+    if (BLOCKED.has(u.hostname.replace("www.",""))) return false;
+    if (BAD_KW.some(k => url.toLowerCase().includes(k))) return false;
     return true;
-  } catch {
-    return false;
+  } catch { return false; }
+}
+
+function log(url, status) {
+  try {
+    const hash = crypto.createHash("sha256").update(url).digest("hex").slice(0,12);
+    fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} W${WORKER_NUM} ${hash} ${status}\n`);
+  } catch(e) { /* ignore log errors */ }
+}
+
+// �"?�"? Log rotation: keep last 5000 lines �"?�"?
+function rotateLog() {
+  try {
+    const stat = fs.statSync(LOG_FILE);
+    if (stat.size > 5 * 1024 * 1024) { // 5MB
+      const lines = fs.readFileSync(LOG_FILE, 'utf8').split('\n');
+      fs.writeFileSync(LOG_FILE, lines.slice(-2000).join('\n'));
+    }
+  } catch(e) {}
+}
+setInterval(rotateLog, 600000); // every 10 min
+
+let requestsThisHour = 0;
+setInterval(() => { requestsThisHour = 0; }, 3600000);
+const workers = new Map();
+const requestQueue = [];
+
+// �"?�"? Per-domain rate limiting (prevent hammering single targets) �"?�"?
+const domainHits = new Map();
+setInterval(() => domainHits.clear(), 60000); // reset every minute
+function checkDomainRate(url) {
+  try {
+    const domain = new URL(url).hostname.replace("www.", "");
+    const count = domainHits.get(domain) || 0;
+    if (count >= 15) return false; // max 15 req/min per domain
+    domainHits.set(domain, count + 1);
+    return true;
+  } catch { return true; }
+}
+
+// �"?�"? Resilience �"?�"?
+process.on("uncaughtException", (err) => {
+  console.error("[relay] uncaughtException:", err.message);
+  fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} UNCAUGHT ${err.message}\n`);
+  scheduleReconnect(30000);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[relay] unhandledRejection:", reason);
+  fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} UNHANDLED_REJECTION ${reason}\n`);
+});
+
+let reconnectScheduled = false;
+function scheduleReconnect(delayMs) {
+  if (reconnectScheduled) return;
+  reconnectScheduled = true;
+  console.log(`[relay] Reconnecting in ${delayMs/1000}s...`);
+  setTimeout(() => { reconnectScheduled = false; connect(); }, delayMs);
+}
+
+// �"?�"? Worker health: recycle browsers every 100 requests to prevent memory leaks + fingerprint linkage �"?�"?
+const workerRequestCount = new Map();
+const RECYCLE_AFTER = 100;
+
+async function createWorker(id) {
+  const proxy = parseProxy(getNextProxy());
+  const browser = await chromium.launch({
+    headless: true,
+    proxy: { server: proxy.server },
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+      "--disable-dev-shm-usage",
+      "--disable-infobars",
+      "--window-size=1920,1080",
+      "--disable-extensions",
+      "--disable-component-extensions-with-background-pages",
+      "--disable-default-apps",
+      "--disable-features=TranslateUI",
+      "--disable-hang-monitor",
+      "--disable-ipc-flooding-protection",
+      "--disable-popup-blocking",
+      "--disable-prompt-on-repost",
+      "--disable-renderer-backgrounding",
+      "--disable-background-timer-throttling",
+      "--disable-backgrounding-occluded-windows",
+      "--metrics-recording-only",
+      "--no-first-run",
+      "--password-store=basic",
+      "--use-mock-keychain",
+      "--lang=en-US",
+    ]
+  });
+  workers.set(id, { browser, busy: false, proxy });
+  workerRequestCount.set(id, 0);
+  console.log(`[relay] Worker ${id} ready (proxy: ${proxy.server})`);
+}
+
+async function recycleWorker(id) {
+  try {
+    const w = workers.get(id);
+    if (w && w.browser) await w.browser.close().catch(() => {});
+    workers.delete(id);
+    await createWorker(id);
+    console.log(`[relay] Worker ${id} recycled`);
+  } catch(e) {
+    console.error(`[relay] Worker ${id} recycle failed: ${e.message}`);
   }
 }
 
-// ─── Relay Config ─────────────────────────────────────────────────────────────
+function getWorker() {
+  for (const [id, w] of workers) {
+    if (!w.busy && w.browser.isConnected()) { w.busy = true; return { id, ...w }; }
+  }
+  return null;
+}
 
-const RELAY_ID = process.env.RELAY_ID || 'relay_la_windows_primary';
-const SERVER_URL = process.env.SERVER_URL || 'wss://anybrowse.dev/relay-ws';
-const RECONNECT_DELAY_MS = 5000;
-const FETCH_TIMEOUT_MS = 12000;
+function processQueue() {
+  if (requestQueue.length > 0) {
+    const next = requestQueue.shift();
+    handleFetch(next.ws, next.requestId, next.url);
+  }
+}
 
-let ws = null;
-let reconnectTimer = null;
-
-// ─── HTTP Fetch ───────────────────────────────────────────────────────────────
-
-function fetchUrl(url, timeoutMs = FETCH_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const lib = parsed.protocol === 'https:' ? https : http;
-
-    const req = lib.get(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'identity',
-        'Connection': 'keep-alive',
+async function handleFetch(ws, requestId, url) {
+  const hour = new Date().getHours();
+  const limit = (hour >= 0 && hour < 6) ? 200 : 800;
+  if (requestsThisHour >= limit) {
+    ws.send(JSON.stringify({ type:"result", requestId, html:"", status:0, error:"rate_limited" }));
+    return;
+  }
+  if (!isSafe(url)) {
+    ws.send(JSON.stringify({ type:"result", requestId, html:"", status:403, error:"blocked" }));
+    log(url, "blocked"); return;
+  }
+  if (!checkDomainRate(url)) {
+    ws.send(JSON.stringify({ type:"result", requestId, html:"", status:0, error:"domain_rate_limited" }));
+    log(url, "domain_limited"); return;
+  }
+  const workerInfo = getWorker();
+  if (!workerInfo) {
+    if (requestQueue.length < 200) { requestQueue.push({ ws, requestId, url }); return; }
+    ws.send(JSON.stringify({ type:"result", requestId, html:"", status:0, error:"queue_full" }));
+    return;
+  }
+  requestsThisHour++;
+  const workerId = workerInfo.id;
+  try {
+    const ua = randomUA();
+    const vp = randomViewport();
+    const ctx = await workerInfo.browser.newContext({
+      userAgent: ua,
+      viewport: vp,
+      screen: { width: vp.width, height: vp.height },
+      locale: "en-US",
+      timezoneId: "America/New_York",
+      httpCredentials: { username: workerInfo.proxy.username, password: workerInfo.proxy.password },
+      extraHTTPHeaders: {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": ua.includes("Macintosh") ? '"macOS"' : '"Windows"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
       },
-      timeout: timeoutMs,
-    }, (res) => {
-      let data = '';
-      // Follow redirects manually (up to 3)
-      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-        req.destroy();
-        fetchUrl(res.headers.location, timeoutMs).then(resolve).catch(reject);
-        return;
-      }
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => resolve({ html: data, status: res.statusCode }));
+      javaScriptEnabled: true,
+      bypassCSP: false,
+      ignoreHTTPSErrors: true,
     });
 
-    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
-    req.on('error', reject);
-  });
+    const page = await ctx.newPage();
+    await page.addInitScript(STEALTH_SCRIPT);
+
+    // Navigate with realistic timeout
+    const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 25000 });
+    const status = resp ? resp.status() : 0;
+
+    // Human-like wait: 1-3 seconds
+    await page.waitForTimeout(1000 + Math.random() * 2000);
+
+    // Wait a bit more for JS-rendered content
+    await page.waitForLoadState("networkidle").catch(() => {});
+
+    const html = await page.content();
+    await ctx.close();
+
+    ws.send(JSON.stringify({ type:"result", requestId, html, status }));
+    log(url, `ok:${status}`);
+    console.log(`[relay] OK ${status} ${url.slice(0,60)}`);
+  } catch(e) {
+    ws.send(JSON.stringify({ type:"result", requestId, html:"", status:0, error:e.message }));
+    log(url, "error");
+  } finally {
+    const w = workers.get(workerId);
+    if (w) w.busy = false;
+
+    // Recycle worker after N requests
+    const count = (workerRequestCount.get(workerId) || 0) + 1;
+    workerRequestCount.set(workerId, count);
+    if (count >= RECYCLE_AFTER) {
+      workerRequestCount.set(workerId, 0);
+      recycleWorker(workerId).catch(() => {});
+    }
+
+    processQueue();
+  }
 }
 
-// ─── Handle Fetch Request ─────────────────────────────────────────────────────
-
-async function handleFetch(requestId, url) {
-  // Rate limit check
-  const limit = getRateLimit();
-  if (requestsThisHour >= limit) {
-    const hour = new Date().getHours();
-    log(`[rate] Rate limit hit (${requestsThisHour}/${limit}, hour=${hour}). Returning rate_limited for requestId=${requestId}`);
-    send({ type: 'result', requestId, html: '', status: 0, error: 'rate_limited' });
-    return;
+// �"?�"? Worker health check: restart dead browsers every 60s �"?�"?
+setInterval(async () => {
+  for (const [id, w] of workers) {
+    if (!w.busy && !w.browser.isConnected()) {
+      console.log(`[relay] Worker ${id} browser died, restarting...`);
+      await recycleWorker(id).catch(() => {});
+    }
   }
+}, 60000);
 
-  // Safety check
-  if (!isSafeUrl(url)) {
-    log(`[safety] Blocked URL for requestId=${requestId}`);
-    send({ type: 'result', requestId, html: '', status: 403, error: 'blocked' });
-    logRequest(url, 'blocked');
-    return;
-  }
-
-  requestsThisHour++;
-  log(`[fetch] [${requestsThisHour}/${limit}] requestId=${requestId}`);
-
+async function connect() {
   try {
-    const { html, status } = await fetchUrl(url);
-    log(`[fetch] OK status=${status} requestId=${requestId}`);
-    logRequest(url, `ok:${status}`);
-    send({ type: 'result', requestId, html, status });
-  } catch (err) {
-    log(`[fetch] ERROR requestId=${requestId}: ${err.message}`);
-    logRequest(url, 'error');
-    send({ type: 'result', requestId, html: '', status: 0, error: err.message });
-  }
-}
-
-// ─── WebSocket helpers ────────────────────────────────────────────────────────
-
-function send(obj) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(obj));
-  }
-}
-
-// ─── Connect ──────────────────────────────────────────────────────────────────
-
-function connect() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-
-  log(`[ws] Connecting to ${SERVER_URL} as relay_id=${RELAY_ID}`);
-
-  ws = new WebSocket(SERVER_URL);
-
-  ws.on('open', () => {
-    log('[ws] Connected. Registering...');
-    send({ type: 'register', relayId: RELAY_ID });
-  });
-
-  ws.on('message', (raw) => {
-    let msg;
-    try {
-      msg = JSON.parse(raw.toString());
-    } catch {
-      log('[ws] Invalid JSON received');
-      return;
+    if (workers.size === 0) {
+      console.log(`[relay] Starting ${MAX_WORKERS} workers...`);
+      for (let i = 0; i < MAX_WORKERS; i++) {
+        try { await createWorker(i); }
+        catch(e) { console.error(`[relay] Worker ${i} failed to start:`, e.message); }
+      }
     }
+    console.log("[relay] Connecting to anybrowse.dev...");
+    const ws = new WebSocket(WS_URL);
 
-    switch (msg.type) {
-      case 'registered':
-        log(`[ws] Registered OK. relay_id=${msg.relayId}`);
-        break;
-
-      case 'fetch':
-        if (msg.requestId && msg.url) {
-          handleFetch(msg.requestId, msg.url).catch(err => {
-            log(`[fetch] Unhandled error: ${err.message}`);
-          });
-        }
-        break;
-
-      case 'error':
-        log(`[ws] Server error: ${msg.message}`);
-        break;
-
-      case 'ping':
-        send({ type: 'pong' });
-        break;
-
-      default:
-        // ignore unknown message types
-    }
-  });
-
-  ws.on('close', (code, reason) => {
-    log(`[ws] Disconnected (code=${code} reason=${reason}). Reconnecting in ${RECONNECT_DELAY_MS / 1000}s...`);
-    scheduleReconnect();
-  });
-
-  ws.on('error', (err) => {
-    log(`[ws] Error: ${err.message}`);
-  });
-
-  ws.on('ping', () => {
-    ws.pong();
-  });
+    // Keepalive ping every 25s
+    let pingInterval;
+    ws.on("open", () => {
+      ws.send(JSON.stringify({ type:"register", relayId:RELAY_ID }));
+      console.log("[relay] Connected and registered");
+      pingInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
+      }, 25000);
+    });
+    ws.on("message", d => {
+      try {
+        const m = JSON.parse(d.toString());
+        if (m.type === "fetch") handleFetch(ws, m.requestId, m.url);
+      } catch(e) { /* ignore parse errors */ }
+    });
+    ws.on("pong", () => { /* connection alive */ });
+    ws.on("close", (code, reason) => {
+      console.log(`[relay] Disconnected (code=${code}). Reconnecting in 30s...`);
+      clearInterval(pingInterval);
+      scheduleReconnect(30000);
+    });
+    ws.on("error", (e) => {
+      console.error("[relay] WS error:", e.message);
+      clearInterval(pingInterval);
+      scheduleReconnect(30000);
+    });
+  } catch(e) {
+    console.error("[relay] connect() failed:", e.message);
+    scheduleReconnect(60000);
+  }
 }
-
-function scheduleReconnect() {
-  if (reconnectTimer) return;
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null;
-    connect();
-  }, RECONNECT_DELAY_MS);
-}
-
-// ─── Entry Point ──────────────────────────────────────────────────────────────
-
-// Ensure log directory exists
-try {
-  const logDir = LOG_FILE.split('\\').slice(0, -1).join('\\');
-  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-} catch (e) {
-  log(`[warn] Could not create log directory: ${e.message}`);
-}
-
-log(`[start] anybrowse relay agent starting. relay_id=${RELAY_ID}`);
-log(`[start] Server: ${SERVER_URL}`);
-log(`[start] Rate limits: 60/hr (20/hr midnight-6am local)`);
-log(`[start] Log file: ${LOG_FILE}`);
 
 connect();
-
-// Keep process alive
-process.on('SIGINT', () => {
-  log('[stop] Shutting down...');
-  if (ws) ws.close();
-  process.exit(0);
-});
-
-process.on('uncaughtException', (err) => {
-  log(`[error] Uncaught exception: ${err.message}`);
-  // Reconnect after crash
-  setTimeout(connect, RECONNECT_DELAY_MS);
-});

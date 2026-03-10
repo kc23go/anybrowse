@@ -244,6 +244,61 @@ class CDPSession`;
     }
   }
 
+  // crPage.js — pass targetId + session to Worker constructor
+  {
+    const filePath = join(basePath, `${chromiumBase}/crPage.js`);
+    if (existsSync(filePath)) {
+      let content = readFileSync(filePath, 'utf8');
+      const workerSearch = 'const worker = new import_page.Worker(this._page, url);';
+      const workerReplace = 'const worker = new import_page.Worker(this._page, url, event.targetInfo.targetId, session);';
+      if (content.includes(workerSearch)) {
+        content = content.replace(workerSearch, workerReplace);
+        writeFileSync(filePath, content);
+        console.log(`[playwright-patch] PATCH crPage.js Worker constructor args — applied`);
+        patchCount++;
+      }
+    }
+  }
+
+  // page.js — Worker constructor, getExecutionContext, evaluateExpression, PageBinding.dispatch
+  {
+    const filePath = join(basePath, `${serverBase}/page.js`);
+    if (existsSync(filePath)) {
+      let content = readFileSync(filePath, 'utf8');
+      let modified = false;
+
+      // Worker constructor: accept targetId + session
+      const workerCtorSearch = '  constructor(parent, url) {\n    super(parent, "worker");\n    this._executionContextPromise = new import_manualPromise.ManualPromise();\n    this._workerScriptLoaded = false;\n    this.existingExecutionContext = null;\n    this.openScope = new import_utils.LongStandingScope();\n    this.url = url;\n  }';
+      const workerCtorReplace = '  constructor(parent, url, targetId, session) {\n    super(parent, "worker");\n    this._executionContextPromise = new import_manualPromise.ManualPromise();\n    this._workerScriptLoaded = false;\n    this.existingExecutionContext = null;\n    this.openScope = new import_utils.LongStandingScope();\n    this.url = url;\n    this._targetId = targetId;\n    this._session = session;\n  }';
+      if (content.includes(workerCtorSearch)) {
+        content = content.replace(workerCtorSearch, workerCtorReplace);
+        modified = true;
+      }
+
+      // evaluateExpression + evaluateExpressionHandle: use getExecutionContext
+      const evalSearch = '  async evaluateExpression(expression, isFunction, arg) {\n    return js.evaluateExpression(await this._executionContextPromise, expression, { returnByValue: true, isFunction }, arg);\n  }\n  async evaluateExpressionHandle(expression, isFunction, arg) {\n    return js.evaluateExpression(await this._executionContextPromise, expression, { returnByValue: false, isFunction }, arg);\n  }';
+      const evalReplace = '  async getExecutionContext() {\n    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] !== "0" && !this.existingExecutionContext && this._session && this._targetId) {\n      await this._session.__re__emitExecutionContext({ world: "main", targetId: this._targetId }).catch(() => {});\n    }\n    return this._executionContextPromise;\n  }\n  async evaluateExpression(expression, isFunction, arg) {\n    return js.evaluateExpression(await this.getExecutionContext(), expression, { returnByValue: true, isFunction }, arg);\n  }\n  async evaluateExpressionHandle(expression, isFunction, arg) {\n    return js.evaluateExpression(await this.getExecutionContext(), expression, { returnByValue: false, isFunction }, arg);\n  }';
+      if (content.includes(evalSearch)) {
+        content = content.replace(evalSearch, evalReplace);
+        modified = true;
+      }
+
+      // PageBinding.dispatch: early return for non-JSON binding payloads (rebrowser internal)
+      const dispatchSearch = '  static async dispatch(page, payload, context) {\n    const { name, seq, serializedArgs } = JSON.parse(payload);';
+      const dispatchReplace = '  static async dispatch(page, payload, context) {\n    if (process.env["REBROWSER_PATCHES_RUNTIME_FIX_MODE"] !== "0" && !payload.includes("{")) {\n      return;\n    }\n    const { name, seq, serializedArgs } = JSON.parse(payload);';
+      if (content.includes(dispatchSearch)) {
+        content = content.replace(dispatchSearch, dispatchReplace);
+        modified = true;
+      }
+
+      if (modified) {
+        writeFileSync(filePath, content);
+        console.log(`[playwright-patch] PATCH page.js Worker + PageBinding — applied`);
+        patchCount++;
+      }
+    }
+  }
+
   if (patchCount > 0) {
     console.log(`[playwright-patch] Applied ${patchCount} patches to playwright-core (Runtime.enable CDP leak suppressed)`);
   } else {

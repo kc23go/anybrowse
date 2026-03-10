@@ -97,34 +97,172 @@ async function extractDdgResults(page: Page, count: number): Promise<SerpResult[
 }
 
 /**
+ * Simplify a query for retry: remove quotes, special characters, trim excess whitespace.
+ */
+function simplifyQuery(query: string): string {
+  return query
+    .replace(/["']/g, '')
+    .replace(/[+\-*/&|~^(){}[\]]/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Try DuckDuckGo Instant Answers API as a lightweight search fallback.
+ * Returns results if the response contains topics, otherwise empty array.
+ */
+async function duckduckgoInstantAnswers(query: string, count: number): Promise<SerpResult[]> {
+  try {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      AbstractURL?: string;
+      AbstractText?: string;
+      Heading?: string;
+      RelatedTopics?: Array<{ FirstURL?: string; Text?: string; Name?: string }>;
+      Results?: Array<{ FirstURL?: string; Text?: string }>;
+    };
+    const results: SerpResult[] = [];
+
+    // Primary abstract result
+    if (data.AbstractURL && data.AbstractText) {
+      results.push({
+        url: data.AbstractURL,
+        title: data.Heading || query,
+        description: data.AbstractText,
+      });
+    }
+
+    // Direct results
+    for (const r of data.Results || []) {
+      if (r.FirstURL && results.length < count) {
+        results.push({ url: r.FirstURL, title: r.Text || '', description: '' });
+      }
+    }
+
+    // Related topics
+    for (const t of data.RelatedTopics || []) {
+      if (t.FirstURL && results.length < count) {
+        results.push({ url: t.FirstURL, title: t.Name || t.Text || '', description: t.Text || '' });
+      }
+    }
+
+    if (DEBUG_LOG) console.log(`[serp] DDG instant answers returned ${results.length} results for: ${query}`);
+    return results;
+  } catch (err) {
+    if (DEBUG_LOG) console.warn('[serp] DDG instant answers failed:', err);
+    return [];
+  }
+}
+
+/**
+ * Search using SearXNG self-hosted instance (localhost:8888).
+ * Returns results in SerpResult format.
+ */
+async function searchWithSearxng(query: string, count: number): Promise<SerpResult[]> {
+  const url = `http://localhost:8888/search?q=${encodeURIComponent(query)}&format=json&language=en&safesearch=0`;
+  if (DEBUG_LOG) console.log(`[serp] SearXNG query: ${query}`);
+
+  const res = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  if (!res.ok) throw new Error(`SearXNG error: ${res.status} ${res.statusText}`);
+
+  const data = (await res.json()) as { results?: Array<{ url: string; title: string; content?: string; engine?: string }> };
+  const results = (data.results || []).slice(0, count);
+
+  return results.map((r) => ({
+    url: r.url || '',
+    title: r.title || '',
+    description: r.content || '',
+  }));
+}
+
+/**
+ * Search using Brave Search API.
+ */
+async function searchWithBrave(query: string, count: number, braveKey: string): Promise<SerpResult[]> {
+  const res = await fetch(
+    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count || 10}`,
+    {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip',
+        'X-Subscription-Token': braveKey,
+      },
+      signal: AbortSignal.timeout(15_000),
+    }
+  );
+  if (!res.ok) throw new Error(`Brave Search API error: ${res.status} ${res.statusText}`);
+  const data = (await res.json()) as { web?: { results?: Array<{ url: string; title: string; description: string }> } };
+  return (data.web?.results || []).map((r) => ({
+    url: r.url,
+    title: r.title,
+    description: r.description,
+  }));
+}
+
+/**
  * Perform a search query.
- * If BRAVE_SEARCH_API_KEY is set, uses Brave Search API (no browser needed).
- * Otherwise falls back to browser-based Google + DuckDuckGo scraping.
+ * Priority: SearXNG (self-hosted) → Brave Search API → DuckDuckGo Instant Answers → browser-based scraping.
  */
 export async function runSerpQuery(query: string, count = 5): Promise<SerpResult[]> {
   const BRAVE_KEY = process.env.BRAVE_SEARCH_API_KEY;
 
+  // ── SearXNG first (self-hosted, free, no rate limits) ──────────────────
+  try {
+    const searxngResults = await searchWithSearxng(query, count);
+    if (searxngResults.length > 0) {
+      if (DEBUG_LOG) console.log(`[serp] SearXNG returned ${searxngResults.length} results`);
+      return searxngResults;
+    }
+    console.warn('[serp] SearXNG returned 0 results, falling back');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[serp] SearXNG failed: ${msg}, falling back to Brave`);
+  }
+
   if (BRAVE_KEY) {
     if (DEBUG_LOG) console.log(`[serp] Using Brave Search API for: ${query}`);
-    const res = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count || 10}`,
-      {
-        headers: {
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip',
-          'X-Subscription-Token': BRAVE_KEY,
-        },
-      }
-    );
-    if (!res.ok) {
-      throw new Error(`Brave Search API error: ${res.status} ${res.statusText}`);
+    let braveResults: SerpResult[] = [];
+    let braveError: Error | null = null;
+
+    try {
+      braveResults = await searchWithBrave(query, count, BRAVE_KEY);
+    } catch (err) {
+      braveError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[serp] Brave Search failed: ${braveError.message}`);
     }
-    const data = (await res.json()) as { web?: { results?: Array<{ url: string; title: string; description: string }> } };
-    return (data.web?.results || []).map((r) => ({
-      url: r.url,
-      title: r.title,
-      description: r.description,
-    }));
+
+    // If Brave returned results, return them
+    if (braveResults.length > 0) return braveResults;
+
+    // Retry with simplified query if Brave returned 0 results (not an error)
+    if (!braveError) {
+      const simplified = simplifyQuery(query);
+      if (simplified !== query) {
+        console.log(`[serp] Brave returned 0 results, retrying with simplified query: "${simplified}"`);
+        try {
+          const retryResults = await searchWithBrave(simplified, count, BRAVE_KEY);
+          if (retryResults.length > 0) return retryResults;
+        } catch { /* fall through to DDG */ }
+      }
+    }
+
+    // Fallback to DuckDuckGo instant answers if Brave fails or returns nothing
+    console.log(`[serp] Falling back to DuckDuckGo instant answers for: ${query}`);
+    const ddgResults = await duckduckgoInstantAnswers(query, count);
+    if (ddgResults.length > 0) return ddgResults;
+
+    // If everything failed, throw original Brave error (or empty)
+    if (braveError) throw braveError;
+    return [];
   }
 
   // ── Browser-based fallback ──────────────────────────────────────────────
@@ -210,6 +348,27 @@ export async function registerSerpRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
+  /**
+   * POST /serp — alias for /serp/search (accepts q or query param)
+   */
+  app.post('/serp', async (req: FastifyRequest, reply: FastifyReply) => {
+    const body = req.body as SerpRequestBody;
+    const query = (body?.q ?? body?.query ?? '').toString().trim();
+    const count = Math.max(1, Math.min(20, Number(body?.count ?? 5)));
+
+    if (!query) {
+      return reply.status(400).send({ error: 'q_required' });
+    }
+
+    try {
+      const results = await runSerpQuery(query, count);
+      return reply.send({ results });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(500).send({ error: 'serp_failed', message });
+    }
+  });
+
   const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-  console.log(`[serp] Search registered — ${braveKey ? 'Brave API' : 'browser-based (Google + DuckDuckGo fallback)'}`);
+  console.log(`[serp] Search registered — SearXNG (primary) → ${braveKey ? 'Brave API' : 'browser-based'} (fallback)`);
 }

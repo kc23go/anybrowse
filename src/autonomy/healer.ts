@@ -1,5 +1,5 @@
 import { totalmem } from "os";
-import { isPoolActive, getPoolStats } from "../pool.js";
+import { isPoolActive, isPoolHealthy, getPoolStats } from "../pool.js";
 import { stats } from "../stats.js";
 import { loadEnvString } from "../env.js";
 
@@ -49,19 +49,32 @@ function checkMemory(): HealthCheck {
 }
 
 function checkPool(): HealthCheck {
-  // Pool is lazy — being inactive is normal (saves costs when idle)
-  if (!isPoolActive()) {
-    return { ok: true, details: "Pool idle (lazy mode — starts on first request)" };
+  // Use isPoolHealthy() — checks if pool CAN serve requests, not if it IS currently serving.
+  // This avoids false-alarm "degraded" when pool is idle (0/0 active sessions) between requests.
+  // isPoolActive() is kept for backward-compat but isPoolHealthy() is the canonical health signal.
+  if (!isPoolHealthy()) {
+    // Pool is genuinely unhealthy — can't launch browsers
+    try {
+      const poolStats = getPoolStats();
+      return {
+        ok: false,
+        details: "Pool unhealthy — available=" + poolStats.available + " inUse=" + poolStats.inUse,
+      };
+    } catch {
+      return { ok: false, details: "Pool error — cannot get stats" };
+    }
   }
+
+  // Healthy — report current stats without treating 0/0 idle as failure
   try {
     const poolStats = getPoolStats();
-    const ok = poolStats.available > 0 || poolStats.inUse > 0;
-    return {
-      ok,
-      details: "available=" + poolStats.available + " inUse=" + poolStats.inUse + " total=" + poolStats.maxSize,
-    };
+    const active = isPoolActive();
+    const details = active
+      ? "available=" + poolStats.available + " inUse=" + poolStats.inUse + " total=" + poolStats.maxSize
+      : "Pool idle (lazy mode — starts on first request)";
+    return { ok: true, details };
   } catch {
-    return { ok: false, details: "Pool error" };
+    return { ok: true, details: "Pool healthy (stats unavailable)" };
   }
 }
 

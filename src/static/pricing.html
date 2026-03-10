@@ -7,9 +7,13 @@
 <meta name="description" content="Simple pricing for anybrowse. Free tier, Pro subscription ($4.99/mo), and permissionless x402 crypto payments.">
 <link rel="canonical" href="https://anybrowse.dev/pricing">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:800px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:'Inter',"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.content{max-width:800px;margin:0 auto;padding:2rem 1.5rem 4rem}
 .header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
 .logo{width:44px;height:44px;flex-shrink:0}
 .wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
@@ -61,6 +65,28 @@ tr:hover td{background:#faf7f4}
 .x402-feat .icon{font-size:1.1rem;flex-shrink:0;margin-top:.1rem}
 .x402-feat h4{font-size:.82rem;font-weight:700;color:#1a1a1a;margin-bottom:.1rem}
 .x402-feat p{font-size:.78rem;color:#767676;margin:0}
+/* Competitor comparison */
+.why-section{margin:0 0 3rem}
+.why-heading{font-size:1.3rem;font-weight:800;letter-spacing:-.02em;color:#1a1a1a;margin-bottom:1.25rem}
+.comp-wrap{overflow-x:auto;margin:1rem 0 .5rem;border:1px solid #e0dcd7;border-radius:8px;background:#fff}
+.comp-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.comp-table th{padding:.7rem .9rem;font-size:.6rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#767676;border-bottom:2px solid #e0dcd7;text-align:center}
+.comp-table th:first-child{text-align:left;width:36%}
+.comp-table th.col-ab{background:#fff4f0;color:#d94400;font-weight:700;border-radius:6px 6px 0 0}
+.comp-table td{padding:.6rem .9rem;border-bottom:1px solid #f0ece6;color:#555;text-align:center;vertical-align:middle}
+.comp-table td:first-child{text-align:left;color:#1a1a1a;font-weight:500}
+.comp-table td.col-ab{background:#fff9f7;font-weight:700;color:#1a1a1a}
+.comp-table tr:last-child td{border-bottom:none}
+.comp-table tr:last-child td.col-ab{border-radius:0 0 0 0}
+.comp-chk{color:#d94400;font-weight:700}
+.comp-crs{color:#ccc;font-weight:700}
+.comp-note{font-size:.72rem;color:#999;margin:.75rem 0 0;font-style:italic}
+.comp-price{font-size:.95rem;font-weight:800;color:#d94400}
+.comp-sub{font-size:.65rem;font-weight:400;color:#767676;display:block;margin-top:1px}
+@media(max-width:600px){
+.comp-table th,.comp-table td{padding:.5rem .5rem;font-size:.78rem}
+.comp-table th.col-ab,.comp-table td.col-ab{background:none}
+}
 /* FAQ */
 .faq{margin:1rem 0}
 .faq-item{padding:1.25rem 0;border-bottom:1px solid #e0dcd7}
@@ -81,37 +107,88 @@ body{padding:2.5rem 1rem 1.5rem}
 h1{font-size:1.8rem}
 }
 </style>
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init("phc_VM75sosUchtkMp61Gq8m5PsGBjtBxNBcaOzLyY2OOAA", {api_host: "https://app.posthog.com"})
+</script>
 </head>
 <body>
 
-<div class="header">
-<a href="/">
-<svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="anybrowse logo" role="img">
-<defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
-<circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
-<g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
-<line x1="28" y1="100" x2="172" y2="100"/>
-<line x1="36" y1="68" x2="164" y2="68"/>
-<line x1="36" y1="132" x2="164" y2="132"/>
-<ellipse cx="100" cy="100" rx="26" ry="72"/>
-<ellipse cx="100" cy="100" rx="56" ry="72"/>
-</g>
-<line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
-<polygon points="85,148 100,172 115,148" fill="#d94400"/>
-</svg>
-</a>
-<a href="/" class="wordmark" style="text-decoration:none">any<b>browse</b></a>
-</div>
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
+  </div>
+</nav>
 
-<div class="nav-links">
-<a href="/docs">Documentation</a>
-<a href="/pricing" class="active">Pricing</a>
-</div>
+<div class="content">
 
 <h1>Pricing</h1>
-<p class="page-sub">Start free. No signup. Subscribe with a card or pay per request with USDC on Base.</p>
+<p class="page-sub">Start free. No signup. Subscribe monthly, buy credits once, or pay per request with USDC on Base.</p>
 
-<div class="pricing-grid">
+<div class="why-section">
+<h2>WHY ANYBROWSE?</h2>
+<p class="why-heading">Why developers choose anybrowse</p>
+
+<div class="comp-wrap">
+<table class="comp-table">
+<thead>
+<tr>
+  <th></th>
+  <th class="col-ab">anybrowse</th>
+  <th>Firecrawl</th>
+  <th>Jina Reader</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>3,000 scrapes</td>
+  <td class="col-ab"><span class="comp-price">$5</span><span class="comp-sub">one-time</span></td>
+  <td>$16/mo<span class="comp-sub">Hobby plan</span></td>
+  <td>$49/mo<span class="comp-sub">Pro plan</span></td>
+</tr>
+<tr>
+  <td>Credits expire?</td>
+  <td class="col-ab"><span class="comp-chk">Never ✓</span></td>
+  <td><span style="color:#555">Monthly</span></td>
+  <td><span style="color:#555">Monthly</span></td>
+</tr>
+<tr>
+  <td>Subscription required?</td>
+  <td class="col-ab"><span class="comp-chk">No ✓</span></td>
+  <td><span style="color:#555">Yes</span></td>
+  <td><span style="color:#555">Yes</span></td>
+</tr>
+<tr>
+  <td>Cloudflare-protected sites?</td>
+  <td class="col-ab"><span class="comp-chk">✓</span></td>
+  <td><span class="comp-chk">✓</span></td>
+  <td><span class="comp-crs">✗</span></td>
+</tr>
+<tr>
+  <td>Real Windows Chrome?</td>
+  <td class="col-ab"><span class="comp-chk">✓</span></td>
+  <td><span class="comp-crs">✗</span></td>
+  <td><span class="comp-crs">✗</span></td>
+</tr>
+<tr>
+  <td>x402 agent payments?</td>
+  <td class="col-ab"><span class="comp-chk">✓</span></td>
+  <td><span class="comp-crs">✗</span></td>
+  <td><span class="comp-crs">✗</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="comp-note">Prices as of March 2026. Firecrawl Hobby plan. Jina AI Pro plan. Cloudflare success rate based on internal benchmarks across common sites (~90%).</p>
+</div>
+
+<div class="pricing-grid" style="grid-template-columns:repeat(4,1fr)">
 
   <div class="pricing-card">
     <div class="card-name">Free</div>
@@ -142,6 +219,21 @@ h1{font-size:1.8rem}
       <li><span class="ck">+</span> Cancel anytime</li>
     </ul>
     <a href="/checkout" class="btn btn-primary">Subscribe with Card</a>
+  </div>
+
+  <div class="pricing-card">
+    <div class="card-name">Pay As You Go</div>
+    <div class="card-price">from $5</div>
+    <div class="card-desc">Buy credits once. Never expire. No subscription.</div>
+    <ul class="features">
+      <li><span class="ck">+</span> Starter: $5 → 3,000 credits</li>
+      <li><span class="ck">+</span> Growth: $20 → 15,000 credits</li>
+      <li><span class="ck">+</span> Scale: $50 → 50,000 credits</li>
+      <li><span class="ck">+</span> Credits never expire</li>
+      <li><span class="ck">+</span> API key auth</li>
+      <li><span class="ck">+</span> Top up anytime</li>
+    </ul>
+    <a href="/credits" class="btn btn-ghost">Buy Credit Pack</a>
   </div>
 
   <div class="pricing-card">
@@ -261,10 +353,23 @@ h1{font-size:1.8rem}
   </div>
 </div>
 
-<footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
-<span class="mn">anybrowse.base.eth</span><br>
-<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</div><!-- .content -->
+
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
 </footer>
 
 </body>

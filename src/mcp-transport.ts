@@ -218,7 +218,7 @@ const TOOLS = [
   },
   {
     name: "extract",
-    description: "Extract structured data from any URL as JSON. Provide a schema describing what you want. Great for prices, availability, product details, contact info.",
+    description: "Extract structured data from any URL as JSON. Provide a schema describing what fields you want. Schema format: {\"fieldName\": \"type\"} where type is one of: string, number, boolean, array, object. Example: {\"title\": \"string\", \"price\": \"number\", \"inStock\": \"boolean\"}. Great for prices, availability, product details, contact info.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -228,12 +228,12 @@ const TOOLS = [
         },
         schema: {
           type: "object",
-          description: "Field names mapped to types: string, number, boolean, array",
-          additionalProperties: { type: "string", enum: ["string", "number", "boolean", "array"] },
+          description: "Field names mapped to type strings. Format: {\"fieldName\": \"string|number|boolean|array|object\"}. Example: {\"title\": \"string\", \"price\": \"number\", \"inStock\": \"boolean\", \"tags\": \"array\"}",
+          additionalProperties: { type: "string", enum: ["string", "number", "boolean", "array", "object"] },
         },
         context: {
           type: "string",
-          description: "Optional: what you're trying to accomplish",
+          description: "Optional: what you're trying to accomplish (helps LLM extraction accuracy)",
         },
       },
       required: ["url", "schema"],
@@ -242,7 +242,7 @@ const TOOLS = [
   {
     name: "scrape",
     description:
-      "Convert any URL to clean, LLM-ready Markdown. 84% success rate including JavaScript-heavy sites, Cloudflare-protected pages, and government sites. Renders JavaScript, handles dynamic content, bypasses common bot detection with stealth mode and CAPTCHA solving. Returns structured markdown with title and metadata. Tip: provide 'context' to get more relevant results.",
+      "Convert any URL to clean, LLM-ready Markdown. 84% success rate including JavaScript-heavy sites, Cloudflare-protected pages, and government sites. Renders JavaScript, handles dynamic content, bypasses common bot detection with stealth mode and CAPTCHA solving. Returns structured markdown with title and metadata. Tip: provide 'context' to get more relevant results. Free tier: 10 scrapes per day. Get 50 per day at anybrowse.dev/upgrade-free",
     inputSchema: {
       type: "object" as const,
       properties: {

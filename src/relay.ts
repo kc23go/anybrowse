@@ -18,6 +18,7 @@ const WebSocketServer: typeof WebSocket.Server = _require('ws').Server;
 import type { IncomingMessage, Server } from 'http';
 import type { Socket } from 'net';
 import { db, extractDomain, classifyDomain } from './db.js';
+import { detectCaptchaType } from './capsolver.js';
 import crypto from 'crypto';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -35,6 +36,16 @@ interface RelayClient {
 // ─── State ───────────────────────────────────────────────────────────────────
 
 export const relayPool = new Map<string, RelayClient>(); // relayId → client
+
+/**
+ * Returns the count of currently connected relay workers (open WebSocket connections).
+ * Use this to check availability before routing through the Windows relay.
+ */
+export function getRelayWorkerCount(): number {
+  return Array.from(relayPool.values()).filter(
+    c => c.ws.readyState === WebSocket.OPEN
+  ).length;
+}
 
 // Track daily relays per relayId: relayId → { date, count }
 const dailyRelayCount = new Map<string, { date: string; count: number }>();
@@ -108,6 +119,24 @@ const stmtLogRelayRequest = db.prepare(`
   INSERT INTO relay_request_logs (ts, relay_id, url_hash, status)
   VALUES (@ts, @relay_id, @url_hash, @status)
 `);
+
+// ─── UA rotation for relay messages ──────────────────────────────────────────
+// Sent to Chrome extension workers so each relay request can present a different UA.
+// (Extension must read data.userAgent and apply via chrome.debugger or fetch init.)
+const RELAY_USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+];
+
+function getRelayUA(): string {
+  return RELAY_USER_AGENTS[Math.floor(Math.random() * RELAY_USER_AGENTS.length)];
+}
 
 // ─── URL Safety ──────────────────────────────────────────────────────────────
 
@@ -190,7 +219,7 @@ function getAvailableRelay(excludeIp?: string): RelayClient | null {
     if (c.deprioritized) return false;
     // Minimum 10 minutes connected before earning
     const connectedMs = Date.now() - c.connectedAt;
-    if (connectedMs < 10 * 60 * 1000) return false;
+    if (connectedMs < 2 * 60 * 1000) return false;
     // Self-relay detection
     if (excludeIp && c.ip === excludeIp) return false;
     return true;
@@ -231,7 +260,7 @@ export async function relayFetch(url: string, requesterIp?: string): Promise<str
   }
 
   const requestId = crypto.randomUUID();
-  const connectedLongEnough = (Date.now() - client.connectedAt) >= 10 * 60 * 1000;
+  const connectedLongEnough = (Date.now() - client.connectedAt) >= 2 * 60 * 1000;
 
   return new Promise<string | null>((resolve) => {
     const timeout = setTimeout(() => {
@@ -243,9 +272,9 @@ export async function relayFetch(url: string, requesterIp?: string): Promise<str
       }
       console.log(`[relay] Timeout for requestId=${requestId}`);
       resolve(null);
-    }, 15000);
+    }, 45000); // 45s — Windows relay has WebSocket round-trip overhead
 
-    client.ws.send(JSON.stringify({ type: 'fetch', requestId, url }));
+    client.ws.send(JSON.stringify({ type: 'fetch', requestId, url, userAgent: getRelayUA() }));
 
     const handler = (msg: Buffer | string) => {
       try {
@@ -268,6 +297,16 @@ export async function relayFetch(url: string, requesterIp?: string): Promise<str
           // Reset error streak on success
           client.errorStreak = 0;
           client.relayCount++;
+
+          // Check if relay returned a CAPTCHA page — if so, treat as failure
+          // so the scraper can fall through to VPS tiers where CapSolver can solve it
+          const captchaType = detectCaptchaType(data.html as string);
+          if (captchaType) {
+            console.log(`[relay] CAPTCHA page detected (${captchaType}) from relay for ${url} — falling through to VPS`);
+            logRelayRequest(client.relayId, url, `captcha:${captchaType}`);
+            resolve(null);
+            return;
+          }
 
           // Only award credits if connected long enough and not self-relaying
           const isSelfRelay = requesterIp && client.ip === requesterIp;
@@ -331,11 +370,21 @@ export function attachRelayWebSocket(server: Server): void {
             return;
           }
 
-          // Validate relayId exists in DB
+          // Validate relayId exists in DB — or auto-register trusted internal Windows relay workers
           const existing = stmtGetStatus.get({ relay_id: relayId }) as any;
           if (!existing) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Unknown relayId. Register at anybrowse.dev/relay' }));
-            return;
+            if (relayId.startsWith('relay_la_windows_primary')) {
+              // Auto-register internal Windows relay workers (relay_la_windows_primary_0 .. _N)
+              try {
+                stmtCreateRelay.run({ relay_id: relayId, email: 'internal@anybrowse.dev', now: Date.now() });
+                console.log(`[relay] Auto-registered internal worker: ${relayId}`);
+              } catch (err) {
+                // Race condition: already exists — that's fine
+              }
+            } else {
+              ws.send(JSON.stringify({ type: 'error', message: 'Unknown relayId. Register at anybrowse.dev/relay' }));
+              return;
+            }
           }
 
           // Remove any previous connection for this relayId

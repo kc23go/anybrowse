@@ -1,36 +1,35 @@
 /**
- * mailer.ts — Lightweight SMTP email sender using Node.js built-in TLS
+ * mailer.ts — anybrowse transactional email via Resend
  *
- * Sends email via Gmail SMTP (smtp.gmail.com:587, STARTTLS).
- * No external dependencies — uses Node's built-in `net` and `tls` modules.
+ * Sends email via Resend REST API (https://resend.com).
+ * No SMTP, no Gmail — clean REST with hello@anybrowse.dev as the sender.
  *
- * Env vars (all optional with defaults):
- *   SMTP_HOST    — default: smtp.gmail.com
- *   SMTP_PORT    — default: 587
- *   SMTP_USER    — Gmail address
- *   SMTP_PASS    — Gmail app password (16 chars, spaces optional)
- *   SMTP_FROM    — From address (defaults to SMTP_USER)
+ * Setup (one-time, KC must do this):
+ *   1. Sign up at https://resend.com/signup
+ *   2. Add domain: anybrowse.dev
+ *   3. Add DKIM DNS records in Namecheap (Resend provides 3 TXT records)
+ *   4. Generate API key (starts with re_...)
+ *   5. Set RESEND_API_KEY in production-env
+ *
+ * Env vars:
+ *   RESEND_API_KEY  — API key from resend.com (required for sending)
  */
 
-import * as net from "net";
-import * as tls from "tls";
-import { createReadStream, existsSync, readFileSync } from "fs";
 import { createHash } from "crypto";
+import { existsSync, readFileSync } from "fs";
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
-const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587", 10);
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = (process.env.SMTP_PASS || "").replace(/\s/g, "");
-const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const FROM_EMAIL = "hello@anybrowse.dev";
+const FROM_NAME = "anybrowse";
 
-// Whether SMTP is configured
+// Whether the mailer is configured
 export function isMailerEnabled(): boolean {
-  return !!(SMTP_USER && SMTP_PASS);
+  return !!(RESEND_API_KEY && !RESEND_API_KEY.startsWith("re_placeholder"));
 }
 
 /**
- * Send a plain-text + HTML email via Gmail SMTP STARTTLS.
- * Fires and forgets — rejects are caught and logged, never thrown.
+ * Send a plain-text + optional HTML email via Resend API.
+ * Returns a Promise that resolves/rejects (index.ts uses .catch() on it).
  */
 export async function sendEmail(opts: {
   to: string;
@@ -39,149 +38,78 @@ export async function sendEmail(opts: {
   html?: string;
 }): Promise<void> {
   if (!isMailerEnabled()) {
-    console.log(`[mailer] SMTP not configured — skipping email to ${opts.to}`);
+    console.log(`[mailer] RESEND_API_KEY not set — skipping email to ${opts.to}`);
     return;
   }
 
-  const { to, subject, text, html } = opts;
-  const from = SMTP_FROM;
-  const msgId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@anybrowse.dev>`;
-  const date = new Date().toUTCString();
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+      to: [opts.to],
+      subject: opts.subject,
+      text: opts.text,
+      html: opts.html,
+    }),
+  });
 
-  // Build MIME message
-  const boundary = `----=_Part_${Date.now().toString(36)}`;
-  let message: string;
-
-  if (html) {
-    message = [
-      `From: anybrowse <${from}>`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `Date: ${date}`,
-      `Message-ID: ${msgId}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      `Content-Transfer-Encoding: 7bit`,
-      ``,
-      text,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/html; charset=UTF-8`,
-      `Content-Transfer-Encoding: 7bit`,
-      ``,
-      html,
-      ``,
-      `--${boundary}--`,
-    ].join("\r\n");
-  } else {
-    message = [
-      `From: anybrowse <${from}>`,
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      `Date: ${date}`,
-      `Message-ID: ${msgId}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/plain; charset=UTF-8`,
-      ``,
-      text,
-    ].join("\r\n");
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`[mailer] Resend error ${response.status}: ${err}`);
   }
 
-  return new Promise((resolve, reject) => {
-    let step = 0;
-    let socket: net.Socket | tls.TLSSocket = net.createConnection(SMTP_PORT, SMTP_HOST);
-    let upgraded = false;
+  const data = (await response.json()) as { id: string };
+  console.log(`[mailer] Email sent via Resend: ${data.id} → ${opts.to}`);
+}
 
-    const authPlain = Buffer.from(`\0${SMTP_USER}\0${SMTP_PASS}`).toString("base64");
+/**
+ * Convenience: send the standard API key delivery email.
+ * Returns true on success, false on failure.
+ */
+export async function sendApiKeyEmail(
+  email: string,
+  apiKey: string,
+  credits: number,
+): Promise<boolean> {
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Your anybrowse API key is ready",
+      text: `Your API key: ${apiKey}
 
-    const commands = [
-      () => write(`EHLO anybrowse.dev\r\n`),
-      () => write(`STARTTLS\r\n`),
-      () => upgradeTls(),
-      () => write(`EHLO anybrowse.dev\r\n`),
-      () => write(`AUTH PLAIN ${authPlain}\r\n`),
-      () => write(`MAIL FROM:<${from}>\r\n`),
-      () => write(`RCPT TO:<${to}>\r\n`),
-      () => write(`DATA\r\n`),
-      () => write(`${message}\r\n.\r\n`),
-      () => write(`QUIT\r\n`),
-    ];
+This gives you ${credits.toLocaleString()} scrapes.
 
-    function write(data: string) {
-      socket.write(data);
-    }
+curl -X POST https://anybrowse.dev/scrape \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"url": "https://example.com"}'
 
-    function upgradeTls() {
-      upgraded = true;
-      const tlsSocket = tls.connect({ socket: socket as net.Socket, host: SMTP_HOST });
-      tlsSocket.on("secure", () => {
-        socket = tlsSocket;
-        socket.on("data", onData);
-        next();
-      });
-      tlsSocket.on("error", (err) => {
-        console.error("[mailer] TLS error:", err.message);
-        reject(err);
-      });
-    }
+Check balance: https://anybrowse.dev/credits/balance?key=${apiKey}
+Dashboard: https://anybrowse.dev/dashboard
 
-    function next() {
-      if (step < commands.length) {
-        commands[step++]();
-      }
-    }
+Questions? Reply to this email.
 
-    function onData(data: Buffer) {
-      const response = data.toString();
-      const code = parseInt(response.slice(0, 3), 10);
-
-      // After STARTTLS, skip normal flow — TLS upgrade triggers next()
-      if (response.includes("220 ") && !upgraded && step === 1) {
-        next(); // send EHLO
-        return;
-      }
-
-      if (code >= 400) {
-        const err = new Error(`[mailer] SMTP error ${code}: ${response.trim()}`);
-        console.error(err.message);
-        socket.destroy();
-        reject(err);
-        return;
-      }
-
-      if (code === 250 || code === 235 || code === 354 || code === 221 || code === 220) {
-        // 354 = go ahead with data body, 221 = bye
-        if (code === 221) {
-          socket.destroy();
-          resolve();
-          return;
-        }
-        next();
-      }
-    }
-
-    socket.on("data", onData);
-    socket.on("error", (err) => {
-      console.error("[mailer] Socket error:", err.message);
-      reject(err);
+anybrowse.dev`,
+      html: `<div style="font-family:Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:2rem;background:#f4f0eb;color:#1a1a1a">
+<h2 style="color:#d94400;margin-bottom:0.5rem">Your API key is ready!</h2>
+<div style="background:#fff;border:2px solid #d94400;border-radius:8px;padding:1.25rem;margin:1.5rem 0">
+  <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#767676;margin-bottom:0.5rem">YOUR API KEY</div>
+  <code style="font-family:monospace;font-size:1rem;word-break:break-all;font-weight:600">${apiKey}</code>
+</div>
+<p style="color:#555"><strong>${credits.toLocaleString()} credits</strong> loaded. 1 credit = 1 scrape. Credits never expire.</p>
+<p><a href="https://anybrowse.dev/credits/balance?key=${apiKey}" style="color:#d94400">Check balance</a> &middot; <a href="https://anybrowse.dev/dashboard" style="color:#d94400">Dashboard</a></p>
+<p style="font-size:0.85rem;color:#999">Questions? Reply to this email.</p>
+</div>`,
     });
-    socket.on("close", () => {
-      if (step < commands.length - 1) {
-        // Closed before QUIT — partial send
-        reject(new Error("[mailer] Connection closed prematurely"));
-      }
-    });
-
-    // Increase timeout to 15s
-    socket.setTimeout(15_000, () => {
-      console.error("[mailer] SMTP timeout");
-      socket.destroy();
-      reject(new Error("[mailer] SMTP timeout"));
-    });
-  });
+    return true;
+  } catch (err: any) {
+    console.error("[mailer] sendApiKeyEmail failed:", err.message);
+    return false;
+  }
 }
 
 // ── Lead email lookup by IP hash ─────────────────────────────────────────────

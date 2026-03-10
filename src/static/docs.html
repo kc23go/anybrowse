@@ -7,9 +7,12 @@
 <meta name="description" content="Get your first scrape in under 60 seconds. MCP, REST API, Python. No signup required.">
 <link rel="canonical" href="https://anybrowse.dev/docs">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased}
 a{color:#d94400;text-decoration:none}a:hover{text-decoration:underline}
 .wrap{max-width:980px;margin:0 auto;padding:2rem 1.5rem 4rem}
 .hdr{display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem}
@@ -111,25 +114,26 @@ footer a{color:#767676}footer a:hover{color:#1a1a1a}
 .tryit-row{flex-direction:column}
 }
 </style>
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init("phc_VM75sosUchtkMp61Gq8m5PsGBjtBxNBcaOzLyY2OOAA", {api_host: "https://app.posthog.com"})
+</script>
 </head>
 <body>
+
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
+  </div>
+</nav>
+
 <div class="wrap">
-
-<div class="hdr">
-<a href="/"><svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-<defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
-<circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
-<g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
-<line x1="28" y1="100" x2="172" y2="100"/><line x1="36" y1="68" x2="164" y2="68"/><line x1="36" y1="132" x2="164" y2="132"/>
-<ellipse cx="100" cy="100" rx="26" ry="72"/><ellipse cx="100" cy="100" rx="56" ry="72"/>
-</g>
-<line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
-<polygon points="85,148 100,172 115,148" fill="#d94400"/>
-</svg></a>
-<a href="/" class="wm">any<b>browse</b></a>
-</div>
-
-<div class="nav"><a href="/docs" class="active">Documentation</a><a href="/pricing">Pricing</a></div>
 
 <div class="layout">
 <aside class="sidebar">
@@ -332,15 +336,24 @@ print(r.json()["markdown"])</pre></div>
 <p>Convert any URL to clean, LLM-ready Markdown. <strong>84% scrape success rate</strong> — works on JavaScript-heavy sites, Cloudflare-protected pages, and government sites. Uses real Chrome with stealth mode, automatic CAPTCHA solving, and proxy fallback.</p>
 <table><thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>url</code> <span class="tag req">required</span></td><td>string</td><td>URL to scrape (http/https)</td></tr>
-<tr><td><code>slow</code> <span class="tag opt">optional</span></td><td>boolean</td><td>Wait extra time for JS-heavy sites (default: false)</td></tr>
-<tr><td><code>waitFor</code> <span class="tag opt">optional</span></td><td>number</td><td>Custom JS wait in ms (default: 5000)</td></tr>
+<tr><td><code>screenshot</code> <span class="tag opt">optional</span></td><td>boolean</td><td>Return a base64 PNG screenshot of the page (default: false). Browser tiers only.</td></tr>
+<tr><td><code>includeLinks</code> <span class="tag opt">optional</span></td><td>boolean</td><td>Return all hrefs found on the page as a <code>links</code> array (default: false, max 200)</td></tr>
+<tr><td><code>waitForSelector</code> <span class="tag opt">optional</span></td><td>string</td><td>CSS selector to wait for before extracting content</td></tr>
+<tr><td><code>actions</code> <span class="tag opt">optional</span></td><td>array</td><td>Pre-scrape browser actions: <code>[{"type":"click","selector":"#btn"}]</code></td></tr>
 </tbody></table>
-<div class="cb"><div class="cb-hdr">Example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<p style="font-size:.82rem;color:#555;margin-top:.5rem"><strong>Response fields:</strong> <code>markdown</code> (always), <code>html</code> (raw page HTML, always), <code>screenshot</code> (base64 PNG, when requested), <code>links</code> (href array, when requested), <code>title</code>, <code>url</code>, <code>tier</code>, <code>status</code></p>
+<div class="cb"><div class="cb-hdr">Basic example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
 <pre>curl -X POST https://anybrowse.dev/scrape \
   -H "Content-Type: application/json" \
   -d '{"url": "https://news.ycombinator.com"}'
 
-# Returns: plain Markdown text of the page</pre></div>
+# Returns: { "markdown": "...", "html": "...", "title": "...", "url": "...", "status": "success", "tier": "http" }</pre></div>
+<div class="cb"><div class="cb-hdr">Screenshot + links example<button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+<pre>curl -X POST https://anybrowse.dev/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "screenshot": true, "includeLinks": true}'
+
+# Returns: { "markdown": "...", "html": "...", "screenshot": "iVBORw0KGgo...", "links": ["https://..."], "tier": "vps-fast" }</pre></div>
 </div>
 
 <div class="ep" id="crawl">
@@ -461,10 +474,21 @@ const markdown = await res.text();</pre></div>
 </main>
 </div><!-- .layout -->
 
-<footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
-<span class="mn">anybrowse.base.eth</span><br>
-<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
 </footer>
 
 </div><!-- .wrap -->

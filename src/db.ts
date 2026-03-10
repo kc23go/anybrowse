@@ -210,6 +210,22 @@ export const upsertDomain = db.prepare(`
     avg_response_ms = (avg_response_ms * (total_scrapes - 1) + @response_ms) / total_scrapes
 `);
 
+// Email subscribers table for drip campaigns
+db.exec(`
+  CREATE TABLE IF NOT EXISTS email_subscribers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    ip_hash TEXT,
+    subscribed_at INTEGER NOT NULL,
+    email_1_sent_at INTEGER,
+    email_2_sent_at INTEGER,
+    email_3_sent_at INTEGER,
+    unsubscribed_at INTEGER,
+    source TEXT DEFAULT 'rate-limit-upgrade'
+  );
+  CREATE INDEX IF NOT EXISTS idx_email_subscribers_email ON email_subscribers(email);
+`);
+
 // Watches table for change monitoring
 db.exec(`
   CREATE TABLE IF NOT EXISTS watches (
@@ -240,5 +256,41 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_watches_ip ON watches(ip_hash);
   CREATE INDEX IF NOT EXISTS idx_watch_history_watch ON watch_history(watch_id);
 `);
+
+// Agent comms table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS agent_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_agent TEXT,
+    message TEXT,
+    read INTEGER DEFAULT 0,
+    created_at INTEGER DEFAULT (unixepoch())
+  );
+`);
+
+// ─── Email subscriber helpers ─────────────────────────────────────────────────
+
+export function addEmailSubscriber(email: string, ipHash: string): void {
+  db.prepare(`INSERT OR IGNORE INTO email_subscribers (email, ip_hash, subscribed_at) VALUES (?, ?, ?)`).run(email, ipHash, Date.now());
+}
+
+export function getSubscribersDueEmail(emailNumber: 1 | 2 | 3): Array<{id: number, email: string}> {
+  const now = Date.now();
+  const day1 = 0; // email 1: immediately (within 1 hour of signup)
+  const day2 = 2 * 24 * 60 * 60 * 1000; // email 2: 2 days after signup
+  const day5 = 5 * 24 * 60 * 60 * 1000; // email 3: 5 days after signup
+  if (emailNumber === 1) {
+    return db.prepare(`SELECT id, email FROM email_subscribers WHERE email_1_sent_at IS NULL AND unsubscribed_at IS NULL AND subscribed_at <= ?`).all(now - day1) as any;
+  } else if (emailNumber === 2) {
+    return db.prepare(`SELECT id, email FROM email_subscribers WHERE email_1_sent_at IS NOT NULL AND email_2_sent_at IS NULL AND unsubscribed_at IS NULL AND subscribed_at <= ?`).all(now - day2) as any;
+  } else {
+    return db.prepare(`SELECT id, email FROM email_subscribers WHERE email_2_sent_at IS NOT NULL AND email_3_sent_at IS NULL AND unsubscribed_at IS NULL AND subscribed_at <= ?`).all(now - day5) as any;
+  }
+}
+
+export function markEmailSent(id: number, emailNumber: 1 | 2 | 3): void {
+  const col = `email_${emailNumber}_sent_at`;
+  db.prepare(`UPDATE email_subscribers SET ${col} = ? WHERE id = ?`).run(Date.now(), id);
+}
 
 console.log('[db] SQLite database ready at', DB_PATH);

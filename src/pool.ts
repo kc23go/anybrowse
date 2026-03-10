@@ -1,18 +1,23 @@
 import { chromium as chromiumBase } from 'playwright-extra';
+import { getDeProxy, getProxyUrl } from './proxy-pool.js';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { SessionPool, type PooledSession } from '@browsercash/pool';
 import { loadEnvString, loadEnvNumber } from './env.js';
 import { randomUUID } from 'crypto';
+import { exec as execCb } from 'child_process';
+import { getWarmerBrowser } from './warmer.js';
 
 // ── rebrowser-patches: Runtime.enable CDP mode control ───────────────────────
-// 'addBinding' = suppress Runtime.enable CDP command (applied via postinstall patch)
-//   → hides automation from bot detectors that check for Runtime.enable
-// '0' = use original Runtime.enable (fallback if patches not applied)
-// Patches are applied to playwright-core via postinstall (dist/patch-playwright.js)
-// 'addBinding' — suppresses Runtime.enable CDP command using Runtime.addBinding approach.
-// Patches are applied to playwright-core at postinstall time (dist/patch-playwright.js).
-// This is the stealth mode that hides CDP automation signals from bot detectors.
-process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] = 'addBinding';
+// 'alwaysIsolated' = execute all scripts in isolated world (Page.createIsolatedWorld)
+//   → never calls Runtime.enable → undetectable by Cloudflare/DataDome CDP leak check
+//   → simpler than 'addBinding' (no binding event timing issues)
+//   → downside: code runs in isolated world not main world, but fine for content extraction
+// 'addBinding' = suppress via Runtime.addBinding approach
+//   → DISABLED: timing issue — Runtime.bindingCalled may not fire reliably here
+//   → context returns undefined → stale contexts → "Target page, context or browser has been closed"
+// '0' = use original Runtime.enable (detectable by bots, previous fallback)
+// Patches applied via postbuild (npm run build → node dist/patch-playwright.js)
+process.env['REBROWSER_PATCHES_RUNTIME_FIX_MODE'] = '0'; // Temporarily back to safe mode for diagnostics
 
 // Apply stealth plugin to evade bot detection
 chromiumBase.use(StealthPlugin());
@@ -29,23 +34,12 @@ const HEALTH_CHECK_INTERVAL_MS = loadEnvNumber('HEALTH_CHECK_INTERVAL_MS', 10_00
 // Idle timeout: shut down pool after 10 minutes of no requests
 const IDLE_SHUTDOWN_MS = loadEnvNumber('IDLE_SHUTDOWN_MS', 10 * 60 * 1000);
 
-// Proxy pool — rotate through all available proxies
-// Note: 161.77.10.249 (general residential) removed — proxy auth expired (407)
-// Note: 95.134.167.203 removed — proxy auth expired (407)
-const PROXY_POOL = [
-  'http://14a3696c76e38:a7b82257a0@95.134.166.82:12323',    // ISP DE
-  'http://14a3696c76e38:a7b82257a0@95.134.166.221:12323',   // ISP DE
-  'http://14a3696c76e38:a7b82257a0@95.134.166.36:12323',    // ISP DE
-  'http://14a3696c76e38:a7b82257a0@95.134.166.225:12323',   // ISP DE
-  'http://14a3696c76e38:a7b82257a0@95.134.167.6:12323',     // ISP DE
-];
-let proxyIndex = 0;
+// Proxy pool — loaded from proxies.json via proxy-pool.ts (round-robin over DE ISP pool)
+// US pool is available for URL-specific routing in scraper.ts via getProxyForUrl()
 function getNextProxy(): string {
-  const proxy = PROXY_POOL[proxyIndex % PROXY_POOL.length];
-  proxyIndex++;
-  return proxy;
+  return getProxyUrl(getDeProxy());
 }
-const RESIDENTIAL_PROXY = process.env.RESIDENTIAL_PROXY || PROXY_POOL[0];
+const RESIDENTIAL_PROXY = process.env.RESIDENTIAL_PROXY || getNextProxy();
 
 export type { PooledSession };
 
@@ -59,11 +53,15 @@ interface LocalSession {
   browser: import('playwright-core').Browser;
   createdAt: number;
   useCount: number;
+  /** true when using the warmer's shared browser — must NOT call browser.close() on retire */
+  borrowed?: boolean;
 }
 
 let localSession: LocalSession | null = null;
 let localSessionLock = false;
 let localSessionWaiters: Array<{ resolve: (s: LocalSession) => void; reject: (e: Error) => void }> = [];
+let localPoolErrored = false;        // true after repeated local launch failures
+let lastSuccessfulBrowserMs = 0;     // timestamp of last successful browser acquire
 
 async function acquireLocalSession(): Promise<LocalSession> {
   // If there's an available session, return it
@@ -84,29 +82,68 @@ async function acquireLocalSession(): Promise<LocalSession> {
 
     localSessionLock = true;
     try {
+      // ── Warmer browser fast-path ────────────────────────────────────────────
+      // If the warmer's Chromium is already running, create a context on it
+      // instead of launching a second browser process (saves RAM + launch time).
+      // IMPORTANT: borrowed=true prevents releaseLocalSession from closing it.
+      const warmerBrowser = getWarmerBrowser();
+      if (warmerBrowser) {
+        console.log('[pool:local] Using warmer\'s existing browser (no new launch, borrowed=true)');
+        localSession = {
+          sessionId: randomUUID(),
+          cdpUrl: '',
+          browser: warmerBrowser,
+          createdAt: Date.now(),
+          useCount: 1,
+          borrowed: true,
+        };
+        console.log('[pool:local] Warmer browser borrowed, sessionId=' + localSession.sessionId);
+        lastSuccessfulBrowserMs = Date.now();
+        localPoolErrored = false;
+
+        const waiters = localSessionWaiters.splice(0);
+        for (const w of waiters) {
+          localSession.useCount++;
+          w.resolve(localSession);
+        }
+
+        localSessionSet.add(localSession);
+        return localSession;
+      }
+
+      // ── No warmer available — launch own browser ────────────────────────────
       console.log('[pool:local] Launching local Playwright browser (residential proxy)...');
-      const browser = await (chromium as any).launch({
-        headless: true,
-        proxy: { server: getNextProxy() },
-        args: [
-          '--disable-blink-features=AutomationControlled',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--flag-switches-begin',
-          '--disable-site-isolation-trials',
-          '--flag-switches-end',
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--disable-extensions',
-          '--disable-background-networking',
-        ],
-      });
+      const LAUNCH_TIMEOUT_MS = 30_000;
+      const browser = await Promise.race([
+        (chromium as any).launch({
+          headless: true,
+          proxy: { server: getNextProxy() },
+          args: [
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--flag-switches-begin',
+            '--disable-site-isolation-trials',
+            '--flag-switches-end',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--disable-extensions',
+            '--disable-background-networking',
+          ],
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Browser launch timeout after ${LAUNCH_TIMEOUT_MS / 1000}s`)),
+            LAUNCH_TIMEOUT_MS
+          )
+        ),
+      ]) as import('playwright-core').Browser;
 
       localSession = {
         sessionId: randomUUID(),
@@ -117,6 +154,8 @@ async function acquireLocalSession(): Promise<LocalSession> {
       };
 
       console.log('[pool:local] Local browser ready (residential proxy), sessionId=' + localSession.sessionId);
+      lastSuccessfulBrowserMs = Date.now();
+      localPoolErrored = false;
 
       // Resolve any waiters
       const waiters = localSessionWaiters.splice(0);
@@ -128,6 +167,7 @@ async function acquireLocalSession(): Promise<LocalSession> {
       localSessionSet.add(localSession);
       return localSession;
     } catch (err) {
+      localPoolErrored = true;
       localSessionLock = false;
       const waiters = localSessionWaiters.splice(0);
       for (const w of waiters) w.reject(err instanceof Error ? err : new Error(String(err)));
@@ -142,10 +182,18 @@ async function acquireLocalSession(): Promise<LocalSession> {
 }
 
 function releaseLocalSession(session: LocalSession, hadError: boolean): void {
-  if (hadError || session.useCount >= SESSION_MAX_USES ||
-      Date.now() - session.createdAt > SESSION_MAX_AGE_MS) {
-    // Close and reset for fresh session next time
-    session.browser.close().catch(() => {});
+  const shouldRetire = hadError || session.useCount >= SESSION_MAX_USES ||
+      Date.now() - session.createdAt > SESSION_MAX_AGE_MS;
+
+  if (shouldRetire) {
+    if (session.borrowed) {
+      // Borrowed (warmer) browser: NEVER close it — just evict from pool so the
+      // next request re-borrows a fresh reference from the warmer.
+      console.log('[pool:local] Borrowed session retired (not closing warmer browser)');
+    } else {
+      // Owned browser: safe to close
+      session.browser.close().catch(() => {});
+    }
     if (localSession === session) localSession = null;
   }
 
@@ -323,6 +371,11 @@ export function getPool(): SessionPool {
  */
 export function isPoolActive(): boolean {
   if (!USE_REMOTE) return localSession !== null;
+  // When BrowserCash is in backoff, only consider local session activity.
+  // The BrowserCash pool object may exist from a recovery attempt but have
+  // no healthy slots — checking it would cause idle local pool (0/0) to
+  // report as "degraded" instead of "idle".
+  if (!remoteHealthy) return localSession !== null;
   return pool !== null || localSession !== null;
 }
 
@@ -353,6 +406,94 @@ export function getRemoteStats(): { successRate: string; successes: number; fail
     inBackoff: !remoteHealthy && Date.now() < remoteNextRetryMs,
   };
 }
+
+/**
+ * Check whether the pool is HEALTHY (can accept new requests).
+ * Unlike isPoolActive(), this doesn't require an in-flight session to return true.
+ * Healthy = pool object exists without errors, OR local Playwright hasn't permanently failed.
+ */
+export function isPoolHealthy(): boolean {
+  // BrowserCash path: healthy if pool is initialised and not in backoff
+  if (USE_REMOTE && remoteHealthy && pool !== null) return true;
+  // Local path: healthy if no repeated launch error
+  // Even if localSession is null (idle), we CAN launch one — that's healthy
+  return !localPoolErrored;
+}
+
+// ── In-process watchdog ───────────────────────────────────────────────────────
+const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const WATCHDOG_HEAP_WARN = 0.85;
+const WATCHDOG_STUCK_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+
+async function poolHealthWatchdog(): Promise<void> {
+  try {
+    const stats = getPoolStats();
+    const mem = process.memoryUsage();
+    const heapPct = mem.heapUsed / mem.heapTotal;
+    const rssMB = (mem.rss / 1024 / 1024).toFixed(0);
+
+    console.log(
+      `[watchdog] heap: ${(heapPct * 100).toFixed(1)}% rss: ${rssMB}MB` +
+      ` pool: available=${stats.available} inUse=${stats.inUse} maxSize=${stats.maxSize}` +
+      ` localErr=${localPoolErrored} remoteHealthy=${remoteHealthy}`
+    );
+
+    // Force GC on high heap
+    if (heapPct > WATCHDOG_HEAP_WARN) {
+      console.warn(`[watchdog] HIGH HEAP (${(heapPct * 100).toFixed(1)}%) — attempting GC`);
+      if (global.gc) {
+        global.gc();
+        console.log('[watchdog] GC triggered');
+      } else {
+        console.warn('[watchdog] global.gc not available (run node with --expose-gc)');
+      }
+    }
+
+    // If local pool has been errored and no success for > 2 min, reset error flag to allow retry
+    if (localPoolErrored && lastSuccessfulBrowserMs > 0) {
+      const stuckMs = Date.now() - lastSuccessfulBrowserMs;
+      if (stuckMs > WATCHDOG_STUCK_THRESHOLD_MS) {
+        console.warn(`[watchdog] Local pool stuck for ${Math.round(stuckMs / 1000)}s — resetting error flag to allow retry`);
+        localPoolErrored = false;
+      }
+    }
+
+    // If remote backoff has expired, log recovery notice
+    if (USE_REMOTE && !remoteHealthy && Date.now() >= remoteNextRetryMs) {
+      console.log('[watchdog] Remote backoff expired — next request will attempt recovery');
+    }
+  } catch (err: any) {
+    console.error('[watchdog] error:', err.message);
+  }
+}
+
+// Start watchdog
+setInterval(poolHealthWatchdog, WATCHDOG_INTERVAL_MS).unref();
+poolHealthWatchdog(); // run immediately on startup
+
+// ── Zombie Chrome process cleanup ────────────────────────────────────────────
+const ZOMBIE_CHROME_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const ZOMBIE_CHROME_AGE_SECS = 7200;               // 2 hours
+
+function cleanZombieChrome(): void {
+  // Find chrome processes with elapsed time > 2 hours (etimes in seconds)
+  execCb(
+    `ps -eo pid,etimes,comm --no-headers | awk '$2 > ${ZOMBIE_CHROME_AGE_SECS} && $3 ~ /chrome/ {print $1}'`,
+    (err, stdout) => {
+      if (err || !stdout.trim()) return;
+      const pids = stdout.trim().split('\n').filter(Boolean);
+      if (pids.length === 0) return;
+      console.log(`[cleanup] Killing ${pids.length} zombie Chrome process(es): ${pids.join(' ')}`);
+      execCb(`kill -9 ${pids.join(' ')}`, (killErr) => {
+        if (killErr) console.warn('[cleanup] Some kills failed:', killErr.message);
+      });
+    }
+  );
+}
+
+// Start zombie cleanup
+setInterval(cleanZombieChrome, ZOMBIE_CHROME_INTERVAL_MS).unref();
+cleanZombieChrome(); // run immediately on startup
 
 // Timeout (ms) for remote browser.cash session acquisition before falling back to local
 const REMOTE_ACQUIRE_TIMEOUT_MS = loadEnvNumber('REMOTE_ACQUIRE_TIMEOUT_MS', 30_000);
@@ -447,7 +588,9 @@ export async function shutdownPool(): Promise<void> {
     console.log('[pool] Remote pool shutdown complete');
   }
   if (localSession) {
-    await localSession.browser.close().catch(() => {});
+    if (!localSession.borrowed) {
+      await localSession.browser.close().catch(() => {});
+    }
     localSession = null;
     console.log('[pool] Local pool shutdown complete');
   }

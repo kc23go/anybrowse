@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>anybrowse — any url to markdown</title>
+<meta name="description" content="Convert any URL to clean, LLM-ready Markdown. 10 free scrapes/day, no signup. API keys or x402 micropayments on Base.">
+<link rel="canonical" href="https://anybrowse.dev/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<meta property="og:type" content="website">
+<meta property="og:title" content="anybrowse — any URL to Markdown">
+<meta property="og:description" content="Convert any URL to clean, LLM-ready Markdown. 10 free/day, then $0.002/page. API keys or x402 micropayments on Base.">
+<meta property="og:url" content="https://anybrowse.dev/">
+<meta property="og:site_name" content="anybrowse">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="anybrowse — any URL to Markdown">
+<meta name="twitter:description" content="Convert any URL to clean, LLM-ready Markdown. 10 free/day, then $0.002/page. API keys or x402 payments.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:720px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.virgil-labels{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:3rem}
+.vl{font-size:.6rem;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:#767676;font-style:italic}
+.vl::before{content:'\201C'}
+.vl::after{content:'\201D'}
+.version{font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;color:#767676;border:1px solid #bbb;border-radius:3px;padding:1px 6px;font-weight:500;font-style:normal;margin-left:.25rem}
+h1{font-size:clamp(2.4rem,7vw,3.8rem);font-weight:800;letter-spacing:-.03em;line-height:1;margin-bottom:.6rem;color:#1a1a1a}
+h1 .q::before{content:'\201C';color:#d94400;font-weight:300;margin-right:.05em}
+h1 .q::after{content:'\201D';color:#d94400;font-weight:300;margin-left:.05em}
+h1 .arrow{color:#d94400;font-weight:300}
+.sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+.sub strong{color:#1a1a1a;font-weight:600}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+pre{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1.25rem 1.5rem;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;cursor:pointer;position:relative;transition:border-color .2s}
+pre:hover,pre:focus{border-color:#ccc;outline:2px solid #d94400;outline-offset:2px}
+pre::after{content:"click to copy";position:absolute;top:.85rem;right:1rem;font-size:.55rem;color:#999;letter-spacing:.12em;text-transform:uppercase;font-family:"Helvetica Neue",Helvetica,system-ui,sans-serif;transition:color .2s}
+pre:hover::after,pre:focus::after{color:#767676}
+pre.ok::after{content:"copied";color:#d94400}
+.d{color:#999}
+.c{color:#1a1a1a}
+.f{color:#d94400}
+.s{color:#555}
+.live{display:flex;align-items:center;gap:1.75rem;font-size:.82rem;flex-wrap:wrap;margin:2.5rem 0 0}
+.dot{width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block;margin-right:.35rem;box-shadow:0 0 6px #16a34a60;animation:p 2s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+.ll{color:#1a1a1a;font-weight:600;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase}
+.live span.m{color:#767676}
+.v{color:#1a1a1a;font-weight:500}
+.ep{font-size:.85rem;display:flex;flex-direction:column;gap:0}
+.er{display:flex;justify-content:space-between;align-items:baseline;padding:.75rem 0;border-bottom:1px solid #e0dcd7}
+.er:last-child{border-bottom:none}
+.el{display:flex;align-items:baseline;gap:.75rem;min-width:0}
+.em{color:#fff;background:#d94400;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.6rem;font-weight:700;flex-shrink:0;padding:2px 6px;border-radius:3px;letter-spacing:.04em}
+.epath{color:#1a1a1a;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;font-weight:500}
+.edesc{color:#767676;font-style:italic;font-size:.8rem}
+.edesc::before{content:'\201C'}
+.edesc::after{content:'\201D'}
+.eprice{color:#1a1a1a;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;flex-shrink:0;margin-left:1rem;font-weight:500}
+.fr{color:#16a34a}
+.mc{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1.15rem 1.4rem;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;line-height:1.6;color:#767676}
+.mk{color:#1a1a1a}
+.ms{color:#d94400}
+.pay{color:#555;font-size:.9rem;line-height:1.7}
+.pay code{background:#fff;border:1px solid #e0dcd7;padding:2px 6px;border-radius:3px;font-size:.8rem;color:#1a1a1a;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin:1rem 0 1.5rem}
+.tier{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1rem 1.1rem}
+.tier.pro{border-color:#d94400;background:#fff9f7}
+.tier-name{font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#767676;margin-bottom:.25rem}
+.tier-price{font-size:1.15rem;font-weight:800;color:#1a1a1a;line-height:1.2}
+.tier-price small{font-size:.65rem;font-weight:400;color:#767676}
+.tier-desc{font-size:.72rem;color:#767676;margin:.3rem 0 .6rem;line-height:1.4}
+.tier-cta{display:inline-block;font-size:.7rem;font-weight:600;padding:.25rem .65rem;border-radius:4px;text-decoration:none;transition:background .15s}
+.tier.pro .tier-cta{background:#d94400;color:#fff}
+.tier.pro .tier-cta:hover{background:#c03800}
+.tier:not(.pro) .tier-cta{background:#f4f0eb;border:1px solid #ccc;color:#1a1a1a}
+.tier:not(.pro) .tier-cta:hover{background:#e8e4df}
+.demo-wrap{margin:.25rem 0 1.5rem;display:none}
+.demo-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem}
+.demo-input{flex:1;min-width:0;padding:.4rem .75rem;border:1px solid #ccc;border-radius:4px;font-size:.82rem;font-family:inherit;background:#fff;color:#1a1a1a;outline:none;transition:border-color .15s}
+.demo-input:focus{border-color:#d94400;outline:2px solid #d9440025;outline-offset:0}
+.demo-submit{padding:.4rem .9rem;background:#d94400;color:#fff;border:none;border-radius:4px;font-size:.78rem;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit}
+.demo-submit:hover{background:#c03800}
+.demo-submit:disabled{background:#ccc;cursor:not-allowed}
+.demo-result{background:#fff;border:1px solid #e0dcd7;border-radius:6px;padding:1rem 1.25rem;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.75rem;line-height:1.65;color:#1a1a1a;white-space:pre-wrap;word-break:break-word;display:none}
+.demo-error{background:#fff9f7;border:1px solid #fcc;border-radius:6px;padding:.75rem 1rem;font-size:.8rem;color:#c03800;display:none}
+.demo-label{font-size:.6rem;color:#767676;letter-spacing:.1em;text-transform:uppercase;font-weight:500;margin-bottom:.35rem}
+.nav-links{margin-bottom:2rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover{color:#d94400}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus{outline:2px solid #d94400;outline-offset:2px}
+.co{font-size:.7rem;color:#767676;letter-spacing:.08em;font-style:italic;margin-bottom:.75rem}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
+footer a:hover{color:#1a1a1a}
+.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+@media(max-width:520px){
+body{padding:2.5rem 1rem 1.5rem}
+.live{gap:.6rem 1.25rem}
+.edesc{display:none}
+pre{padding:1rem;font-size:.75rem}
+h1{font-size:2rem}
+.tiers{grid-template-columns:1fr;gap:.5rem}
+}
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "anybrowse",
+  "url": "https://anybrowse.dev",
+  "description": "Convert any URL to LLM-ready Markdown via real Chrome browsers. 10 free scrapes/day. API keys or x402 micropayments.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "softwareVersion": "1.0.0",
+  "featureList": ["URL to Markdown conversion", "JavaScript rendering via real Chrome", "Stealth browser mode (90%+ success rate)", "Proxy fallback for blocked sites", "30s timeout for JS-heavy pages", "Structured error responses with reason codes", "Google search + scrape", "MCP server for AI agents", "10 free scrapes/day", "Pro plan $4.99/month", "API keys or x402 micropayments", "No signup for free tier"],
+  "offers": {
+    "@type": "AggregateOffer",
+    "priceCurrency": "USD",
+    "lowPrice": "0.002",
+    "highPrice": "0.01",
+    "offerCount": "3"
+  },
+  "creator": {
+    "@type": "Organization",
+    "name": "anybrowse",
+    "url": "https://anybrowse.dev",
+    "sameAs": ["https://github.com/kc23go/anybrowse"]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is anybrowse?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "anybrowse is a web scraping API that converts any URL to LLM-ready Markdown using real Chrome browsers, with x402 micropayments on Base."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How much does anybrowse cost?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "10 free scrapes/day (no signup required). After that: Scrape $0.002/page, Crawl $0.01/request, Search $0.002/query. Pay with API keys or x402/USDC on Base. No subscriptions."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I use anybrowse with Claude Code or Cursor?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Add this to your MCP config: {\"mcpServers\":{\"anybrowse\":{\"url\":\"https://anybrowse.dev/mcp\"}}}. anybrowse exposes scrape, crawl, and search tools."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does anybrowse render JavaScript?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. anybrowse uses real Chrome browsers (Playwright) with full JavaScript rendering. It handles SPAs, dynamic content, and client-side rendered pages."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need an API key to use anybrowse?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No API key needed for the free tier (10 scrapes/day). For unlimited use, you can get an API key or use x402 micropayments. With x402, send a request, receive a 402 with payment instructions, sign with your crypto wallet, and resend. No signup required for either method."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is x402?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "x402 is an open micropayment protocol using HTTP 402 status codes. It enables pay-per-request APIs without API keys or subscriptions. Payments are made in USDC on the Base network."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does anybrowse compare to other web scraping APIs?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "anybrowse is optimized for LLM consumption with real Chrome rendering, MCP-native agent integration, and flexible payment options. Start with 10 free scrapes/day, then use API keys or pay-per-use x402 micropayments. No subscriptions, no rate limit tiers."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What format does anybrowse return?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "anybrowse returns clean, structured Markdown optimized for LLM consumption. The response includes the page title, URL, full markdown content, and a status field."
+      }
+    }
+  ]
+}
+</script>
+<script>
+  !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+  posthog.init("phc_VM75sosUchtkMp61Gq8m5PsGBjtBxNBcaOzLyY2OOAA", {api_host: "https://app.posthog.com"})
+</script>
+</head>
+<body>
+
+<div class="header">
+<svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="anybrowse logo" role="img">
+<defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
+<circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
+<g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
+<line x1="28" y1="100" x2="172" y2="100"/>
+<line x1="36" y1="68" x2="164" y2="68"/>
+<line x1="36" y1="132" x2="164" y2="132"/>
+<ellipse cx="100" cy="100" rx="26" ry="72"/>
+<ellipse cx="100" cy="100" rx="56" ry="72"/>
+</g>
+<line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
+<polygon points="85,148 100,172 115,148" fill="#d94400"/>
+</svg>
+<span class="wordmark">any<b>browse</b></span>
+</div>
+
+<div class="virgil-labels">
+<span class="vl">AGENT TO AGENT</span>
+<span class="vl">WEB BRIDGE</span>
+<span class="vl">BYPASS</span>
+<span class="version">v1.0</span>
+</div>
+
+<div class="nav-links">
+<a href="/docs">Documentation</a>
+<a href="/pricing">Pricing</a>
+<a href="/vault">Vault</a>
+</div>
+
+<h1><span class="q">ANY URL</span> <span class="arrow">&rarr;</span> MARKDOWN</h1>
+<p class="sub">Real Chrome rendering. Pay by card or crypto. Your choice.</p>
+
+<div class="tiers">
+  <div class="tier">
+    <div class="tier-name">Free</div>
+    <div class="tier-price">10<small>/day</small></div>
+    <div class="tier-desc">No signup. Resets daily.</div>
+    <a href="javascript:void(0)" class="tier-cta" id="try-it-btn" onclick="showDemo(this)" aria-expanded="false">Try it</a>
+  </div>
+
+  <div class="tier pro">
+    <div class="tier-name">Pro / Card</div>
+    <div class="tier-price">$4.99<small>/mo</small></div>
+    <div class="tier-desc">10,000 scrapes/month. API key auth.</div>
+    <a href="/checkout" class="tier-cta">Subscribe</a>
+  </div>
+  <div class="tier">
+    <div class="tier-name">Credit Packs</div>
+    <div class="tier-price">from $5</div>
+    <div class="tier-desc">Buy once. Credits never expire. From 3,000 scrapes.</div>
+    <a href="/credits" class="tier-cta">Buy credits</a>
+  </div>
+  <div class="tier">
+    <div class="tier-name">Crypto / x402</div>
+    <div class="tier-price">$0.002<small>/scrape</small></div>
+    <div class="tier-desc">USDC on Base. No signup. Unlimited.</div>
+    <a href="/pricing" class="tier-cta">Learn more</a>
+  </div>
+</div>
+
+<div class="demo-wrap" id="demo-wrap">
+  <div class="demo-label">Live demo</div>
+  <div class="demo-row" id="demo-row-wrap">
+    <input id="demo-url" class="demo-input" type="url" placeholder="https://example.com" value="" autocomplete="off" spellcheck="false">
+    <button id="demo-btn" class="demo-submit" onclick="runDemo()">Scrape</button>
+  </div>
+  <div id="email-gate" style="display:none;margin-bottom:.75rem">
+    <p style="font-size:.82rem;color:#1a1a1a;font-weight:600;margin-bottom:.2rem">Enter your email to see the result</p>
+    <p style="font-size:.76rem;color:#767676;margin-bottom:.6rem">No spam. Just your markdown.</p>
+    <div class="demo-row" style="flex-wrap:nowrap">
+      <input id="demo-email" class="demo-input" type="email" placeholder="you@example.com" autocomplete="email" spellcheck="false">
+      <button class="demo-submit" onclick="submitEmail()">Get Result</button>
+    </div>
+    <div style="text-align:center;margin-top:.35rem">
+      <a href="javascript:void(0)" onclick="skipEmail()" style="font-size:.72rem;color:#999;text-decoration:underline">skip</a>
+    </div>
+  </div>
+  <div id="demo-error" class="demo-error"></div>
+  <div id="demo-result" class="demo-result"></div>
+</div>
+
+<pre id="cmd" tabindex="0" role="button" aria-label="Copy curl command" onclick="cp(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cp(this)}"><span class="d">$</span> <span class="c">curl</span> <span class="f">-X POST</span> https://anybrowse.dev/scrape <span class="f">\\</span>
+  <span class="f">-H</span> <span class="s">"Content-Type: application/json"</span> <span class="f">\\</span>
+  <span class="f">-d</span> <span class="s">'{"url": "https://example.com"}'</span>
+
+<span class="d">&larr;</span> <span class="f">200</span>  <span class="d"># Example Domain</span>
+<span class="d"># Full markdown content returned...</span></pre>
+
+<div class="live">
+<span class="ll"><span class="dot"></span> Live</span>
+<span class="m"><span class="v" id="sr">-</span> requests</span>
+<span class="m"><span class="v" id="se">-</span> earned</span>
+<span class="m"><span class="v" id="su">-</span> uptime</span>
+</div>
+
+<h2>ENDPOINTS</h2>
+<div class="ep">
+<div class="er">
+<div class="el"><span class="em">POST</span> <span class="epath">/scrape</span> <span class="edesc">url to markdown</span></div>
+<span class="eprice fr">10/day free</span>
+</div>
+<div class="er">
+<div class="el"><span class="em">POST</span> <span class="epath">/crawl</span> <span class="edesc">search + scrape</span></div>
+<span class="eprice fr">10/day free</span>
+</div>
+<div class="er">
+<div class="el"><span class="em">POST</span> <span class="epath">/serp/search</span> <span class="edesc">raw search</span></div>
+<span class="eprice fr">10/day free</span>
+</div>
+<div class="er">
+<div class="el"><span class="em">POST</span> <span class="epath">/mcp</span> <span class="edesc">agent tooling</span></div>
+<span class="eprice fr">free</span>
+</div>
+</div>
+
+<h2>WHY IT WORKS</h2>
+<div class="ep">
+<div class="er"><div class="el"><span class="em">✓</span> <span class="epath">90%+ success rate</span> <span class="edesc">stealth browser bypasses bot detection</span></div></div>
+<div class="er"><div class="el"><span class="em">✓</span> <span class="epath">proxy fallback</span> <span class="edesc">auto-retries blocked sites via residential proxies</span></div></div>
+<div class="er"><div class="el"><span class="em">✓</span> <span class="epath">30s timeout</span> <span class="edesc">handles JS-heavy SPAs and slow-loading pages</span></div></div>
+<div class="er"><div class="el"><span class="em">✓</span> <span class="epath">structured errors</span> <span class="edesc">machine-readable reason codes (TIMEOUT, BLOCKED, NOT_FOUND)</span></div></div>
+</div>
+
+<h2>MCP SERVER</h2>
+<p class="co">for Claude Code, Cursor, Windsurf</p>
+<div class="mc">{
+  <span class="mk">"mcpServers"</span>: {
+    <span class="mk">"anybrowse"</span>: {
+      <span class="mk">"type"</span>: <span class="ms">"streamable-http"</span>,
+      <span class="mk">"url"</span>: <span class="ms">"https://anybrowse.dev/mcp"</span>
+    }
+  }
+}</div>
+
+<h2>PAYMENT</h2>
+<p class="pay"><strong>Free tier:</strong> 10 scrapes/day, no signup.<br><br>
+<strong>Pro ($4.99/mo):</strong> Subscribe with a credit card at <a href="/checkout">/checkout</a>. Get an API key, use as <code>Authorization: Bearer ab_...</code>. 10,000 scrapes/month. Cancel anytime.<br><br>
+<strong>Permissionless (x402):</strong> Pay $0.002/scrape with USDC on Base via the <a href="https://www.x402.org">x402</a> protocol. Send a request, receive a <code>402</code> with instructions, sign with your wallet, resend with <code>X-PAYMENT</code> header. No account ever needed. Best for AI agents.</p>
+
+<div id="upgrade-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; background:#d94400; color:white; padding:16px; text-align:center; z-index:1000; align-items:center; justify-content:center; gap:16px;">
+  <span>Need more than 10 scrapes/day?</span>
+  <a href="/credits" style="background:white; color:#d94400; padding:8px 20px; border-radius:6px; font-weight:700; text-decoration:none;">Get 3,000 scrapes for $5</a>
+  <button onclick="this.parentElement.style.display='none'" style="background:transparent; border:none; color:white; font-size:1.2rem; cursor:pointer; margin-left:8px;">×</button>
+</div>
+
+<footer>
+<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/vault">vault</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
+<span class="mn">anybrowse.base.eth</span><br>
+<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span><br>
+<span id="ps"></span>
+</footer>
+
+<script>
+var _pendingUrl=null;
+function cp(e){try{navigator.clipboard.writeText('curl -X POST https://anybrowse.dev/scrape -H "Content-Type: application/json" -d \'{"url":"https://example.com"}\'');e.classList.add("ok");setTimeout(function(){e.classList.remove("ok")},1400)}catch(err){}}
+function showDemo(btn){var w=document.getElementById("demo-wrap");var open=w.style.display==="block";w.style.display=open?"none":"block";btn.setAttribute("aria-expanded",open?"false":"true");if(!open){setTimeout(function(){document.getElementById("demo-url").focus()},50)}}
+function runDemo(){
+  var url=document.getElementById("demo-url").value.trim();
+  var err=document.getElementById("demo-error");
+  document.getElementById("demo-result").style.display="none";
+  if(!url){err.style.display="block";err.textContent="Enter a URL first.";return;}
+  if(!/^https?:\/\//.test(url)){err.style.display="block";err.textContent="URL must start with http:// or https://";return;}
+  err.style.display="none";
+  var savedEmail=localStorage.getItem('ab_email');
+  if(savedEmail){
+    callScrapeApi(url);
+  } else {
+    _pendingUrl=url;
+    document.getElementById("demo-row-wrap").style.display="none";
+    document.getElementById("email-gate").style.display="block";
+    setTimeout(function(){document.getElementById("demo-email").focus()},50);
+  }
+}
+function submitEmail(){
+  var email=document.getElementById("demo-email").value.trim();
+  var err=document.getElementById("demo-error");
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    err.style.display="block";err.textContent="Please enter a valid email address.";return;
+  }
+  err.style.display="none";
+  localStorage.setItem('ab_email',email);
+  fetch('/capture-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,source:'try-it'})}).catch(function(){});
+  hideEmailGate();
+  callScrapeApi(_pendingUrl);
+}
+function skipEmail(){hideEmailGate();callScrapeApi(_pendingUrl);}
+function hideEmailGate(){
+  document.getElementById("email-gate").style.display="none";
+  document.getElementById("demo-row-wrap").style.display="flex";
+}
+function callScrapeApi(url){
+  var btn=document.getElementById("demo-btn");
+  var res=document.getElementById("demo-result");
+  var err=document.getElementById("demo-error");
+  err.style.display="none";res.style.display="none";
+  btn.disabled=true;btn.textContent="Scraping...";
+  fetch("https://anybrowse.dev/scrape",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:url})})
+    .then(function(r){if(r.status===402){return r.json().then(function(j){throw{code:402,msg:j.error||"Free limit reached (10/day). Upgrade to keep going.",upgrade_url:j.upgrade_url||"/credits?limit=1"}});}if(!r.ok){return r.json().then(function(j){throw{code:r.status,msg:j.error||"Request failed ("+r.status+")"};}).catch(function(){throw{code:r.status,msg:"Request failed ("+r.status+")"}});}return r.text();})
+    .then(function(text){var preview=text.length>500?text.slice(0,500)+"\n\n[... truncated]":text;res.style.display="block";res.textContent=preview;})
+    .catch(function(e){err.style.display="block";if(e&&e.code===402){err.innerHTML='🚫 You\'ve used your 10 free scrapes today. <strong><a href="/credits?limit=1" style="color:#d94400">Get 3,000 scrapes for $5 &rarr;</a></strong> or <a href="/checkout" style="color:#d94400">Pro $4.99/mo</a>';var bar=document.getElementById('upgrade-bar');if(bar){bar.style.display='flex';}}else{err.textContent=(e&&e.msg)||"Something went wrong. Try again.";}})
+    .finally(function(){btn.disabled=false;btn.textContent="Scrape";});
+}
+document.getElementById("demo-url").addEventListener("keydown",function(e){if(e.key==="Enter")runDemo();});
+document.getElementById("demo-email").addEventListener("keydown",function(e){if(e.key==="Enter")submitEmail();});
+function ls(){
+fetch("/stats").then(function(r){return r.json()}).then(function(s){
+var h=Math.floor(s.uptimeSeconds/3600),m=Math.floor((s.uptimeSeconds%3600)/60);
+document.getElementById("su").textContent=h>0?h+"h "+m+"m":m+"m";
+document.getElementById("sr").textContent=s.totalRequests.toLocaleString();
+return fetch("/earnings")}).then(function(r){return r.json()}).then(function(e){
+document.getElementById("se").textContent="$"+parseFloat(e.estimatedEarningsUSDC||"0").toFixed(3)
+}).catch(function(){document.querySelector(".dot").style.background="#ef4444";document.querySelector(".dot").style.boxShadow="0 0 6px #ef444480"})}
+ls();setInterval(ls,30000);
+document.getElementById("ps").textContent="This page is "+(new Blob([document.documentElement.outerHTML]).size/1024).toFixed(1)+"KB.";
+</script>
+</body>
+</html>

@@ -7,20 +7,24 @@
 <meta name="description" content="Every URL ever scraped through anybrowse. A living archive of the web as seen by AI agents.">
 <link rel="canonical" href="https://anybrowse.dev/vault">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden}
 
-/* Top nav matches landing.html */
-.site-header{padding:2.5rem 1.5rem 0}
-.header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
-.logo{width:44px;height:44px;flex-shrink:0}
-.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+/* Top nav — dark, matches landing-v2.html */
+.site-header{background:#111111;padding:0}
+.header{display:flex;align-items:center;justify-content:space-between;padding:20px 40px;max-width:1100px;margin:0 auto;gap:80px}
+.logo{width:36px;height:36px;flex-shrink:0}
+.nav-logo{display:flex;align-items:center;gap:.75rem;text-decoration:none;flex-shrink:0}
+.wordmark{font-size:1rem;font-weight:300;letter-spacing:.04em;color:#e8e4df}
 .wordmark b{font-weight:700}
-.nav-links{margin:.75rem 0 1.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
-.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
-.nav-links a:hover{color:#d94400}
-.nav-links a.active{color:#d94400}
+.nav-links{display:flex;align-items:center;gap:2rem;margin-left:auto}
+.nav-links a{color:#888888;text-decoration:none;font-size:.9rem;font-weight:400;transition:color 200ms ease}
+.nav-links a:hover{color:#e8e4df}
+.nav-links a.active{color:#e8e4df}
 
 /* Vault title */
 .vault-title-bar{padding:0 1.5rem 1.5rem}
@@ -99,7 +103,7 @@ body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Se
 .site-footer{margin:4rem 0 0;padding:1.5rem 1.5rem 2.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
 .site-footer a{color:#767676;text-decoration:none;transition:color .15s;padding:.25rem 0}
 .site-footer a:hover{color:#1a1a1a}
-.mn{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+.mn{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace}
 
 /* Live indicator */
 .live-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:#767676}
@@ -117,31 +121,17 @@ body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Se
 </head>
 <body>
 
-<div class="site-header">
-  <div class="header">
-    <a href="/" aria-label="anybrowse home">
-      <svg class="logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs><clipPath id="gc"><circle cx="100" cy="100" r="72"/></clipPath></defs>
-        <circle cx="100" cy="100" r="72" fill="none" stroke="#1a1a1a" stroke-width="3.5"/>
-        <g clip-path="url(#gc)" fill="none" stroke="#1a1a1a" stroke-width="1.8">
-          <line x1="28" y1="100" x2="172" y2="100"/>
-          <line x1="36" y1="68" x2="164" y2="68"/>
-          <line x1="36" y1="132" x2="164" y2="132"/>
-          <ellipse cx="100" cy="100" rx="26" ry="72"/>
-          <ellipse cx="100" cy="100" rx="56" ry="72"/>
-        </g>
-        <line x1="100" y1="28" x2="100" y2="154" stroke="#d94400" stroke-width="7"/>
-        <polygon points="85,148 100,172 115,148" fill="#d94400"/>
-      </svg>
-    </a>
-    <span class="wordmark">any<b>browse</b></span>
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
   </div>
-  <div class="nav-links">
-    <a href="/docs">Documentation</a>
-    <a href="/pricing">Pricing</a>
-    <a href="/vault" class="active">Vault</a>
-  </div>
-</div>
+</nav>
 
 <div class="vault-title-bar">
   <h1>THE VAULT</h1>
@@ -183,10 +173,21 @@ body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Se
   </div>
 </div>
 
-<footer class="site-footer">
-  <a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/vault">vault</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
-  <span class="mn">anybrowse.base.eth</span><br>
-  <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
 </footer>
 
 <script>

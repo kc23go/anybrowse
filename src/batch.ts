@@ -9,7 +9,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Browser } from 'playwright-core';
 import { acquireSession, releaseSession } from './pool.js';
-import { scrapeUrlWithFallback } from './scraper.js';
+import { scrapeUrlWithFallback, scrapeUrlTier0 } from './scraper.js';
 import { isOwnerKey } from './payment-gate.js';
 import { checkSubscription } from './stripe-subscriptions.js';
 
@@ -116,55 +116,87 @@ export async function registerBatchRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // ── Tier 0: try plain HTTP fetch for each URL (no browser pool needed) ──
+    type BatchResult = { url: string; success: boolean; markdown: string | null; title: string | null; error?: string };
+    const tier0Results = await Promise.allSettled(
+      urlStrings.map(async (url): Promise<BatchResult> => {
+        try {
+          const r = await scrapeUrlTier0(url);
+          if (r && r.status === 'success' && r.markdown) {
+            return { url, success: true, markdown: r.markdown, title: r.title ?? null };
+          }
+        } catch { /* fall through */ }
+        return { url, success: false, markdown: null, title: null, error: 'tier0_miss' };
+      })
+    );
+
+    // Separate tier0 hits from misses
+    const results: BatchResult[] = new Array(urlStrings.length);
+    const browserQueue: Array<{ idx: number; url: string }> = [];
+
+    tier0Results.forEach((r, i) => {
+      const val = r.status === 'fulfilled' ? r.value : { url: urlStrings[i], success: false, markdown: null, title: null, error: 'tier0_error' };
+      if (val.success) {
+        results[i] = val;
+      } else {
+        browserQueue.push({ idx: i, url: urlStrings[i] });
+      }
+    });
+
+    // ── Browser pool: handle URLs that tier0 couldn't serve ──────────────
     let session: Awaited<ReturnType<typeof acquireSession>> | null = null;
     let hadError = false;
 
-    try {
-      session = await acquireSession();
-      const browser = session.browser as Browser;
+    if (browserQueue.length > 0) {
+      try {
+        session = await acquireSession();
+        const browser = session.browser as Browser;
 
-      const settled = await Promise.allSettled(
-        urlStrings.map((url) => scrapeUrlWithFallback(browser, url, true))
-      );
+        const PER_URL_TIMEOUT_MS = 15_000; // hard cap — tier0 already failed for these URLs
+        const settled = await Promise.allSettled(
+          browserQueue.map(({ url }) =>
+            Promise.race([
+              scrapeUrlWithFallback(browser, url, true, { skipTier0: true }),
+              new Promise<never>((_, rej) =>
+                setTimeout(() => rej(new Error('per-url browser timeout')), PER_URL_TIMEOUT_MS)
+              ),
+            ])
+          )
+        );
 
-      const results = settled.map((r, i) => {
-        if (r.status === 'fulfilled') {
-          const val = r.value;
-          if (val.status === 'success') {
-            return { url: urlStrings[i], success: true, markdown: val.markdown, title: val.title };
+        settled.forEach((r, qi) => {
+          const { idx, url } = browserQueue[qi];
+          if (r.status === 'fulfilled') {
+            const val = r.value;
+            if (val.status === 'success') {
+              results[idx] = { url, success: true, markdown: val.markdown, title: val.title ?? null };
+            } else {
+              hadError = true;
+              results[idx] = { url, success: false, markdown: null, title: null, error: val.error || val.status };
+            }
           } else {
             hadError = true;
-            return { url: urlStrings[i], success: false, markdown: null, title: null, error: val.error || val.status };
+            results[idx] = { url, success: false, markdown: null, title: null, error: r.reason?.message || String(r.reason) };
           }
-        } else {
-          hadError = true;
-          return {
-            url: urlStrings[i],
-            success: false,
-            markdown: null,
-            title: null,
-            error: r.reason?.message || String(r.reason),
-          };
-        }
-      });
-
-      const successCount = results.filter((r) => r.success).length;
-      return reply.send({
-        results,
-        summary: { total: results.length, success: successCount, failed: results.length - successCount },
-      });
-    } catch (err: any) {
-      hadError = true;
-      // Always return 200 with empty results rather than 500
-      return reply.send({
-        results: urlStrings.map((url) => ({ url, success: false, error: err.message || 'Batch scrape failed' })),
-        summary: { total: urlStrings.length, success: 0, failed: urlStrings.length },
-      });
-    } finally {
-      if (session) {
-        releaseSession(session, hadError);
+        });
+      } catch (err: any) {
+        hadError = true;
+        // Fill remaining slots with error
+        browserQueue.forEach(({ idx, url }) => {
+          if (!results[idx]) {
+            results[idx] = { url, success: false, markdown: null, title: null, error: err.message || 'Browser scrape failed' };
+          }
+        });
+      } finally {
+        if (session) releaseSession(session, hadError);
       }
     }
+
+    const successCount = results.filter((r) => r?.success).length;
+    return reply.send({
+      results,
+      summary: { total: results.length, success: successCount, failed: results.length - successCount },
+    });
   });
 
   console.log('[batch] POST /batch registered (max 10 URLs, free: 5/day, pro: unlimited)');

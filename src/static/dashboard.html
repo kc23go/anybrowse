@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — anybrowse</title>
+  <meta name="description" content="Check your anybrowse API key balance and usage.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f4f0eb; color: #111; min-height: 100vh; }
+    nav { background: #111; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+    nav a { color: #888; text-decoration: none; font-size: 0.9rem; }
+    nav a:hover { color: #e8e4df; }
+    .logo { color: #d94400; font-weight: 700; font-size: 1.1rem; }
+
+    .container { max-width: 640px; margin: 64px auto; padding: 0 24px; }
+    h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: #6b6460; margin-bottom: 36px; line-height: 1.6; }
+
+    /* Lookup form */
+    .lookup-form { display: flex; gap: 12px; margin-bottom: 16px; }
+    .lookup-form input {
+      flex: 1; padding: 13px 16px; border: 2px solid #ddd; border-radius: 8px;
+      font-size: 0.95rem; font-family: inherit; background: white;
+    }
+    .lookup-form input:focus { outline: none; border-color: #d94400; }
+    .lookup-form button {
+      padding: 13px 24px; background: #d94400; color: white; border: none;
+      border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; white-space: nowrap;
+    }
+    .lookup-form button:hover { background: #b83800; }
+    .lookup-form button:disabled { background: #999; cursor: not-allowed; }
+
+    .error-msg {
+      background: #fee; border: 1px solid #fcc; border-radius: 8px;
+      padding: 12px 16px; color: #c00; font-size: 0.9rem; margin-bottom: 16px; display: none;
+    }
+
+    /* Stats grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 24px 20px;
+      border: 1px solid #e8e4df;
+    }
+    .stat-card .label { font-size: 0.8rem; color: #6b6460; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; color: #111; }
+    .stat-card .unit { font-size: 0.85rem; color: #6b6460; margin-top: 4px; }
+
+    /* Plan badge */
+    .plan-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .plan-badge.credit_pack { background: #fff0eb; color: #d94400; }
+    .plan-badge.unknown { background: #f0f0f0; color: #666; }
+
+    /* Actions */
+    .actions { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
+    .btn-primary {
+      padding: 12px 24px; background: #d94400; color: white; border: none;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; text-decoration: none; display: inline-block;
+    }
+    .btn-primary:hover { background: #b83800; }
+    .btn-secondary {
+      padding: 12px 24px; background: white; color: #111; border: 2px solid #ddd;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; text-decoration: none; display: inline-block;
+    }
+    .btn-secondary:hover { border-color: #aaa; }
+
+    /* Info row */
+    .info-row { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e8e4df; margin-bottom: 16px; }
+    .info-row .key { font-size: 0.85rem; color: #6b6460; margin-bottom: 4px; }
+    .info-row .val { font-size: 0.95rem; color: #111; font-weight: 500; font-family: monospace; }
+
+    /* Hidden states */
+    #dashboard-content { display: none; }
+    #loading { display: none; color: #6b6460; margin-bottom: 16px; }
+
+    .note { font-size: 0.85rem; color: #6b6460; text-align: center; margin-top: 24px; }
+    .note a { color: #d94400; text-decoration: none; }
+    .note a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .lookup-form { flex-direction: column; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/" class="logo">anybrowse</a>
+    <div style="display:flex;gap:32px;">
+      <a href="/docs">Docs</a>
+      <a href="/vault">Vault</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/credits">Buy credits</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1>Dashboard</h1>
+    <p class="subtitle">Enter your API key to check your balance and usage.</p>
+
+    <div class="lookup-form">
+      <input type="text" id="api-key-input" placeholder="ab_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+      <button id="lookup-btn" onclick="lookupKey()">Check</button>
+    </div>
+    <div class="error-msg" id="error-msg"></div>
+    <div id="loading">Loading…</div>
+
+    <div id="dashboard-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Credits remaining</div>
+          <div class="value" id="credits-val">—</div>
+          <div class="unit">1 credit = 1 scrape</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total used</div>
+          <div class="value" id="usage-total-val">—</div>
+          <div class="unit">all time</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Plan type</div>
+          <div class="value" style="font-size:1rem;margin-top:6px;" id="plan-val">—</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a href="/manage" class="btn-primary">Manage subscription</a>
+        <a href="/credits" class="btn-secondary">Top up credits</a>
+      </div>
+
+      <div class="info-row" id="key-row">
+        <div class="key">API Key</div>
+        <div class="val" id="key-display">—</div>
+      </div>
+      <div class="info-row" id="email-row" style="display:none;">
+        <div class="key">Email</div>
+        <div class="val" id="email-display">—</div>
+      </div>
+    </div>
+
+    <p class="note">Need help? <a href="mailto:hello@anybrowse.dev">hello@anybrowse.dev</a> — we respond within 24 hours.</p>
+  </div>
+
+  <script>
+    // Pre-fill from URL param ?key=...
+    const params = new URLSearchParams(location.search);
+    const keyParam = params.get('key');
+    if (keyParam) {
+      document.getElementById('api-key-input').value = keyParam;
+      lookupKey();
+    }
+
+    async function lookupKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      const errEl = document.getElementById('error-msg');
+      const loadEl = document.getElementById('loading');
+      const content = document.getElementById('dashboard-content');
+
+      errEl.style.display = 'none';
+      content.style.display = 'none';
+
+      if (!key) {
+        errEl.textContent = 'Please enter your API key.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('lookup-btn');
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      loadEl.style.display = 'block';
+
+      try {
+        const res = await fetch('/dashboard/data?key=' + encodeURIComponent(key));
+        const data = await res.json();
+
+        if (!res.ok) {
+          errEl.textContent = data.error || 'Something went wrong. Please try again.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        // Render
+        document.getElementById('credits-val').textContent = data.credits.toLocaleString();
+        document.getElementById('usage-total-val').textContent = data.usageTotal.toLocaleString();
+
+        const planEl = document.getElementById('plan-val');
+        const planLabel = data.keyType === 'credit_pack' ? 'Credit Pack' : 'Unknown';
+        planEl.innerHTML = `<span class="plan-badge ${data.keyType}">${planLabel}</span>`;
+
+        document.getElementById('key-display').textContent = key.slice(0, 14) + '…' + key.slice(-4);
+
+        if (data.email) {
+          document.getElementById('email-display').textContent = data.email;
+          document.getElementById('email-row').style.display = 'block';
+        }
+
+        // Update URL without reload
+        const url = new URL(location.href);
+        url.searchParams.set('key', key);
+        history.replaceState({}, '', url);
+
+        content.style.display = 'block';
+      } catch (err) {
+        errEl.textContent = 'Network error. Please check your connection and try again.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Check';
+        loadEl.style.display = 'none';
+      }
+    }
+
+    document.getElementById('api-key-input').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') lookupKey();
+    });
+  </script>
+</body>
+</html>

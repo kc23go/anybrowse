@@ -9,14 +9,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { Browser } from 'playwright-core';
 import { acquireSession, releaseSession } from './pool.js';
-import { scrapeUrlWithFallback } from './scraper.js';
+import { scrapeUrlWithFallback, scrapeUrlTier0 } from './scraper.js';
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 export type Schema = Record<string, FieldType>;
 
 /**
  * Extract structured data using LLM.
- * Uses OpenClaw gateway (subscription-based) if env vars set, otherwise falls back to Anthropic API direct.
+ * Priority: OpenClaw gateway → Gemini Flash → Anthropic Haiku → error
  */
 async function extractWithLLM(markdown: string, schema: Schema): Promise<Record<string, any>> {
   // Truncate markdown to 8000 chars to control token costs
@@ -28,21 +28,17 @@ async function extractWithLLM(markdown: string, schema: Schema): Promise<Record<
 
   const prompt = `Extract the following fields from this webpage content. Return ONLY valid JSON, no explanation.\n\nFields:\n${schemaDesc}\n\nContent:\n${content}`;
 
+  // ── 1. OpenClaw gateway (subscription-based, zero marginal cost) ──────────
   const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL;
   const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
 
   if (gatewayUrl && gatewayToken) {
-    // Use OpenClaw gateway (subscription-based, no per-token charges)
-    // 20s timeout — fall through to Anthropic direct if gateway unreachable
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 20000);
       const res = await fetch(`${gatewayUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${gatewayToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${gatewayToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'openclaw:main',
           messages: [{ role: 'user', content: prompt }],
@@ -57,14 +53,42 @@ async function extractWithLLM(markdown: string, schema: Schema): Promise<Record<
       const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       return JSON.parse(cleaned);
     } catch (gwErr: any) {
-      console.warn('[extract] Gateway failed, falling back to Anthropic:', gwErr.message);
-      // Fall through to Anthropic direct below
+      console.warn('[extract] Gateway failed, trying Gemini:', gwErr.message);
     }
   }
 
-  // Fallback: Anthropic API direct
+  // ── 2. Gemini Flash 2.0 (primary — ~$0.00002/call) ───────────────────────
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 1024, temperature: 0.1 }
+          }),
+          signal: controller.signal
+        }
+      );
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`Gemini returned ${res.status}`);
+      const data = await res.json() as any;
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch (gemErr: any) {
+      console.warn('[extract] Gemini failed, trying Anthropic:', gemErr.message);
+    }
+  }
+
+  // ── 3. Anthropic Haiku (last resort fallback) ─────────────────────────────
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('No LLM configured (set OPENCLAW_GATEWAY_URL or ANTHROPIC_API_KEY)');
+  if (!apiKey) throw new Error('No LLM configured (set GEMINI_API_KEY, OPENCLAW_GATEWAY_URL, or ANTHROPIC_API_KEY)');
 
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey });
@@ -74,7 +98,6 @@ async function extractWithLLM(markdown: string, schema: Schema): Promise<Record<
     messages: [{ role: 'user', content: prompt }]
   });
   const text = (message.content[0] as any).text;
-  // Strip any markdown code blocks if model adds them
   const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   return JSON.parse(cleaned);
 }
@@ -216,7 +239,12 @@ export async function registerExtractRoutes(app: FastifyInstance): Promise<void>
       return reply.status(400).send({ error: 'url is required' });
     }
     if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
-      return reply.status(400).send({ error: 'schema is required and must be an object mapping field names to types' });
+      return reply.status(400).send({
+        error: 'schema_required',
+        message: 'schema must be an object mapping field names to type strings',
+        example: { title: 'string', price: 'number', inStock: 'boolean', tags: 'array' },
+        validTypes: ['string', 'number', 'boolean', 'array', 'object'],
+      });
     }
 
     // Validate schema values
@@ -224,13 +252,42 @@ export async function registerExtractRoutes(app: FastifyInstance): Promise<void>
     for (const [key, val] of Object.entries(schema as Record<string, unknown>)) {
       if (!validTypes.has(val as string)) {
         return reply.status(400).send({
-          error: `Invalid type "${val}" for field "${key}". Use: string, number, boolean, array, object`,
+          error: 'invalid_schema_type',
+          message: `Invalid type "${val}" for field "${key}"`,
+          validTypes: ['string', 'number', 'boolean', 'array', 'object'],
+          example: { title: 'string', price: 'number', inStock: 'boolean', tags: 'array' },
         });
       }
     }
 
     const typedSchema = schema as Schema;
 
+    // ── Helper: run LLM extraction + return reply ─────────────────────────
+    async function runExtraction(markdown: string, title: string): Promise<ReturnType<typeof reply.send>> {
+      let data: Record<string, any>;
+      let extractionMethod: string;
+      try {
+        data = await extractWithLLM(markdown, typedSchema);
+        extractionMethod = 'llm';
+      } catch (llmErr: any) {
+        console.warn('[extract] LLM failed, falling back to regex:', llmErr.message);
+        data = extractFromMarkdown(markdown, typedSchema);
+        extractionMethod = 'regex-fallback';
+      }
+      return reply.send({ url, success: true, data, extractionMethod, markdown, title });
+    }
+
+    // ── Tier 0: plain HTTP fetch (no browser) — fast path for simple pages ─
+    try {
+      const tier0 = await scrapeUrlTier0(url);
+      if (tier0 && tier0.status === 'success' && tier0.markdown) {
+        return await runExtraction(tier0.markdown, tier0.title ?? '');
+      }
+    } catch {
+      // tier0 failed silently — fall through to browser pool
+    }
+
+    // ── Tier 1+: browser pool ──────────────────────────────────────────────
     let session: Awaited<ReturnType<typeof acquireSession>> | null = null;
     let hadError = false;
 
@@ -249,27 +306,7 @@ export async function registerExtractRoutes(app: FastifyInstance): Promise<void>
         });
       }
 
-      let data: Record<string, any>;
-      let extractionMethod: string;
-
-      // ── Pass 1: LLM extraction with claude-3-haiku (primary path) ────────
-      try {
-        data = await extractWithLLM(result.markdown, typedSchema);
-        extractionMethod = 'llm';
-      } catch (llmErr: any) {
-        // ── Pass 2: Legacy regex fallback ────────────────────────────────
-        console.warn('[extract] LLM failed, falling back to regex:', llmErr.message);
-        data = extractFromMarkdown(result.markdown, typedSchema);
-        extractionMethod = 'regex-fallback';
-      }
-
-      return reply.send({
-        url,
-        data,
-        extractionMethod,
-        markdown: result.markdown,
-        title: result.title,
-      });
+      return await runExtraction(result.markdown, result.title ?? '');
     } catch (err: any) {
       hadError = true;
       return reply.status(500).send({ error: 'Extract failed', message: err.message });

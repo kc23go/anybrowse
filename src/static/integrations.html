@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Integrations | anybrowse</title>
+<meta name="description" content="Use anybrowse with LangChain, LlamaIndex, CrewAI, AutoGen, n8n, Zapier, Make, and more. URL to Markdown for every AI framework.">
+<link rel="canonical" href="https://anybrowse.dev/integrations">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.content{max-width:800px;margin:0 auto;padding:2rem 1.5rem 4rem}
+.header{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.logo{width:44px;height:44px;flex-shrink:0}
+.wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
+.wordmark b{font-weight:700}
+.nav-links{margin-bottom:2.5rem;display:flex;gap:1.5rem;flex-wrap:wrap}
+.nav-links a{color:#767676;text-decoration:none;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;transition:color .15s}
+.nav-links a:hover,.nav-links a.active{color:#d94400}
+h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.5rem;color:#1a1a1a}
+.page-sub{font-size:1rem;color:#555;margin-bottom:3rem;letter-spacing:.01em}
+h2{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3.5rem 0 1rem;font-style:italic}
+h3{font-size:1.15rem;font-weight:700;color:#1a1a1a;margin-bottom:.75rem}
+p{color:#555;margin-bottom:1rem;font-size:.92rem}
+a{color:#d94400;text-decoration:none}
+a:hover{text-decoration:underline}
+/* Install banner */
+.install-banner{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.5rem 1.75rem;margin-bottom:2.5rem}
+.install-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1rem}
+.install-box h4{font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#767676;margin-bottom:.5rem}
+/* Code blocks */
+pre{background:#1a1a1a;color:#f4f0eb;border-radius:7px;padding:1.1rem 1.25rem;font-size:.8rem;line-height:1.6;overflow-x:auto;margin:1rem 0 1.75rem;font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+code{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace;font-size:.85em}
+pre code{font-size:inherit;background:none;color:inherit}
+.inline-code{background:#e8e4df;color:#c03800;padding:.1em .35em;border-radius:3px;font-size:.85em}
+/* Integration section */
+.integration{background:#fff;border:1px solid #e0dcd7;border-radius:8px;padding:1.5rem 1.75rem;margin-bottom:1.25rem}
+.integration-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.int-icon{font-size:1.4rem;flex-shrink:0}
+.int-name{font-size:.55rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#767676;margin-bottom:.1rem}
+.int-title{font-size:1rem;font-weight:700;color:#1a1a1a}
+/* Tab bar */
+.tab-bar{display:flex;gap:.5rem;margin-bottom:-.5rem;flex-wrap:wrap}
+.tab{font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:.3rem .75rem;border-radius:4px 4px 0 0;border:1px solid transparent;cursor:pointer;background:#f4f0eb;color:#767676;border-bottom:none;transition:all .15s}
+.tab.active{background:#1a1a1a;color:#f4f0eb;border-color:#1a1a1a}
+/* no-code badges */
+.badge{display:inline-block;background:#f0ece6;color:#767676;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:100px;margin-left:.5rem;vertical-align:middle}
+.badge.green{background:#dcfce7;color:#166534}
+/* Section dividers */
+.section-label{font-size:.6rem;font-weight:500;letter-spacing:.25em;text-transform:uppercase;color:#767676;margin:3rem 0 1rem;font-style:italic}
+/* Step list */
+.steps{list-style:none;counter-reset:steps}
+.steps li{counter-increment:steps;display:flex;gap:.75rem;margin-bottom:.75rem;align-items:flex-start;font-size:.88rem;color:#555}
+.steps li::before{content:counter(steps);background:#d94400;color:#fff;width:1.35rem;height:1.35rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;flex-shrink:0;margin-top:.15rem}
+/* CTA */
+.cta-row{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:2rem}
+.btn{display:inline-block;padding:.55rem 1.25rem;border-radius:5px;font-weight:600;text-align:center;text-decoration:none;transition:background .15s;font-size:.82rem}
+.btn-primary{background:#d94400;color:#fff}
+.btn-primary:hover{background:#c03800;text-decoration:none}
+.btn-ghost{background:#fff;border:1px solid #ccc;color:#1a1a1a}
+.btn-ghost:hover{background:#f4f0eb;text-decoration:none}
+footer{margin-top:5rem;padding-top:1.5rem;border-top:1px solid #ddd8d2;font-size:.75rem;color:#767676;line-height:2.4}
+footer a{color:#767676;text-decoration:none;transition:color .15s}
+footer a:hover{color:#1a1a1a}
+@media(max-width:600px){
+body{padding:2.5rem 1rem 1.5rem}
+h1{font-size:1.8rem}
+.install-grid{grid-template-columns:1fr}
+.integration{padding:1.1rem 1.1rem}
+}
+</style>
+</head>
+<body>
+
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
+  </div>
+</nav>
+
+<div class="content">
+
+<h1>Integrations</h1>
+<p class="page-sub">Plug anybrowse into any AI stack. URL to Markdown in one call — no browser, no config, no headache.</p>
+
+<!-- Install SDK -->
+<div class="install-banner">
+  <h3 style="font-size:.95rem;margin-bottom:.25rem">Install the SDK</h3>
+  <p style="font-size:.82rem;color:#767676;margin-bottom:.75rem">No API key required for the free tier. Just install and go.</p>
+  <div class="install-grid">
+    <div class="install-box">
+      <h4>Python</h4>
+      <pre style="margin:0"><code>pip install anybrowse</code></pre>
+    </div>
+    <div class="install-box">
+      <h4>JavaScript / TypeScript</h4>
+      <pre style="margin:0"><code>npm install anybrowse</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- AI Frameworks -->
+<div class="section-label">AI Frameworks</div>
+
+<!-- LangChain -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🦜</div>
+    <div>
+      <div class="int-name">Python / JS</div>
+      <div class="int-title">LangChain</div>
+    </div>
+  </div>
+  <p>Use anybrowse as LangChain tools — drop them into any agent, chain, or RAG pipeline. Handles JS-heavy pages, paywalls, and anti-bot measures automatically.</p>
+
+  <div class="tab-bar">
+    <div class="tab active">Python</div>
+  </div>
+  <pre><code>pip install anybrowse[langchain]</code></pre>
+
+  <pre><code>from anybrowse.langchain import get_tools
+from langchain.agents import initialize_agent, AgentType
+from langchain.chat_models import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4")
+tools = get_tools()  # free tier — or get_tools(api_key="your-key")
+
+agent = initialize_agent(tools, llm, agent=AgentType.OPENAI_FUNCTIONS)
+result = agent.run("Research the latest AI agent frameworks and summarize the top 3")
+</code></pre>
+
+  <pre><code>from anybrowse.langchain import AnybrowseLoader
+
+# Use as a document loader
+loader = AnybrowseLoader("https://techcrunch.com")
+docs = loader.load()
+print(docs[0].page_content[:500])
+</code></pre>
+
+  <p style="font-size:.82rem;color:#555">Available tools: <span class="inline-code">anybrowse_scrape</span>, <span class="inline-code">anybrowse_search</span></p>
+</div>
+
+<!-- LlamaIndex -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🦙</div>
+    <div>
+      <div class="int-name">Python</div>
+      <div class="int-title">LlamaIndex</div>
+    </div>
+  </div>
+  <p>Load any URL as a LlamaIndex <code class="inline-code">Document</code> — ready for indexing, querying, and RAG workflows.</p>
+
+  <pre><code>pip install anybrowse[llamaindex]</code></pre>
+
+  <pre><code>from anybrowse.llamaindex import AnybrowseReader
+
+reader = AnybrowseReader()  # or AnybrowseReader(api_key="your-key")
+docs = reader.load_data(["https://techcrunch.com"])
+
+from llama_index.core import VectorStoreIndex
+index = VectorStoreIndex.from_documents(docs)
+query_engine = index.as_query_engine()
+
+response = query_engine.query("What are the key announcements this week?")
+print(response)
+</code></pre>
+</div>
+
+<!-- CrewAI -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🤝</div>
+    <div>
+      <div class="int-name">Python</div>
+      <div class="int-title">CrewAI</div>
+    </div>
+  </div>
+  <p>Use anybrowse as a CrewAI tool for web-enabled agents.</p>
+
+  <pre><code>pip install anybrowse crewai crewai-tools</code></pre>
+
+  <pre><code>from crewai_tools import tool
+from anybrowse import AnybrowseClient
+
+client = AnybrowseClient()  # or AnybrowseClient(api_key="your-key")
+
+@tool("Web Scraper")
+def scrape_url(url: str) -> str:
+    """Scrape any URL and return clean Markdown content for analysis."""
+    return client.scrape(url).markdown
+
+@tool("Web Search")
+def search_web(query: str) -> str:
+    """Search the web and return structured Markdown results."""
+    results = client.search(query)
+    return "\n\n".join([f"## {r.title}\n{r.url}" for r in results])
+
+# Use in a crew
+from crewai import Agent, Task, Crew
+
+researcher = Agent(
+    role="Research Analyst",
+    goal="Find and synthesize information from the web",
+    backstory="Expert at web research and competitive intelligence",
+    tools=[scrape_url, search_web]
+)
+</code></pre>
+</div>
+
+<!-- AutoGen -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🤖</div>
+    <div>
+      <div class="int-name">Python</div>
+      <div class="int-title">AutoGen</div>
+    </div>
+  </div>
+  <p>Add anybrowse as a function tool for AutoGen agents.</p>
+
+  <pre><code>pip install anybrowse pyautogen</code></pre>
+
+  <pre><code>from anybrowse import AnybrowseClient
+import autogen
+
+client = AnybrowseClient()
+
+def scrape_url(url: str) -> str:
+    """Scrape any URL and return Markdown."""
+    return client.scrape(url).markdown
+
+def search_web(query: str) -> str:
+    """Search the web. Returns Markdown with results."""
+    results = client.search(query)
+    return "\n\n".join([f"{r.title}: {r.url}" for r in results])
+
+# Configure and use in an agent
+config = autogen.config_list_from_json("OAI_CONFIG_LIST")
+assistant = autogen.AssistantAgent("assistant", llm_config={"config_list": config})
+user = autogen.UserProxyAgent(
+    "user",
+    human_input_mode="NEVER",
+    function_map={"scrape_url": scrape_url, "search_web": search_web}
+)
+</code></pre>
+</div>
+
+<!-- No-code -->
+<div class="section-label">No-Code Automation</div>
+
+<!-- n8n -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🔧</div>
+    <div>
+      <div class="int-name">No-Code</div>
+      <div class="int-title">n8n <span class="badge green">HTTP Request</span></div>
+    </div>
+  </div>
+  <p>Use the HTTP Request node to call anybrowse from any n8n workflow.</p>
+  <ol class="steps">
+    <li>Add an <strong>HTTP Request</strong> node to your workflow</li>
+    <li>Set Method to <strong>POST</strong> and URL to <code class="inline-code">https://anybrowse.dev/scrape</code></li>
+    <li>Set Body Type to <strong>JSON</strong></li>
+    <li>Set the request body:<br><pre style="margin:.5rem 0 0"><code>{ "url": "{{ $json.url }}" }</code></pre></li>
+    <li>Use <code class="inline-code">{{ $json.markdown }}</code> from the response in your next node</li>
+  </ol>
+  <p style="font-size:.82rem;color:#555;margin-top:.5rem">With API key: add header <span class="inline-code">Authorization: Bearer your-api-key</span></p>
+</div>
+
+<!-- Zapier -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">⚡</div>
+    <div>
+      <div class="int-name">No-Code</div>
+      <div class="int-title">Zapier <span class="badge green">Webhooks</span></div>
+    </div>
+  </div>
+  <p>Use <strong>Webhooks by Zapier</strong> to call anybrowse from any Zap.</p>
+  <ol class="steps">
+    <li>Add a <strong>Webhooks by Zapier → POST</strong> action</li>
+    <li>URL: <code class="inline-code">https://anybrowse.dev/scrape</code></li>
+    <li>Payload Type: <strong>JSON</strong></li>
+    <li>Data: <code class="inline-code">url</code> → map from your trigger</li>
+    <li>Map the <code class="inline-code">markdown</code> field from the response to your next action (Google Docs, Notion, Slack, etc.)</li>
+  </ol>
+</div>
+
+<!-- Make -->
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🔵</div>
+    <div>
+      <div class="int-name">No-Code</div>
+      <div class="int-title">Make (Integromat) <span class="badge green">HTTP</span></div>
+    </div>
+  </div>
+  <p>Use the <strong>HTTP → Make a request</strong> module to call anybrowse in any scenario.</p>
+  <ol class="steps">
+    <li>Add an <strong>HTTP → Make a request</strong> module</li>
+    <li>URL: <code class="inline-code">https://anybrowse.dev/scrape</code></li>
+    <li>Method: <strong>POST</strong></li>
+    <li>Body type: <strong>Raw</strong> · Content type: <strong>application/json</strong></li>
+    <li>Request content:<br><pre style="margin:.5rem 0 0"><code>{ "url": "{{url}}" }</code></pre></li>
+    <li>Parse the response and use <code class="inline-code">markdown</code> downstream</li>
+  </ol>
+</div>
+
+<!-- Direct API -->
+<div class="section-label">Direct API</div>
+
+<div class="integration">
+  <div class="integration-header">
+    <div class="int-icon">🌐</div>
+    <div>
+      <div class="int-name">Any language</div>
+      <div class="int-title">REST API</div>
+    </div>
+  </div>
+  <p>No SDK needed. Works from any language or tool that can make HTTP requests.</p>
+  <pre><code># Scrape a URL
+curl -X POST https://anybrowse.dev/scrape \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://techcrunch.com"}'
+
+# Web search
+curl -X POST https://anybrowse.dev/serp/search \
+  -H "Content-Type: application/json" \
+  -d '{"q": "web scraping API 2025", "count": 5}'
+
+# With API key (Pro)
+curl -X POST https://anybrowse.dev/scrape \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"url": "https://techcrunch.com"}'
+</code></pre>
+</div>
+
+<div class="cta-row">
+  <a href="/pricing" class="btn btn-primary">Get API Key →</a>
+  <a href="/docs" class="btn btn-ghost">View Docs</a>
+</div>
+
+</div><!-- .content -->
+
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
+</footer>
+
+</body>
+</html>

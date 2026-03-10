@@ -7,7 +7,11 @@ import { intelligence } from './autonomy/intelligence.js';
 import { stats } from './stats.js';
 import { appendFileSync, existsSync, mkdirSync } from 'fs';
 import { solveRecaptchaV2, solveTurnstile } from './captcha.js';
+import { detectCaptchaType, solveCaptchaOnPage } from './capsolver.js';
 import { internalRelayFetch } from './internal-relay.js';
+import { shouldUseCamoufox, scrapeWithCamoufox } from './camoufox-scraper.js';
+import { relayFetch, getRelayWorkerCount } from './relay.js';
+import { getProxyForUrl, getProxyUrl } from './proxy-pool.js';
 
 // Re-export PDF utilities for direct access
 export { isPdfUrl, convertPdfToMarkdown, isPdfSupportEnabled } from './pdf.js';
@@ -16,18 +20,23 @@ export type { PdfConversionResult } from './pdf.js';
 const DEBUG_LOG = process.env.DEBUG_LOG === '1' || process.env.DEBUG_LOG === 'true';
 
 // ── User-Agent rotation pool ────────────────────────────────────────────────
-// Realistic Chrome UAs across Windows/Mac/Linux and recent Chrome versions
+// 15 realistic Chrome UAs across Windows/Mac/Linux and recent Chrome versions
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
 ];
 
 function randomUA(): string {
@@ -54,6 +63,72 @@ function randomViewport(): { width: number; height: number } {
 
 function randomLocale(): string {
   return LOCALES[Math.floor(Math.random() * LOCALES.length)];
+}
+
+// ── Session warming — visit Google before CF-hard targets ────────────────────
+// Establishes a credible browsing history before hitting a Cloudflare-protected
+// site. Only used for FORCE_RELAY_DOMAINS to avoid slowing down normal requests.
+async function warmSession(page: Page, targetUrl: string): Promise<void> {
+  try {
+    await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await page.waitForTimeout(800 + Math.random() * 400);
+
+    // Natural mouse movement
+    await page.mouse.move(200 + Math.random() * 400, 200 + Math.random() * 300);
+    await page.waitForTimeout(300 + Math.random() * 200);
+    await page.mouse.move(400 + Math.random() * 300, 400 + Math.random() * 200);
+
+    // Simulate typing in the search box (partial hostname, don't submit)
+    const hostname = new URL(targetUrl).hostname.replace('www.', '');
+    const searchBox = page.locator('textarea[name="q"], input[name="q"]').first();
+    if (await searchBox.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await searchBox.click();
+      await page.waitForTimeout(200);
+      await page.keyboard.type(hostname.split('.')[0], { delay: 80 + Math.random() * 40 });
+      await page.waitForTimeout(500 + Math.random() * 300);
+    }
+
+    console.log(`[SCRAPER] Session warmed for ${hostname}`);
+  } catch {
+    // Warming failed silently — proceed without warm session
+  }
+}
+
+// ── Humanized post-load interaction ──────────────────────────────────────────
+// Called after page.goto() succeeds. Simulates a real user reading the page:
+// random mouse drifts + slow incremental scroll. Silent on any error.
+async function humanizeInteraction(page: Page): Promise<void> {
+  try {
+    // Three natural mouse movements with stepped paths
+    for (let i = 0; i < 3; i++) {
+      await page.mouse.move(
+        100 + Math.random() * 800,
+        100 + Math.random() * 500,
+        { steps: 10 }
+      );
+      await page.waitForTimeout(200 + Math.random() * 300);
+    }
+
+    // Scroll down slowly using setInterval — mimics human reading scroll
+    await page.evaluate(() => {
+      return new Promise<void>(resolve => {
+        let scrolled = 0;
+        const total = Math.floor(Math.random() * 400) + 200;
+        const interval = setInterval(() => {
+          window.scrollBy(0, 15 + Math.random() * 10);
+          scrolled += 20;
+          if (scrolled >= total) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 50 + Math.random() * 30);
+      });
+    });
+
+    await page.waitForTimeout(500 + Math.random() * 500);
+  } catch {
+    // Silent failure — never block content extraction
+  }
 }
 
 // ── Anti-detection init script ───────────────────────────────────────────────
@@ -216,6 +291,50 @@ const STEALTH_INIT_SCRIPT = `
       });
     }
   } catch(e) {}
+
+  // ── 9. Navigator plugins — empty array = instant bot flag ────────────────
+  try {
+    const _makePlugin = function(name, filename, desc, mimeTypes) {
+      const plugin = { name: name, filename: filename, description: desc, length: mimeTypes.length };
+      mimeTypes.forEach(function(mt, i) { plugin[i] = mt; });
+      plugin[Symbol.iterator] = function*() { for (let i = 0; i < this.length; i++) yield this[i]; };
+      return plugin;
+    };
+    const _pdfMime = { type: 'application/pdf', suffixes: 'pdf', description: 'Portable Document Format' };
+    const _plugins = [
+      _makePlugin('PDF Viewer', 'internal-pdf-viewer', 'Portable Document Format', [_pdfMime]),
+      _makePlugin('Chrome PDF Viewer', 'internal-pdf-viewer', 'Portable Document Format', [_pdfMime]),
+      _makePlugin('Chromium PDF Viewer', 'internal-pdf-viewer', 'Portable Document Format', [_pdfMime]),
+      _makePlugin('Microsoft Edge PDF Viewer', 'internal-pdf-viewer', 'Portable Document Format', [_pdfMime]),
+      _makePlugin('WebKit built-in PDF', 'internal-pdf-viewer', 'Portable Document Format', [_pdfMime]),
+    ];
+    Object.defineProperty(navigator, 'plugins', {
+      get: function() { return _plugins; },
+      configurable: true,
+    });
+    Object.defineProperty(navigator, 'mimeTypes', {
+      get: function() { return [_pdfMime]; },
+      configurable: true,
+    });
+  } catch(e) {}
+
+  // ── 10. WebGL vendor/renderer spoofing — SwiftShader = instant flag ───────
+  try {
+    const _getParam = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+      if (parameter === 37445) return 'Intel Inc.';       // UNMASKED_VENDOR_WEBGL
+      if (parameter === 37446) return 'Intel Iris OpenGL Engine'; // UNMASKED_RENDERER_WEBGL
+      return _getParam.call(this, parameter);
+    };
+  } catch(e) {}
+  try {
+    const _getParam2 = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+      if (parameter === 37445) return 'Intel Inc.';
+      if (parameter === 37446) return 'Intel Iris OpenGL Engine';
+      return _getParam2.call(this, parameter);
+    };
+  } catch(e) {}
 `;
 
 // ── Cookie cache per domain (in-memory) ─────────────────────────────────────
@@ -223,15 +342,73 @@ const STEALTH_INIT_SCRIPT = `
 // to the same domain — makes us look like a returning visitor.
 const cookieCache = new Map<string, any[]>();
 
+// ── Known Cloudflare-hard domains ─────────────────────────────────────────────
+// These domains consistently fail tier 0 HTTP fetch due to aggressive CF protection.
+// Skip tier 0 entirely and go directly to Windows relay (tier 1) for best results.
+const FORCE_RELAY_DOMAINS = new Set([
+  'ticketmaster.com', 'livenation.com',
+  'stubhub.com', 'viagogo.com',
+  'nike.com',
+  'supremenewyork.com',
+  'bestbuy.com',
+  'target.com',
+  'walmart.com',
+  'instagram.com',
+  'linkedin.com',
+  'twitter.com', 'x.com',
+  'facebook.com', 'meta.com',
+  'discord.com',
+  'cloudflare.com',
+  'docs.cloudflare.com',
+]);
+
+export function isForceRelayDomain(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    for (const domain of FORCE_RELAY_DOMAINS) {
+      if (hostname === domain || hostname.endsWith('.' + domain)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // ── Cloudflare challenge detection ──────────────────────────────────────────
 function isCloudflareBlock(content: string): boolean {
+  if (!content) return false;
+  const c = content.toLowerCase();
   return (
+    // Cloudflare challenge pages
     content.includes('Just a moment') ||
     content.includes('cf-browser-verification') ||
     content.includes('Enable JavaScript and cookies to continue') ||
     content.includes('Attention Required! | Cloudflare') ||
     content.includes('Checking if the site connection is secure') ||
-    content.includes('_cf_chl_opt')
+    content.includes('_cf_chl_opt') ||
+    content.includes('cf-chl-bypass') ||
+    content.includes('cf_clearance') ||
+    content.includes('cloudflare-nginx') ||
+    (content.includes('Ray ID') && content.includes('cloudflare')) ||
+    // Bot detection pages (general)
+    (content.includes('Access denied') && (content.includes('Cloudflare') || content.includes('security'))) ||
+    c.includes('please wait while we verify') ||
+    c.includes('please enable cookies') ||
+    c.includes('browser check') ||
+    c.includes('ddos protection') ||
+    c.includes('security check to access') ||
+    c.includes('are you a robot') ||
+    // DataDome
+    content.includes('datadome') ||
+    content.includes('dd_session') ||
+    // PerimeterX
+    content.includes('px-captcha') ||
+    content.includes('_pxvid') ||
+    // Akamai
+    content.includes('ak_bmsc') ||
+    content.includes('_abck') ||
+    // Empty/garbage responses
+    (content.length < 200 && (c.includes('forbidden') || c.includes('blocked') || c.includes('access denied')))
   );
 }
 
@@ -263,6 +440,7 @@ export interface ScrapeLogEntry {
   timestamp: string;
   isAgent: boolean;
   count: number;
+  success: boolean;
 }
 
 /**
@@ -277,8 +455,8 @@ export function appendScrapeLog(entry: ScrapeLogEntry): void {
 
 // Configuration
 const MIN_CONTENT_LENGTH = loadEnvNumber('CRAWL_MIN_CONTENT_LENGTH', 100);
-const NAVIGATION_TIMEOUT_MS = loadEnvNumber('CRAWL_NAVIGATION_TIMEOUT_MS', 30000);
-const SLOW_TIMEOUT_MS = loadEnvNumber('CRAWL_SLOW_TIMEOUT_MS', 45000);
+const NAVIGATION_TIMEOUT_MS = loadEnvNumber('CRAWL_NAVIGATION_TIMEOUT_MS', 20000);
+const SLOW_TIMEOUT_MS = loadEnvNumber('CRAWL_SLOW_TIMEOUT_MS', 30000);
 
 // Cookie consent button selectors to auto-dismiss (ordered by specificity)
 const COOKIE_CONSENT_SELECTORS = [
@@ -300,12 +478,16 @@ const BILIBILI_CONTEXT_OPTIONS = {
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
 };
 
-// Residential proxy for fallback (only used when blocked)
-const PROXY_CONFIG = {
-  server: 'http://161.77.10.249:12323',
-  username: '14aaa55fdc22e',
-  password: '5cc5f8b080',
-} as const;
+// Residential proxy for fallback (Tier 3d) — resolved per-URL via proxy-pool.ts
+// getProxyForUrl(url) picks US proxy for .com/.us domains, DE proxy for .de/.eu
+function getProxyConfig(url: string): ProxyOptions {
+  const proxy = getProxyForUrl(url);
+  return {
+    server: getProxyUrl(proxy),
+    username: proxy.user,
+    password: proxy.pass,
+  };
+}
 
 interface ProxyOptions {
   server: string;
@@ -333,10 +515,25 @@ export interface CrawlResult {
   url: string;
   title: string;
   markdown: string;
+  html?: string;           // raw page HTML
+  screenshot?: string;     // base64 PNG (only when requested via options.screenshot)
+  links?: string[];        // extracted hrefs (only when requested via options.includeLinks)
   status: 'success' | 'empty' | 'error';
   error?: string;
   reason?: ScrapeErrorReason;
   suggestion?: string;
+  tier?: string;
+}
+
+export interface ScrapeOptions {
+  waitForSelector?: string;
+  targetSelector?: string;
+  respondWith?: 'markdown' | 'html' | 'text' | 'screenshot';
+  actions?: Array<{ type: 'click' | 'type' | 'scroll' | 'wait'; selector?: string; value?: string; }>;
+  screenshot?: boolean;    // capture base64 PNG screenshot (browser tiers only)
+  includeLinks?: boolean;  // extract all hrefs from page
+  /** Skip internal tier0 HTTP fetch — used when caller already tried tier0 to avoid doubling the wait */
+  skipTier0?: boolean;
 }
 
 const ERROR_SUGGESTIONS: Record<ScrapeErrorReason, string> = {
@@ -416,6 +613,125 @@ function logPerf(step: string, url: string, startTime: number, details?: Record<
 function isValidContent(markdown: string): boolean {
   const cleaned = markdown.replace(/\s+/g, ' ').trim();
   return cleaned.length >= MIN_CONTENT_LENGTH;
+}
+
+/**
+ * Tier 0: Fast HTTP fetch with realistic headers (no browser launch)
+ * Returns CrawlResult if successful, null to signal escalation to browser.
+ * Handles ~40% of URLs and is ~10x faster than launching Playwright.
+ */
+export async function scrapeUrlTier0(url: string, options?: ScrapeOptions): Promise<CrawlResult | null> {
+  const t0start = performance.now();
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xhtml+xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'max-age=0',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+      },
+      redirect: 'follow',
+    } as RequestInit);
+
+    clearTimeout(timeout);
+
+    // Escalate on challenge pages
+    const text = await response.text();
+    if (
+      response.status === 403 ||
+      response.status === 429 ||
+      text.includes('cf-browser-verification') ||
+      text.includes('challenge-running') ||
+      text.includes('captcha') ||
+      text.includes('Just a moment') ||
+      text.length < 500
+    ) {
+      if (DEBUG_LOG) console.log(`[tier0] Challenge/block detected for ${url} (status=${response.status}), escalating`);
+      return null;
+    }
+
+    // Convert HTML to readable text/markdown
+    const { Readability } = await import('@mozilla/readability');
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(text, { url });
+    const reader = new Readability(dom.window.document.cloneNode(true) as Document);
+    const article = reader.parse();
+
+    let markdown = article?.textContent?.trim() || '';
+    const title = article?.title?.trim() || dom.window.document.title || '';
+
+    // If Readability couldn't extract article content, fall back to body text extraction
+    if (markdown.length < 200) {
+      const bodyEl = dom.window.document.body;
+      if (bodyEl) {
+        // Remove scripts, styles, nav, footer for cleaner text
+        const cloneBody = bodyEl.cloneNode(true) as HTMLElement;
+        cloneBody.querySelectorAll('script, style, noscript, nav, footer, aside').forEach(el => el.remove());
+        markdown = (cloneBody.textContent || '').replace(/\s+/g, ' ').trim();
+      }
+    }
+
+    if (markdown.length < 200) {
+      if (DEBUG_LOG) console.log(`[tier0] Content too short (${markdown.length} chars) for ${url}, escalating`);
+      return null;
+    }
+
+    // Don't return CF challenge pages as "success"
+    if (isCloudflareBlock(markdown) || isCloudflareBlock(text)) {
+      console.log(`[TIER0] CF/bot block detected, escalating: ${url}`);
+      return null;
+    }
+
+    logPerf('TIER0 HTTP', url, t0start, { len: markdown.length });
+
+    // Extract links via regex if requested.
+    // Uses URL API for resolution so bare relative hrefs (e.g. href="item?id=1")
+    // are resolved correctly, the same way a browser would.
+    // Strips fragments (#anchor) but preserves query strings.
+    let links: string[] | undefined;
+    if (options?.includeLinks) {
+      const hrefRegex = /href=["']([^"'#\s][^"'#]*)/gi;
+      const base = (() => { try { return new URL(url).href; } catch { return ''; } })();
+      const seen = new Set<string>();
+      links = [...text.matchAll(hrefRegex)]
+        .map(m => {
+          try {
+            const resolved = new URL(m[1], base);
+            // Only http/https — skip mailto:, javascript:, data:, etc.
+            if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return null;
+            // Return without fragment
+            return resolved.origin + resolved.pathname + resolved.search;
+          } catch { return null; }
+        })
+        .filter((l): l is string => l !== null)
+        .filter(l => { if (seen.has(l)) return false; seen.add(l); return true; })
+        .slice(0, 300);
+    }
+
+    return {
+      url,
+      title,
+      markdown,
+      html: text,
+      links,
+      status: 'success',
+      tier: 'http',
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (DEBUG_LOG) console.log(`[tier0] Failed for ${url}: ${msg}, escalating`);
+    return null;
+  }
 }
 
 /**
@@ -553,7 +869,7 @@ async function closeContext(context: BrowserContext | null, url: string): Promis
  * - Blocks heavy assets (images, fonts, stylesheets)
  * - Waits only for 'domcontentloaded' then extracts immediately
  */
-export async function scrapeUrlFast(browser: Browser, url: string, proxy?: ProxyOptions): Promise<CrawlResult> {
+export async function scrapeUrlFast(browser: Browser, url: string, proxy?: ProxyOptions, options?: ScrapeOptions): Promise<CrawlResult> {
   const scrapeStart = performance.now();
   console.log(`\x1b[35m[SCRAPER]\x1b[0m Starting scrape: ${url}${proxy ? ' [proxy]' : ''}`);
 
@@ -625,29 +941,89 @@ export async function scrapeUrlFast(browser: Browser, url: string, proxy?: Proxy
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS });
     logPerf('Navigation done', url, navStart);
 
-    // Human-like behavior: short delay + scroll (capped at 8s by setDefaultTimeout)
-    // If execution context is unavailable (rebrowser-patch stall), these safely time out.
-    await page.waitForTimeout(500 + Math.random() * 800).catch(() => {});
-    await page.evaluate(() => {
-      window.scrollBy(0, Math.random() * 300 + 100);
-    }).catch(() => {});
-    await page.waitForTimeout(200 + Math.random() * 300).catch(() => {});
+    // Human-like post-load interaction: mouse movements + slow scroll
+    await humanizeInteraction(page);
 
     // Dismiss cookie banners before content extraction
     await dismissCookieBanners(page);
 
-    // Check for Cloudflare block — wait and retry once before falling through
-    let rawHtml = await page.content();
-    if (isCloudflareBlock(rawHtml)) {
-      console.log(`\x1b[35m[SCRAPER]\x1b[0m Cloudflare challenge detected (fast), waiting 5s to retry: ${url}`);
-      await page.waitForTimeout(5000);
-      try { await page.reload({ waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS }); } catch { /* ignore reload errors */ }
-      rawHtml = await page.content();
+    // Execute pre-scrape actions if specified
+    if (options?.actions) {
+      for (const action of options.actions) {
+        try {
+          if (action.type === 'click' && action.selector) await page.click(action.selector).catch(() => {});
+          if (action.type === 'type' && action.selector && action.value) await page.fill(action.selector, action.value).catch(() => {});
+          if (action.type === 'scroll') await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
+          if (action.type === 'wait' && action.value) await page.waitForTimeout(parseInt(action.value) || 1000).catch(() => {});
+        } catch { /* silent */ }
+      }
     }
 
+    // Wait for specific selector if requested
+    if (options?.waitForSelector) {
+      await page.waitForSelector(options.waitForSelector, { timeout: 10000 }).catch(() => {});
+    }
+
+    // Check for Cloudflare block — wait up to 10s for challenge to auto-resolve
+    let rawHtml = await page.content();
+    if (isCloudflareBlock(rawHtml)) {
+      console.log(`\x1b[35m[SCRAPER]\x1b[0m Cloudflare challenge detected (fast), waiting up to 10s for auto-resolve: ${url}`);
+      const cfDeadlineFast = performance.now() + 10000;
+      while (performance.now() < cfDeadlineFast) {
+        await page.waitForTimeout(2000);
+        rawHtml = await page.content();
+        if (!isCloudflareBlock(rawHtml)) {
+          console.log(`\x1b[35m[SCRAPER]\x1b[0m CF challenge auto-resolved (fast): ${url}`);
+          break;
+        }
+      }
+      if (isCloudflareBlock(rawHtml)) {
+        console.log(`\x1b[35m[SCRAPER]\x1b[0m CF challenge did not resolve after 10s (fast): ${url}`);
+      }
+    }
+
+    // ── CAPTCHA detection & solving (fast tier) ─────────────────────────────
+    const fastCaptchaType = detectCaptchaType(rawHtml);
+    if (fastCaptchaType) {
+      console.log(`\x1b[35m[SCRAPER]\x1b[0m CAPTCHA detected (${fastCaptchaType}) in fast tier, attempting CapSolver: ${url}`);
+      const solved = await solveCaptchaOnPage(page, url);
+      if (solved) {
+        await page.waitForTimeout(2000);
+        rawHtml = await page.content();
+        console.log(`\x1b[35m[SCRAPER]\x1b[0m CAPTCHA solved (${fastCaptchaType}), re-captured content: ${url}`);
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     const extractStart = performance.now();
-    const { content, title } = await extractContentAndTitle(page);
-    const markdown = parseHtmlToMarkdown(content);
+
+    // Extract from targetSelector if specified, otherwise full page
+    let content: string;
+    let title: string;
+    if (options?.targetSelector) {
+      const el = await page.$(options.targetSelector);
+      content = el ? await el.innerHTML().catch(() => '') : '';
+      title = await page.title().catch(() => '');
+      if (!content) {
+        const extracted = await extractContentAndTitle(page);
+        content = extracted.content;
+        title = extracted.title;
+      }
+    } else {
+      const extracted = await extractContentAndTitle(page);
+      content = extracted.content;
+      title = extracted.title;
+    }
+
+    // Handle respondWith modes
+    let markdown: string;
+    if (options?.respondWith === 'html') {
+      markdown = content;
+    } else if (options?.respondWith === 'text') {
+      markdown = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    } else {
+      markdown = parseHtmlToMarkdown(content);
+    }
     logPerf('Content extracted', url, extractStart, { titleLen: title.length, mdLen: markdown.length });
 
     const status = isValidContent(markdown) ? 'success' : 'empty';
@@ -659,16 +1035,39 @@ export async function scrapeUrlFast(browser: Browser, url: string, proxy?: Proxy
         const cookies = await context!.cookies();
         if (cookies.length > 0) cookieCache.set(domain, cookies);
       } catch { /* silent */ }
-      // Take screenshot before closing page
+      // Take screenshot before closing page (internal debug screenshot)
       try {
         const screenshotPath = `${SCREENSHOTS_DIR}/${sanitizeDomain(url)}.jpg`;
         if (existsSync(SCREENSHOTS_DIR)) {
           await page!.screenshot({ path: screenshotPath, type: 'jpeg', quality: 60, clip: { x: 0, y: 0, width: 1280, height: 800 } });
         }
       } catch { /* silent fail */ }
-      return { url, title, markdown, status };
+
+      // Capture base64 screenshot if requested by caller
+      let pageScreenshot: string | undefined;
+      if (options?.screenshot) {
+        try {
+          const buf = await page!.screenshot({ type: 'png', fullPage: false, timeout: 10000 });
+          pageScreenshot = buf.toString('base64');
+        } catch { /* silent */ }
+      }
+
+      // Extract links if requested
+      let pageLinks: string[] | undefined;
+      if (options?.includeLinks) {
+        try {
+          pageLinks = await page!.evaluate(() =>
+            Array.from(document.querySelectorAll('a[href]'))
+              .map(a => (a as HTMLAnchorElement).href)
+              .filter(href => href.startsWith('http'))
+              .slice(0, 200)
+          );
+        } catch { /* silent */ }
+      }
+
+      return { url, title, markdown, html: rawHtml, screenshot: pageScreenshot, links: pageLinks, status };
     }
-    return { url, title: '', markdown: '', status: 'empty' };
+    return { url, title: '', markdown: '', html: rawHtml, status: 'empty' };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logPerf('FAST ERROR', url, scrapeStart, { error: message });
@@ -694,7 +1093,7 @@ export async function scrapeUrlFast(browser: Browser, url: string, proxy?: Proxy
  * - Waits for content to render
  * - Less aggressive asset blocking (allows stylesheets)
  */
-export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: ProxyOptions): Promise<CrawlResult> {
+export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: ProxyOptions, options?: ScrapeOptions): Promise<CrawlResult> {
   const scrapeStart = performance.now();
   let context: BrowserContext | null = null;
   let page: Page | null = null;
@@ -746,28 +1145,39 @@ export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: Proxy
     await page.addInitScript(STEALTH_INIT_SCRIPT).catch(() => {});
     logPerf('Context created', url, contextStart);
 
+    // Session warming — only for CF-hard domains: visit Google first to build history
+    if (isForceRelayDomain(url)) {
+      console.log(`\x1b[35m[SCRAPER]\x1b[0m Warming session before CF-hard domain: ${url}`);
+      await warmSession(page, url);
+    }
+
     // Navigate with full load (explicit timeout overrides page default)
     const navStart = performance.now();
     await page.goto(url, { waitUntil: 'load', timeout: SLOW_TIMEOUT_MS });
     logPerf('Navigation done', url, navStart);
 
-    // Human-like behavior: short delay + scroll (capped at 10s by setDefaultTimeout)
-    await page.waitForTimeout(500 + Math.random() * 800).catch(() => {});
-    await page.evaluate(() => {
-      window.scrollBy(0, Math.random() * 300 + 100);
-    }).catch(() => {});
-    await page.waitForTimeout(200 + Math.random() * 300).catch(() => {});
+    // Human-like post-load interaction: mouse movements + slow scroll
+    await humanizeInteraction(page);
 
     // Dismiss cookie banners / GDPR popups before waiting for content
     await dismissCookieBanners(page);
 
-    // Check for Cloudflare block — wait and retry once before falling through
+    // Check for Cloudflare block — wait up to 12s for challenge to auto-resolve
     let rawHtmlSlow = await page.content();
     if (isCloudflareBlock(rawHtmlSlow)) {
-      console.log(`\x1b[35m[SCRAPER]\x1b[0m Cloudflare challenge detected (slow), waiting 5s to retry: ${url}`);
-      await page.waitForTimeout(5000);
-      try { await page.reload({ waitUntil: 'load', timeout: SLOW_TIMEOUT_MS }); } catch { /* ignore reload errors */ }
-      rawHtmlSlow = await page.content();
+      console.log(`\x1b[35m[SCRAPER]\x1b[0m Cloudflare challenge detected (slow), waiting up to 12s for auto-resolve: ${url}`);
+      const cfDeadline = performance.now() + 12000;
+      while (performance.now() < cfDeadline) {
+        await page.waitForTimeout(2000);
+        rawHtmlSlow = await page.content();
+        if (!isCloudflareBlock(rawHtmlSlow)) {
+          console.log(`\x1b[35m[SCRAPER]\x1b[0m CF challenge auto-resolved (slow): ${url}`);
+          break;
+        }
+      }
+      if (isCloudflareBlock(rawHtmlSlow)) {
+        console.log(`\x1b[35m[SCRAPER]\x1b[0m CF challenge did not resolve after 12s (slow): ${url}`);
+      }
     }
 
     // ── CAPTCHA detection & solving ─────────────────────────────────────────
@@ -816,7 +1226,36 @@ export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: Proxy
         }
       }
     }
+
+    // hCaptcha and Walmart/DataDome — handled via unified solveCaptchaOnPage
+    const slowCaptchaType = detectCaptchaType(rawHtmlSlow);
+    if (slowCaptchaType && slowCaptchaType !== 'recaptcha' && slowCaptchaType !== 'turnstile') {
+      console.log(`\x1b[35m[SCRAPER]\x1b[0m Additional CAPTCHA detected (${slowCaptchaType}) in slow tier, attempting CapSolver: ${url}`);
+      const solved = await solveCaptchaOnPage(page, url);
+      if (solved) {
+        await page.waitForTimeout(2000);
+        rawHtmlSlow = await page.content();
+        console.log(`\x1b[35m[SCRAPER]\x1b[0m CAPTCHA solved (${slowCaptchaType}), re-captured content: ${url}`);
+      }
+    }
     // ────────────────────────────────────────────────────────────────────────
+
+    // Execute pre-scrape actions if specified
+    if (options?.actions) {
+      for (const action of options.actions) {
+        try {
+          if (action.type === 'click' && action.selector) await page.click(action.selector).catch(() => {});
+          if (action.type === 'type' && action.selector && action.value) await page.fill(action.selector, action.value).catch(() => {});
+          if (action.type === 'scroll') await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)).catch(() => {});
+          if (action.type === 'wait' && action.value) await page.waitForTimeout(parseInt(action.value) || 1000).catch(() => {});
+        } catch { /* silent */ }
+      }
+    }
+
+    // Wait for specific selector if requested
+    if (options?.waitForSelector) {
+      await page.waitForSelector(options.waitForSelector, { timeout: 10000 }).catch(() => {});
+    }
 
     // Wait for content to render
     try {
@@ -836,8 +1275,35 @@ export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: Proxy
     }
 
     const extractStart = performance.now();
-    const { content, title } = await extractContentAndTitle(page);
-    const markdown = parseHtmlToMarkdown(content);
+
+    // Extract from targetSelector if specified, otherwise full page
+    let slowContent: string;
+    let slowTitle: string;
+    if (options?.targetSelector) {
+      const el = await page.$(options.targetSelector);
+      slowContent = el ? await el.innerHTML().catch(() => '') : '';
+      slowTitle = await page.title().catch(() => '');
+      if (!slowContent) {
+        const extracted = await extractContentAndTitle(page);
+        slowContent = extracted.content;
+        slowTitle = extracted.title;
+      }
+    } else {
+      const extracted = await extractContentAndTitle(page);
+      slowContent = extracted.content;
+      slowTitle = extracted.title;
+    }
+
+    // Handle respondWith modes
+    let markdown: string;
+    if (options?.respondWith === 'html') {
+      markdown = slowContent;
+    } else if (options?.respondWith === 'text') {
+      markdown = slowContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    } else {
+      markdown = parseHtmlToMarkdown(slowContent);
+    }
+    const title = slowTitle;
     logPerf('Content extracted', url, extractStart, { titleLen: title.length, mdLen: markdown.length });
 
     const status = isValidContent(markdown) ? 'success' : 'empty';
@@ -849,16 +1315,39 @@ export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: Proxy
         const cookies = await context!.cookies();
         if (cookies.length > 0) cookieCache.set(slowDomain, cookies);
       } catch { /* silent */ }
-      // Take screenshot before closing page
+      // Take screenshot before closing page (internal debug screenshot)
       try {
         const screenshotPath = `${SCREENSHOTS_DIR}/${sanitizeDomain(url)}.jpg`;
         if (existsSync(SCREENSHOTS_DIR)) {
           await page!.screenshot({ path: screenshotPath, type: 'jpeg', quality: 60, clip: { x: 0, y: 0, width: 1280, height: 800 } });
         }
       } catch { /* silent fail */ }
-      return { url, title, markdown, status };
+
+      // Capture base64 screenshot if requested by caller
+      let slowPageScreenshot: string | undefined;
+      if (options?.screenshot) {
+        try {
+          const buf = await page!.screenshot({ type: 'png', fullPage: false, timeout: 10000 });
+          slowPageScreenshot = buf.toString('base64');
+        } catch { /* silent */ }
+      }
+
+      // Extract links if requested
+      let slowPageLinks: string[] | undefined;
+      if (options?.includeLinks) {
+        try {
+          slowPageLinks = await page!.evaluate(() =>
+            Array.from(document.querySelectorAll('a[href]'))
+              .map(a => (a as HTMLAnchorElement).href)
+              .filter(href => href.startsWith('http'))
+              .slice(0, 200)
+          );
+        } catch { /* silent */ }
+      }
+
+      return { url, title, markdown, html: rawHtmlSlow, screenshot: slowPageScreenshot, links: slowPageLinks, status };
     }
-    return { url, title, markdown, status: 'empty' };
+    return { url, title, markdown, html: rawHtmlSlow, status: 'empty' };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logPerf('SLOW ERROR', url, scrapeStart, { error: message });
@@ -880,7 +1369,7 @@ export async function scrapeUrlSlow(browser: Browser, url: string, proxy?: Proxy
  * Checks if URL is a PDF and uses Datalab Marker API for conversion (if API key is configured).
  * For regular URLs, tries fast scraper first, falls back to slow scraper if fast returns empty/error.
  */
-export async function scrapeUrlWithFallback(browser: Browser, url: string, isAgent?: boolean): Promise<CrawlResult> {
+export async function scrapeUrlWithFallback(browser: Browser, url: string, isAgent?: boolean, options?: ScrapeOptions): Promise<CrawlResult> {
   const startTime = performance.now();
 
   // SSRF protection: block internal/private IPs
@@ -890,6 +1379,29 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string, isAge
     const message = err instanceof Error ? err.message : String(err);
     logPerf('SSRF BLOCKED', url, startTime, { error: message });
     return makeErrorResult(url, `URL blocked: ${message}`);
+  }
+
+  // Tier 0: fast HTTP fetch (no browser) — handles simple static pages
+  // Skip if options require browser-specific features (actions, waitForSelector, screenshot)
+  // Also skip if caller already tried tier0 (skipTier0=true) to avoid doubling wait time.
+  const needsBrowser = !!(options?.actions?.length || options?.waitForSelector || options?.respondWith === 'screenshot' || options?.screenshot);
+  if (!needsBrowser && !options?.skipTier0) {
+    const tier0Result = await scrapeUrlTier0(url, options);
+    if (tier0Result) {
+      logPerf('TIER0 SUCCESS', url, startTime, { len: tier0Result.markdown.length });
+      intelligence.scoreContent(tier0Result.markdown);
+      recordDomainStats(url, true);
+      appendScrapeLog({
+        url,
+        domain: new URL(url).hostname,
+        title: tier0Result.title,
+        timestamp: new Date().toISOString(),
+        isAgent: isAgent ?? false,
+        count: 1,
+        success: true,
+      });
+      return tier0Result;
+    }
   }
 
   // Handle PDF URLs with Datalab Marker API
@@ -911,6 +1423,86 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string, isAge
     return pdfResult;
   }
 
+  // ── Helper: log success, record stats, and return ─────────────────────────
+  const successReturn = (res: CrawlResult, tierLabel: string): CrawlResult => {
+    logPerf(`${tierLabel} SUCCESS`, url, startTime, { len: res.markdown?.length ?? 0 });
+    intelligence.scoreContent(res.markdown);
+    recordDomainStats(url, true);
+    appendScrapeLog({
+      url,
+      domain: new URL(url).hostname,
+      title: res.title,
+      timestamp: new Date().toISOString(),
+      isAgent: isAgent ?? false,
+      count: 1,
+      success: true,
+    });
+    return { ...res, tier: res.tier ?? tierLabel.toLowerCase() };
+  };
+
+  // ── Helper: convert raw HTML from relay to markdown ───────────────────────
+  const htmlToMarkdownResult = (html: string, tierLabel: string): CrawlResult | null => {
+    if (!html || isCloudflareBlock(html)) return null;
+    const cleaned = html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '');
+    const markdown = parseHtmlToMarkdown(cleaned);
+    if (!isValidContent(markdown)) return null;
+
+    // Extract links from raw HTML via regex if requested
+    let relayLinks: string[] | undefined;
+    if (options?.includeLinks) {
+      const linkRegex = /href=["'](https?:\/\/[^"']+)["']/gi;
+      relayLinks = [...html.matchAll(linkRegex)].map(m => m[1]).slice(0, 200);
+    }
+
+    return { url, title: '', markdown, html, links: relayLinks, status: 'success', tier: tierLabel };
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // TIER 1 — Windows relay (50 real Chrome instances on real Windows hardware)
+  //   Try this FIRST after HTTP tier 0. Real hardware + real ISP IPs beats any VPS.
+  //   Only skip if no workers are currently connected.
+  // ════════════════════════════════════════════════════════════════════════════
+  const relayWorkers = getRelayWorkerCount();
+  if (relayWorkers > 0) {
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 1 — Windows relay (${relayWorkers} workers): ${url}`);
+    try {
+      const relayHtml = await relayFetch(url);
+      if (relayHtml) {
+        const relayResult = htmlToMarkdownResult(relayHtml, 'relay');
+        if (relayResult) {
+          return successReturn(relayResult, 'RELAY');
+        }
+      }
+    } catch (err) {
+      console.warn(`\x1b[35m[SCRAPER]\x1b[0m Windows relay error: ${err instanceof Error ? err.message : err}`);
+    }
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Windows relay failed or empty — escalating to tier 2: ${url}`);
+  } else {
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m No relay workers connected — skipping to tier 2: ${url}`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // TIER 2 — Camoufox (Firefox-based, C++ stealth patches)
+  //   Resistant to Chromium fingerprinting detection.
+  //   Covers domains known to block Chromium: LinkedIn, Twitter, FT, Bloomberg…
+  // ════════════════════════════════════════════════════════════════════════════
+  if (shouldUseCamoufox(url)) {
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 2 — Camoufox (Firefox stealth): ${url}`);
+    const camoufoxResult = await scrapeWithCamoufox(url);
+    if (camoufoxResult.status === 'success') {
+      return successReturn({ ...camoufoxResult, tier: 'camoufox' }, 'CAMOUFOX');
+    }
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Camoufox failed — escalating to VPS headless: ${url}`);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // TIER 3 — VPS headless Chromium (last resort)
+  //   Weakest option: datacenter IP even with stealth patches.
+  //   Sub-tiers: fast → slow → internal relay (residential proxy) → slow+proxy
+  // ════════════════════════════════════════════════════════════════════════════
+
   // Check if domain intelligence recommends skipping fast scrape
   const skipFast = intelligence.shouldSlowScrape(url);
 
@@ -920,109 +1512,58 @@ export async function scrapeUrlWithFallback(browser: Browser, url: string, isAge
   if (skipFast) {
     // Domain known to fail fast scrape — go straight to slow
     logPerf('INTEL SKIP FAST', url, startTime, { reason: 'domain prefers slow' });
-    result = await scrapeUrlSlow(browser, url);
+    result = await scrapeUrlSlow(browser, url, undefined, options);
+    result = { ...result, tier: 'vps-slow' };
     method = 'slow';
     intelligence.recordScrape(url, 'slow', result.status === 'success', performance.now() - startTime);
   } else {
-    // Try fast first
-    const fast = await scrapeUrlFast(browser, url);
+    // 3a: Try fast VPS headless first
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 3a — VPS headless fast: ${url}`);
+    const fast = await scrapeUrlFast(browser, url, undefined, options);
     const fastDuration = performance.now() - startTime;
     intelligence.recordScrape(url, 'fast', fast.status === 'success', fastDuration);
 
     if (fast.status === 'success') {
-      logPerf('WITH FALLBACK', url, startTime, { method: 'fast', status: 'success' });
-      // Score content quality and track domain
-      intelligence.scoreContent(fast.markdown);
-      recordDomainStats(url, true);
-      // Log scrape metadata
-      appendScrapeLog({
-        url,
-        domain: new URL(url).hostname,
-        title: fast.title,
-        timestamp: new Date().toISOString(),
-        isAgent: isAgent ?? false,
-        count: 1,
-      });
-      return fast;
+      return successReturn({ ...fast, tier: 'vps-fast' }, 'VPS-FAST');
     }
 
-    // Fall back to slow scraper
-    console.log(`\x1b[35m[SCRAPER]\x1b[0m Fast scrape incomplete, trying slow method: ${url}`);
-    result = await scrapeUrlSlow(browser, url);
+    // 3b: Fall back to slow VPS headless
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 3b — VPS headless slow: ${url}`);
+    result = await scrapeUrlSlow(browser, url, undefined, options);
+    result = { ...result, tier: 'vps-slow' };
     method = 'slow';
     intelligence.recordScrape(url, 'slow', result.status === 'success', performance.now() - startTime);
   }
 
-  // If blocked: tier 1 — internal relay browser (residential proxy, persistent Playwright)
-  if ((result.status === 'error' || result.status === 'empty') && result.reason === 'blocked') {
-    console.log(`\x1b[35m[SCRAPER]\x1b[0m Blocked — trying internal relay browser: ${url}`);
-    const relayHtml = await internalRelayFetch(url);
-    if (relayHtml && !isCloudflareBlock(relayHtml)) {
-      const { content: relayContent, title: relayTitle } = (() => {
-        // Quick parse: strip scripts/styles from raw HTML to get content
-        const cleaned = relayHtml
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[\s\S]*?<\/style>/gi, '');
-        return { content: cleaned, title: '' };
-      })();
-      const relayMarkdown = parseHtmlToMarkdown(relayContent);
-      if (isValidContent(relayMarkdown)) {
-        logPerf('RELAY FALLBACK', url, startTime, { status: 'success' });
-        intelligence.scoreContent(relayMarkdown);
-        recordDomainStats(url, true);
-        appendScrapeLog({
-          url,
-          domain: new URL(url).hostname,
-          title: relayTitle,
-          timestamp: new Date().toISOString(),
-          isAgent: isAgent ?? false,
-          count: 1,
-        });
-        return { url, title: relayTitle, markdown: relayMarkdown, status: 'success' };
+  if (result.status === 'success') {
+    return successReturn(result, 'VPS-SLOW');
+  }
+
+  // 3c — internal relay browser (VPS + residential proxy, persistent Playwright)
+  if (result.status === 'error' || result.status === 'empty') {
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 3c — VPS + residential proxy (internal relay): ${url}`);
+    const internalHtml = await internalRelayFetch(url);
+    if (internalHtml) {
+      const internalResult = htmlToMarkdownResult(internalHtml, 'vps-proxy');
+      if (internalResult) {
+        return successReturn(internalResult, 'VPS-PROXY');
       }
     }
 
-    // tier 2 — slow scraper with explicit proxy config
-    console.log(`\x1b[35m[SCRAPER]\x1b[0m Relay failed — retrying with residential proxy (slow): ${url}`);
-    const proxyResult = await scrapeUrlSlow(browser, url, PROXY_CONFIG);
+    // 3d — slow scraper with URL-matched residential proxy (US for .com, DE for .de/.eu)
+    console.log(`\x1b[35m[SCRAPER]\x1b[0m Tier 3d — VPS slow + residential proxy: ${url}`);
+    const proxyResult = await scrapeUrlSlow(browser, url, getProxyConfig(url), options);
     intelligence.recordScrape(url, 'slow', proxyResult.status === 'success', performance.now() - startTime);
     if (proxyResult.status === 'success') {
-      logPerf('PROXY FALLBACK', url, startTime, { status: 'success' });
-      intelligence.scoreContent(proxyResult.markdown);
-      recordDomainStats(url, true);
-      // Log scrape metadata
-      appendScrapeLog({
-        url,
-        domain: new URL(url).hostname,
-        title: proxyResult.title,
-        timestamp: new Date().toISOString(),
-        isAgent: isAgent ?? false,
-        count: 1,
-      });
-      return proxyResult;
+      return successReturn({ ...proxyResult, tier: 'vps-proxy-slow' }, 'VPS-PROXY-SLOW');
     }
-    // Keep original result if proxy also failed (proxy error shouldn't override original reason)
-    logPerf('PROXY FALLBACK', url, startTime, { status: proxyResult.status });
+    logPerf('VPS-PROXY-SLOW', url, startTime, { status: proxyResult.status });
     result = proxyResult;
   }
 
-  logPerf('WITH FALLBACK', url, startTime, { method, status: result.status });
+  logPerf('ALL TIERS FAILED', url, startTime, { status: result.status });
 
-  // Score content quality on success
-  if (result.status === 'success') {
-    intelligence.scoreContent(result.markdown);
-    // Log scrape metadata
-    appendScrapeLog({
-      url,
-      domain: new URL(url).hostname,
-      title: result.title,
-      timestamp: new Date().toISOString(),
-      isAgent: isAgent ?? false,
-      count: 1,
-    });
-  }
-
-  // Track domain success/failure in stats
+  // Track domain failure in stats
   recordDomainStats(url, result.status === 'success');
 
   return result;

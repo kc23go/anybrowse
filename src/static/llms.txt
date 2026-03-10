@@ -4,7 +4,7 @@
 
 ## API Endpoints
 
-- Scrape: POST /scrape - Convert a single URL to clean Markdown — 84% success rate (10 free/day, then $0.002)
+- Scrape: POST /scrape - Convert a single URL to clean Markdown, raw HTML, optional screenshot and links — 84% success rate (10 free/day, then $0.002)
 - Crawl: POST /crawl - Search and scrape top results to Markdown — 75% success rate (10 free/day, then $0.01)
 - Search: POST /serp/search - Real-time web search via Brave Search API, structured JSON — 62% success rate (10 free/day, then $0.002)
 - Batch: POST /batch - Scrape up to 10 URLs in parallel (free: 5 batches/day, pro: unlimited)
@@ -18,6 +18,7 @@ All users get 10 free scrapes per day with no signup required. Just make request
 ## Key Capabilities
 
 - **84% measured scrape success rate** — tested across news, e-commerce, JS-heavy SPAs, Cloudflare-protected sites
+- **Firecrawl-compatible output** — returns `markdown`, `html`, `screenshot` (base64 PNG), and `links` array in a single call
 - **Real-time web search** via Brave Search API — fast, reliable, 62% search success rate
 - **Automatic CAPTCHA solving** via CapSolver — handles reCAPTCHA, hCaptcha, and more
 - **Stealth mode** via rebrowser-patches — bypasses bot detection
@@ -30,8 +31,28 @@ All users get 10 free scrapes per day with no signup required. Just make request
 ## Authentication Options
 
 1. **Free tier**: 10 scrapes/day, no auth required
-2. **API key (Pro)**: $4.99/month for 10,000 scrapes/month
-3. **x402**: Wallet-based micropayments (USDC on Base, $0.002/scrape)
+2. **API key (Pro subscription)**: $4.99/month for 10,000 scrapes/month
+3. **API key (Credit packs)**: One-time purchase, credits never expire — from $5 for 3,000 credits. No subscription, no crypto wallet needed.
+4. **x402**: Wallet-based micropayments (USDC on Base, $0.002/scrape)
+
+## Credit Pack API Keys (Recommended for AI agents — no crypto required)
+
+If you need a persistent API key without a monthly subscription or crypto wallet, use a credit pack:
+
+- Purchase at: https://anybrowse.dev/credits
+- Starter: $5 → 3,000 credits (1 credit = 1 /scrape call)
+- Growth: $20 → 15,000 credits
+- Scale: $50 → 50,000 credits (best rate: $0.001/scrape)
+- Credits NEVER expire — buy once, use whenever
+- Same `Authorization: Bearer ab_xxx` header as Pro subscription
+- Check balance: GET /credits/balance with your API key
+
+Credit costs:
+- /scrape: 1 credit
+- /crawl: 5 credits
+- /extract: 5 credits
+- /serp/search: 1 credit
+- /batch: 1 credit per URL
 4. **Credit packs** (coming soon): One-time credit packs from $5 — no subscription required
 
 ## MCP Server

@@ -7,6 +7,9 @@
 <meta name="description" content="Independent benchmark: anybrowse vs Jina AI Reader vs Firecrawl across 100 URLs. See success rates by category, latency, and feature comparison.">
 <link rel="canonical" href="https://anybrowse.dev/benchmark">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Web Scraping API Benchmark — anybrowse vs Jina vs Firecrawl">
 <meta property="og:description" content="100 URLs, 6 categories, 3 APIs. See which web scraping API actually works for AI agents.">
@@ -14,7 +17,8 @@
 <meta name="twitter:card" content="summary">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:760px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f0eb;color:#1a1a1a;line-height:1.7;-webkit-font-smoothing:antialiased}
+.content{max-width:760px;margin:0 auto;padding:2rem 1.5rem 4rem}
 .header{display:flex;align-items:center;gap:1rem;margin-bottom:.5rem}
 .logo{width:44px;height:44px;flex-shrink:0}
 .wordmark{font-size:1.15rem;font-weight:300;letter-spacing:.04em;color:#1a1a1a}
@@ -97,22 +101,19 @@ footer a:hover{color:#1a1a1a}
 </head>
 <body>
 
-<div class="header">
-  <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <circle cx="50" cy="50" r="40" stroke="#1a1a1a" stroke-width="3"/>
-    <line x1="50" y1="10" x2="50" y2="80" stroke="#ff4a00" stroke-width="5"/>
-    <polygon points="40,75 50,92 60,75" fill="#ff4a00"/>
-  </svg>
-  <span class="wordmark"><b>any</b>browse</span>
-</div>
-
-<nav class="nav-links">
-  <a href="/">Home</a>
-  <a href="/docs">Docs</a>
-  <a href="/pricing">Pricing</a>
-  <a href="/blog">Blog</a>
-  <a href="/benchmark" style="color:#d94400">Benchmark</a>
+<nav style="background:#111; padding:20px 40px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100;">
+  <a href="/" style="color:#d94400; font-weight:700; font-size:1.1rem; text-decoration:none; flex-shrink:0;">anybrowse</a>
+  <div style="display:flex; gap:32px; margin-left:80px; align-items:center;">
+    <a href="/docs" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Docs</a>
+    <a href="/vault" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Vault</a>
+    <a href="/pricing" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Pricing</a>
+    <a href="/dashboard" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">Dashboard</a>
+    <a href="https://github.com/kc23go/anybrowse" target="_blank" style="color:#888; text-decoration:none; font-size:0.9rem; transition:color 0.2s;" onmouseover="this.style.color='#e8e4df'" onmouseout="this.style.color='#888'">GitHub</a>
+    <a href="/credits" style="background:#d94400; color:white; padding:8px 18px; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:600;">Get credits</a>
+  </div>
 </nav>
+
+<div class="content">
 
 <h1>Web scraping API <span>benchmark</span></h1>
 <p class="sub">We tested <strong>3 APIs</strong> against <strong>100 URLs</strong> across 6 categories. Here is what actually works.</p>
@@ -334,10 +335,23 @@ footer a:hover{color:#1a1a1a}
   Benchmarks run March 2026. 100 URLs sampled across 6 categories. Success defined as receiving parseable markdown content from the target URL. Results vary by site, time of day, and API tier. Live data updated daily — scrape rate measured from real production traffic. This test used free tier or trial access for comparison services; paid tiers may differ. anybrowse is the operator of this benchmark.
 </div>
 
-<footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a> &middot; <a href="/benchmark">benchmark</a> &middot; <a href="/blog">blog</a> &middot; <a href="/tos">Terms</a> &middot; <a href="/privacy">Privacy</a><br>
-<span class="mn">anybrowse.base.eth</span><br>
-<span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span>
+</div><!-- .content -->
+
+<footer style="background:#f4f0eb; border-top:1px solid #e0dbd5; padding:40px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+  <div>
+    <div style="color:#d94400; font-weight:700; margin-bottom:4px;">anybrowse</div>
+    <div style="color:#6b6460; font-size:0.85rem;">The web, for your agent.</div>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <a href="/docs" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Docs</a>
+    <a href="/pricing" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Pricing</a>
+    <a href="/vault" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Vault</a>
+    <a href="/dashboard" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Dashboard</a>
+    <a href="/manage" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Manage subscription</a>
+    <a href="/privacy" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Privacy</a>
+    <a href="/terms" style="color:#6b6460; text-decoration:none; font-size:0.85rem;">Terms</a>
+  </div>
+  <div style="color:#6b6460; font-size:0.8rem;">Heimat LLC · <a href="mailto:hello@anybrowse.dev" style="color:#6b6460;">hello@anybrowse.dev</a> · We respond within 24 hours.</div>
 </footer>
 
 </body>

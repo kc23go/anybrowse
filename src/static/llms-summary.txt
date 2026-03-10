@@ -45,7 +45,12 @@ After free tier, choose your authentication method:
 ## API Endpoints
 
 ### POST /scrape
-Extract markdown from a single URL. $0.002/call.
+Extract markdown, raw HTML, optional screenshot (base64 PNG), and links from a single URL. $0.002/call.
+
+**New fields (Firecrawl-compatible):**
+- `html` — raw page HTML (always returned)
+- `screenshot` — base64 PNG of viewport (set `"screenshot": true` in request)
+- `links` — array of all hrefs (set `"includeLinks": true` in request, max 200)
 
 ### POST /crawl
 Search Google and scrape top results. $0.01/call.
