@@ -2578,7 +2578,8 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
   // GET /agent/messages — CIPHER polls for new messages
   app.get("/agent/messages", async (req, reply) => {
     const auth = (req.headers as Record<string, string>)["authorization"] || "";
-    if (auth !== "Bearer ab_owner_018b73cd5702ade0f97e5855e7c80661feae22822639752e") {
+    const ownerKeyForAgent = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    if (!ownerKeyForAgent || auth !== `Bearer ${ownerKeyForAgent}`) {
       return reply.status(401).send({ error: "unauthorized" });
     }
     const messages = db.prepare("SELECT * FROM agent_messages WHERE read = 0 ORDER BY created_at ASC").all();
