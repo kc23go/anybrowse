@@ -347,7 +347,7 @@ h1{font-size:2rem}
 <p class="pay">All paid endpoints use <a href="https://www.x402.org">x402</a> micropayments on Base. Send a request without payment &mdash; receive a <code>402</code> with instructions. Sign with your wallet, resend with the <code>X-PAYMENT</code> header. No signup. No API keys.</p>
 
 <footer>
-<a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
+<a href="https://t.me/anybrowse_bot">Telegram bot</a> &middot; <a href="/.well-known/agent-card.json">agent card</a> &middot; <a href="/stats">stats</a> &middot; <a href="/health">health</a> &middot; <a href="/earnings">earnings</a> &middot; <a href="/mcp">mcp</a> &middot; <a href="/docs">docs</a> &middot; <a href="/pricing">pricing</a><br>
 <span class="mn">anybrowse.base.eth</span><br>
 <span class="mn" style="font-size:.65rem;color:#999">0x8D76E8FB38541d70dF74b14660c39b4c5d737088</span><br>
 <span id="ps"></span>

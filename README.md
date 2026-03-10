@@ -69,6 +69,16 @@ const client = new AnybrowseClient();
 const result = await client.scrape('https://techcrunch.com');
 ```
 
+## Try it on Telegram
+
+Send any URL to [@anybrowse_bot](https://t.me/anybrowse_bot) on Telegram and get clean Markdown back instantly.
+
+```
+/scrape https://techcrunch.com
+```
+
+Free: 10 scrapes/day · [Full API](https://anybrowse.dev)
+
 ## Endpoints
 
 | Endpoint | Description | Price |
