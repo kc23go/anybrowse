@@ -4,10 +4,11 @@ import { loadEnvNumber, loadEnvString } from "./env.js";
 import { registerSerpRoutes } from "./serp.js";
 import { registerCrawlRoutes } from "./crawl.js";
 import { initPool, shutdownPool } from "./pool.js";
-import paymentGate from "./payment-gate.js";
+import paymentGate, { emailVerifiedIps } from "./payment-gate.js";
 import { stats } from "./stats.js";
 import { startHealer, stopHealer, getHealthStatus } from "./autonomy/healer.js";
 import { startOptimizer, stopOptimizer, getConfig } from "./autonomy/optimizer.js";
+import { startWarmer, stopWarmer, getWarmerStatus } from "./warmer.js";
 import { intelligence } from "./autonomy/intelligence.js";
 import { startPromoter, stopPromoter, getPromotionStatus } from "./autonomy/promoter.js";
 import { startAdvertiser, stopAdvertiser, getAdvertiseStatus } from "./autonomy/advertise.js";
@@ -27,8 +28,11 @@ async function loadRelay() {
 import { registerBatchRoutes } from "./batch.js";
 import { registerWatchRoutes, startWatchPoller } from "./watch.js";
 import { registerExtractRoutes } from "./extract.js";
-import { logRequest, buildLogEntry, getClientBreakdown, computeInsights } from "./request-log.js";
-import { db } from "./db.js";
+import { registerAggregateRoutes } from "./aggregate.js";
+import { registerAggregateStreamRoutes } from "./aggregate-stream.js";
+import { logRequest, buildLogEntry, getClientBreakdown, computeInsights, shouldExcludeFromStats, addExcludedIp, getDynamicExclusions, hashIp, getCleanRequestCount } from "./request-log.js";
+import { db, addEmailSubscriber } from "./db.js";
+import { runDrip } from "./drip.js";
 import {
   createCheckoutSession,
   getCheckoutSession,
@@ -45,8 +49,10 @@ import {
   generateCreditApiKey,
   CREDIT_PACKS,
   CREDITS_STRIPE_ENABLED,
+  stripe as creditsStripe,
 } from "./stripe-credits.js";
-import { sendEmail, isMailerEnabled } from "./mailer.js";
+import { sendEmail, isMailerEnabled, sendApiKeyEmail } from "./mailer.js";
+import { trackEvent, shutdownAnalytics } from "./analytics.js";
 import { readFileSync, writeFileSync, existsSync, appendFileSync, mkdirSync } from "fs";
 import { createHash } from "crypto";
 import { execSync } from "child_process";
@@ -61,15 +67,16 @@ const DEBUG_LOG =
 
 // Known API paths — used to filter attack probes from public stats
 const KNOWN_PATHS = new Set([
-  "/", "/scrape", "/crawl", "/serp/search", "/mcp",
-  "/batch", "/watch", "/watches", "/extract",
+  "/", "/scrape", "/crawl", "/serp/search", "/serp", "/mcp",
+  "/batch", "/watch", "/watches", "/extract", "/aggregate", "/aggregate/stream",
   "/health", "/stats", "/status", "/earnings", "/autonomy", "/gaps",
-  "/capture-email", "/insights", "/data-export",
-  "/tos", "/privacy", "/checkout",
+  "/capture-email", "/upgrade-free", "/insights", "/data-export",
+  "/tos", "/privacy", "/integrations", "/checkout",
   "/credits", "/credits/checkout", "/credits/success", "/credits/balance",
   "/benchmark", "/vs/firecrawl", "/vs/jina", "/vs/diffbot",
   "/blog/benchmarking-web-scraping-apis",
   "/.well-known/agent-card.json",
+  "/manage", "/portal", "/dashboard", "/dashboard/data",
 ]);
 
 const LANDING_HTML = `<!DOCTYPE html>
@@ -371,7 +378,7 @@ const LANDING_JSON = {
   capabilities: [
     { endpoint: "POST /scrape", description: "Convert any URL to Markdown", price: "$0.002 USDC" },
     { endpoint: "POST /crawl", description: "Search + scrape top results", price: "$0.01 USDC" },
-    { endpoint: "POST /serp/search", description: "Google search results", price: "$0.002 USDC" },
+    { endpoint: "POST /serp/search", description: "Multi-engine search results (Google, Bing, DuckDuckGo)", price: "$0.002 USDC" },
     { endpoint: "POST /mcp", description: "MCP tool server (JSON-RPC 2.0)", price: "free" },
   ],
   protocols: ["x402", "a2a", "mcp"],
@@ -391,9 +398,77 @@ const LANDING_JSON = {
   },
 };
 
+// ── IP extraction helper ─────────────────────────────────────────────────────
+// nginx sets X-Real-IP to $remote_addr (cannot be spoofed by client).
+// trustProxy is disabled — we extract the real IP ourselves.
+import type { FastifyRequest } from "fastify";
+
+function getClientIp(req: FastifyRequest): string {
+  // nginx sets X-Real-IP from $remote_addr — this is the authoritative source
+  return (req.headers['x-real-ip'] as string) || req.socket.remoteAddress || 'unknown';
+}
+
+// ── Structured failure logging ────────────────────────────────────────────────
+// Writes JSON log lines to /agent/data/api-failures.jsonl for querying.
+// Each line: { ts, endpoint, failure_reason, client_ip, latency_ms, user_agent, api_key, status_code }
+const FAILURE_LOG_PATH = "/agent/data/api-failures.jsonl";
+
+/** Map status codes to human-readable failure reasons */
+function inferFailureReason(statusCode: number, explicitReason?: string): string {
+  if (explicitReason) return explicitReason;
+  switch (statusCode) {
+    case 400: return 'bad_request';
+    case 401: return 'unauthorized';
+    case 402: return 'payment_required';
+    case 403: return 'forbidden';
+    case 404: return 'not_found';
+    case 422: return 'scrape_failed';
+    case 429: return 'rate_limited';
+    case 500: return 'internal_error';
+    case 502: return 'bad_gateway';
+    case 503: return 'service_unavailable';
+    case 504: return 'timeout';
+    default: return statusCode >= 500 ? 'server_error' : 'client_error';
+  }
+}
+
+function logApiFailure(opts: {
+  endpoint: string;
+  failureReason: string;
+  clientIp: string;
+  latencyMs: number;
+  userAgent: string;
+  apiKey: string;
+  statusCode: number;
+}): void {
+  try {
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      endpoint: opts.endpoint,
+      failure_reason: opts.failureReason,
+      client_ip: opts.clientIp,
+      latency_ms: opts.latencyMs,
+      user_agent: opts.userAgent.slice(0, 200),
+      api_key: opts.apiKey,
+      status_code: opts.statusCode,
+    }) + '\n';
+    appendFileSync(FAILURE_LOG_PATH, line);
+  } catch {
+    // Never let logging failures crash the app
+  }
+}
+
 async function buildServer() {
-  const app = Fastify({ logger: true, trustProxy: "127.0.0.1" });
+  // trustProxy disabled: we use X-Real-IP (set by nginx from $remote_addr)
+  // to prevent rate-limit bypass via X-Forwarded-For header spoofing
+  const app = Fastify({ logger: true, trustProxy: false });
   await app.register(cors, { origin: true });
+
+  // ── Remove server fingerprinting headers ──────────────────────────────────
+  app.addHook('onSend', async (_req, reply) => {
+    reply.removeHeader('X-Powered-By');
+    reply.removeHeader('Server');
+  });
 
   // ── Raw body capture for Stripe webhook signature verification ──
   // Override default JSON parser to also store raw Buffer on request.
@@ -423,12 +498,19 @@ async function buildServer() {
     const path = req.url.split("?")[0];
     const responseTime = reply.elapsedTime;
     const hadPayment = !!req.headers["x-payment"];
-    stats.recordRequest(path, reply.statusCode, responseTime, hadPayment);
+    const ua = (req.headers["user-agent"] as string) || "";
+    const ip = getClientIp(req);
+
+    // Determine if this request should be excluded from all metrics
+    const ownerExclude = !!(req as any).excludeFromStats;
+    const excluded = ownerExclude || shouldExcludeFromStats(hashIp(ip), ua, path);
+
+    if (!excluded) {
+      stats.recordRequest(path, reply.statusCode, responseTime, hadPayment);
+    }
 
     // Request logging (skip /mcp — handled with session tracking in mcp-transport.ts)
-    if (path !== "/mcp") {
-      const ua = (req.headers["user-agent"] as string) || "";
-      const ip = req.ip || "unknown";
+    if (path !== "/mcp" && !excluded) {
       // Extract scraped URL from request body for /scrape and /crawl
       let scrapedUrl: string | undefined;
       if (path === "/scrape" || path === "/crawl") {
@@ -445,6 +527,55 @@ async function buildServer() {
         ms: responseTime,
         url: scrapedUrl,
       }));
+      // Track successful API requests for funnel analytics
+      if (reply.statusCode < 400 && (path === "/scrape" || path === "/crawl" || path === "/serp/search" || path === "/extract")) {
+        const ipHash = hashIp(ip);
+        const isAgent = !ua.includes('Mozilla') || ua.toLowerCase().includes('python') || ua.toLowerCase().includes('curl');
+        let scrapedDomain = '';
+        try { scrapedDomain = new URL(scrapedUrl || '').hostname; } catch {}
+        trackEvent('api_request', {
+          endpoint: path,
+          client: isAgent ? 'agent' : 'browser',
+          statusCode: reply.statusCode,
+          success: true,
+          domain: scrapedDomain,
+        }, ipHash);
+      }
+      // Track errors and rate limit hits
+      if (reply.statusCode >= 400 && (path === "/scrape" || path === "/crawl" || path === "/serp/search" || path === "/extract")) {
+        const ipHash = hashIp(ip);
+        const isAgent = !ua.includes('Mozilla') || ua.toLowerCase().includes('python') || ua.toLowerCase().includes('curl');
+        trackEvent('api_error', {
+          endpoint: path,
+          client: isAgent ? 'agent' : 'browser',
+          statusCode: reply.statusCode,
+          isRateLimit: reply.statusCode === 402,
+        }, ipHash);
+      }
+
+      // ── Structured failure logging (JSON lines for querying) ──────────────
+      // Log ALL 4xx/5xx on API endpoints with full context.
+      const API_LOG_PATHS = new Set([
+        '/scrape', '/crawl', '/serp/search', '/serp',
+        '/extract', '/batch', '/aggregate', '/aggregate/stream',
+      ]);
+      if (reply.statusCode >= 400 && API_LOG_PATHS.has(path)) {
+        const authHeader = (req.headers['authorization'] as string) || '';
+        const apiKeyRaw = authHeader.startsWith('Bearer ') ? authHeader.slice(7) :
+          ((req.headers['x-api-key'] as string) || '');
+        // Mask: show first 8 chars only (e.g. ab_owner → ab_owner...)
+        const apiKeyMasked = apiKeyRaw ? apiKeyRaw.slice(0, 8) + '...' : 'none';
+        const explicitReason = (req as any).failureReason as string | undefined;
+        logApiFailure({
+          endpoint: path,
+          failureReason: inferFailureReason(reply.statusCode, explicitReason),
+          clientIp: ip,
+          latencyMs: Math.round(responseTime),
+          userAgent: ua,
+          apiKey: apiKeyMasked,
+          statusCode: reply.statusCode,
+        });
+      }
     }
   });
 
@@ -481,10 +612,11 @@ async function buildServer() {
         memory: healthStatus.checks.memory,
         pool: healthStatus.checks.pool,
       } : null,
+      warmer: getWarmerStatus(),
     };
   });
 
-  // Stats endpoint (free) — filtered to hide attack probe paths
+  // Stats endpoint (free) — filtered to hide attack probe paths and bot traffic
   app.get("/stats", async () => {
     const snapshot = stats.getSnapshot();
     const filteredEndpoints: Record<string, any> = {};
@@ -495,10 +627,15 @@ async function buildServer() {
     }
     // Add client breakdown from last 30 days of request-log.jsonl
     const clients = getClientBreakdown(30);
+    // Clean 7-day count from SQLite (excludes bots/health/internal)
+    const clean7d = getCleanRequestCount(7);
     return {
       ...snapshot,
       endpoints: filteredEndpoints,
       clients,
+      realRequests7d: clean7d.clean,
+      filteredOut7d: clean7d.filteredOut,
+      note: 'Excludes registry probers, health checks, WP scanners, and internal/owner traffic. realRequests7d shows the clean 7-day count from request log.',
     };
   });
 
@@ -623,6 +760,69 @@ async function buildServer() {
     return insights;
   });
 
+  // Admin: add IP to exclusion list (owner key only)
+  app.post("/admin/exclude-ip", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    if (!ownerKey) {
+      return reply.status(503).send({ error: "Not configured (no owner key)" });
+    }
+
+    const adminToken = req.headers["x-admin-token"] as string | undefined;
+    const authHeader = req.headers["authorization"] as string | undefined;
+    let providedKey: string | undefined;
+    if (adminToken) {
+      providedKey = adminToken;
+    } else if (authHeader?.startsWith("Bearer ")) {
+      providedKey = authHeader.slice(7).trim();
+    }
+
+    if (!providedKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    const body = req.body as any;
+    const ipHash = (body?.ip_hash as string || '').trim();
+    const reason = (body?.reason as string || 'manually excluded').trim();
+
+    if (!ipHash || ipHash.length < 8) {
+      return reply.status(400).send({ error: "ip_hash must be at least 8 hex chars" });
+    }
+
+    const ok = addExcludedIp(ipHash, reason);
+    if (!ok) {
+      return reply.status(500).send({ error: "Failed to persist exclusion" });
+    }
+
+    return {
+      ok: true,
+      ip_hash: ipHash.slice(0, 8),
+      reason,
+      message: `IP hash ${ipHash.slice(0, 8)} added to exclusion list`,
+      allExclusions: getDynamicExclusions(),
+    };
+  });
+
+  // Admin: list all excluded IPs (owner key only)
+  app.get("/admin/exclude-ip", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    if (!ownerKey) return reply.status(503).send({ error: "Not configured" });
+
+    const adminToken = req.headers["x-admin-token"] as string | undefined;
+    const authHeader = req.headers["authorization"] as string | undefined;
+    let providedKey: string | undefined;
+    if (adminToken) providedKey = adminToken;
+    else if (authHeader?.startsWith("Bearer ")) providedKey = authHeader.slice(7).trim();
+
+    if (!providedKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
+    return {
+      staticExclusions: ['5c2a3f8f'],
+      dynamicExclusions: getDynamicExclusions(),
+    };
+  });
+
   // Data export endpoint (owner-only) — CSV of last N days of requests
   app.get("/data-export", async (req, reply) => {
     const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
@@ -730,6 +930,8 @@ async function buildServer() {
   await registerBatchRoutes(app);
   await registerWatchRoutes(app);
   await registerExtractRoutes(app);
+  await registerAggregateRoutes(app);
+  registerAggregateStreamRoutes(app);
   await registerMcpRoute(app);
   const relayMod = await loadRelay();
   if (relayMod) {
@@ -790,6 +992,14 @@ async function buildServer() {
     }
   });
 
+  app.get("/integrations", async (req, reply) => {
+    try {
+      reply.type("text/html").send(readFileSync(join(__dirname, "static", "integrations.html"), "utf-8"));
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load integrations page" });
+    }
+  });
+
   // Benchmark page
   app.get("/benchmark", async (req, reply) => {
     try {
@@ -823,6 +1033,15 @@ async function buildServer() {
   app.get("/vs/diffbot", async (req, reply) => {
     try {
       const html = readFileSync(join(__dirname, "static", "vs-diffbot.html"), "utf-8");
+      reply.type("text/html").send(html);
+    } catch (err) {
+      reply.status(500).send({ error: "Failed to load page" });
+    }
+  });
+
+  app.get("/landing-v2", async (req, reply) => {
+    try {
+      const html = readFileSync(join(__dirname, "static", "landing-v2.html"), "utf-8");
       reply.type("text/html").send(html);
     } catch (err) {
       reply.status(500).send({ error: "Failed to load page" });
@@ -893,7 +1112,7 @@ async function buildServer() {
   // ── Stripe: POST /checkout ─────────────────────────────────────────
   // Creates a Stripe Checkout session for the $4.99/mo Pro subscription.
   app.post("/checkout", async (req, reply) => {
-    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+    const clientIp = getClientIp(req);
     if (!checkoutRateLimit(clientIp)) {
       return reply.status(429).send({ error: "Too many requests. Please try again later." });
     }
@@ -1116,6 +1335,150 @@ a:hover{text-decoration:underline}
     }
   });
 
+  // ── Free tier email upgrade ────────────────────────────────────────
+  // GET /upgrade-free — HTML page for email signup
+  app.get("/upgrade-free", async (req, reply) => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Get 50 free scrapes per day — anybrowse</title>
+<meta name="description" content="Enter your email and get 50 free scrapes per day. No credit card. Resets at midnight UTC.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%231a1a1a' stroke-width='3'/><line x1='50' y1='10' x2='50' y2='80' stroke='%23ff4a00' stroke-width='5'/><polygon points='40,75 50,92 60,75' fill='%23ff4a00'/></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Helvetica Neue",Helvetica,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#f4f0eb;color:#1a1a1a;max-width:520px;margin:0 auto;padding:4rem 1.5rem 2.5rem;line-height:1.7;-webkit-font-smoothing:antialiased}
+.logo{font-size:.85rem;font-weight:300;letter-spacing:.1em;text-transform:lowercase;color:#767676;margin-bottom:3rem;display:block;text-decoration:none}
+.logo b{font-weight:700;color:#1a1a1a}
+h1{font-size:2.2rem;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:.75rem;color:#1a1a1a}
+.sub{font-size:1rem;color:#555;margin-bottom:2.5rem}
+form{display:flex;flex-direction:column;gap:.75rem}
+input[type=email]{padding:.85rem 1rem;border:1px solid #ddd8d2;border-radius:6px;font-size:1rem;background:#fff;color:#1a1a1a;font-family:inherit;outline:none;transition:border-color .15s}
+input[type=email]:focus{border-color:#d94400}
+button{padding:.85rem 1.5rem;background:#1a1a1a;color:#fff;border:none;border-radius:6px;font-size:.95rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+button:hover{background:#d94400}
+button:disabled{opacity:.5;cursor:not-allowed}
+.note{font-size:.8rem;color:#999;margin-top:.5rem}
+.success{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:1.25rem;color:#166534;font-size:.95rem;display:none}
+.error-msg{background:#fff5f5;border:1px solid #fecaca;border-radius:6px;padding:1rem;color:#991b1b;font-size:.9rem;display:none}
+a{color:#d94400;text-decoration:none}
+</style>
+</head>
+<body>
+<a class="logo" href="/"><b>any</b>browse</a>
+<h1>Get 50 free scrapes per day</h1>
+<p class="sub">Enter your email. We send one welcome email. That is it.</p>
+<div class="success" id="success">
+  You now have 50 free scrapes per day. Resets at midnight UTC. Check your inbox for a welcome note.
+</div>
+<div class="error-msg" id="error-msg"></div>
+<form id="form">
+  <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required>
+  <button type="submit" id="btn">Get 50 free scrapes per day</button>
+  <p class="note">No credit card needed. Free forever. Resets daily at midnight UTC.</p>
+</form>
+<script>
+document.getElementById('form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn');
+  const email = document.getElementById('email').value.trim();
+  const successEl = document.getElementById('success');
+  const errorEl = document.getElementById('error-msg');
+  btn.disabled = true;
+  btn.textContent = 'One moment...';
+  errorEl.style.display = 'none';
+  try {
+    const res = await fetch('/upgrade-free', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      document.getElementById('form').style.display = 'none';
+      successEl.style.display = 'block';
+    } else {
+      errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Get 50 free scrapes per day';
+    }
+  } catch (err) {
+    errorEl.textContent = 'Network error. Please try again.';
+    errorEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Get 50 free scrapes per day';
+  }
+});
+</script>
+</body>
+</html>`;
+    reply.type("text/html").send(html);
+  });
+
+  // POST /upgrade-free — accept email, add to ConvertKit, upgrade IP tier
+  app.post("/upgrade-free", async (req, reply) => {
+    const { email, ip: bodyIp } = req.body as any;
+    if (!email || typeof email !== "string") {
+      return reply.status(400).send({ error: "Missing email" });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return reply.status(400).send({ error: "Invalid email format" });
+    }
+
+    const clientIp = bodyIp || req.ip || "unknown";
+    const ipHash = createHash("sha256").update(clientIp).digest("hex").slice(0, 8);
+
+    // Add to local SQLite email_subscribers for self-hosted drip
+    try {
+      addEmailSubscriber(email, ipHash);
+      console.log(`[upgrade-free] Added subscriber: ${email}`);
+    } catch (err: any) {
+      console.error(`[upgrade-free] addEmailSubscriber failed: ${err.message}`);
+    }
+
+    // Add to ConvertKit
+    const convertKitKey = process.env.CONVERTKIT_KEY || "";
+    if (convertKitKey) {
+      try {
+        const ckRes = await fetch("https://api.kit.com/v4/subscribers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${convertKitKey}`,
+          },
+          body: JSON.stringify({
+            email_address: email,
+            tags: ["anybrowse-free-upgrade"],
+          }),
+        });
+        if (!ckRes.ok) {
+          const ckBody = await ckRes.text();
+          console.error(`[upgrade-free] ConvertKit error ${ckRes.status}: ${ckBody}`);
+        } else {
+          console.log(`[upgrade-free] ConvertKit subscriber added: ${email}`);
+        }
+      } catch (err: any) {
+        console.error(`[upgrade-free] ConvertKit fetch failed: ${err.message}`);
+      }
+    } else {
+      console.warn("[upgrade-free] CONVERTKIT_KEY not set — skipping ConvertKit sync");
+    }
+
+    // Upgrade IP to email-verified tier
+    emailVerifiedIps.add(clientIp);
+    console.log(`[upgrade-free] IP ${clientIp} upgraded to email tier`);
+
+    trackEvent("email_upgrade", { email: email.replace(/(.{2}).*(@.*)/, "$1***$2"), ip: clientIp });
+
+    return reply.send({
+      success: true,
+      message: "You now have 50 free scrapes/day. Resets at midnight UTC.",
+    });
+  });
+
   // ── Credit packs: POST /credits/checkout ──────────────────────────
   // Body: { pack: 'starter'|'growth'|'scale', email?: string }
   app.post("/credits/checkout", async (req, reply) => {
@@ -1126,6 +1489,12 @@ a:hover{text-decoration:underline}
     if (!pack) return reply.status(400).send({ error: "Missing pack" });
     try {
       const url = await createCreditCheckout(pack, email);
+      const packInfo = CREDIT_PACKS.find(p => p.id === pack);
+      trackEvent('checkout_started', {
+        pack,
+        price: packInfo?.price,
+        credits: packInfo?.credits,
+      }, email || 'anonymous');
       reply.send({ url });
     } catch (err: any) {
       console.error("[credits] Checkout error:", err.message);
@@ -1180,6 +1549,82 @@ a:hover{text-decoration:underline}
     return reply.send({ credits, key: key.slice(0, 12) + "..." });
   });
 
+  // ── Stripe Customer Portal: GET /manage ──────────────────────────
+  app.get("/manage", async (req, reply) => {
+    try {
+      const html = readFileSync(join(__dirname, "static", "manage.html"), "utf-8");
+      return reply.type("text/html").send(html);
+    } catch (err) {
+      return reply.status(500).send({ error: "Failed to load manage page" });
+    }
+  });
+
+  // ── Stripe Customer Portal: POST /portal ──────────────────────────
+  app.post("/portal", async (req, reply) => {
+    const { email } = req.body as { email?: string };
+    if (!CREDITS_STRIPE_ENABLED || !creditsStripe) {
+      return reply.status(503).send({ error: "Payments not configured" });
+    }
+    if (!email) {
+      return reply.status(400).send({ error: "email is required" });
+    }
+    try {
+      const customers = await creditsStripe.customers.list({ email, limit: 1 });
+      if (!customers.data.length) {
+        return reply.status(404).send({ error: "No subscription found for this email. Contact hello@anybrowse.dev" });
+      }
+      const session = await creditsStripe.billingPortal.sessions.create({
+        customer: customers.data[0].id,
+        return_url: "https://anybrowse.dev/dashboard",
+      });
+      return reply.redirect(session.url);
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // ── Dashboard: GET /dashboard ─────────────────────────────────────
+  app.get("/dashboard", async (req, reply) => {
+    try {
+      const html = readFileSync(join(__dirname, "static", "dashboard.html"), "utf-8");
+      return reply.type("text/html").send(html);
+    } catch (err) {
+      return reply.status(500).send({ error: "Failed to load dashboard" });
+    }
+  });
+
+  // ── Dashboard: GET /dashboard/data ────────────────────────────────
+  app.get("/dashboard/data", async (req, reply) => {
+    const key = (req.query as any).key as string | undefined;
+    if (!key) return reply.status(400).send({ error: "key required" });
+
+    // Look up credits row to determine if key exists and credits remaining
+    const row = db.prepare(
+      "SELECT credits_remaining, email, created_at, last_used FROM api_credits WHERE api_key = ?"
+    ).get(key) as { credits_remaining: number; email: string; created_at: number; last_used: number | null } | undefined;
+
+    const credits = row?.credits_remaining ?? 0;
+    const keyType = row ? "credit_pack" : "unknown";
+
+    // Usage counts from purchase history (credits used = purchased - remaining)
+    const purchaseRow = db.prepare(
+      "SELECT SUM(credits) as total_purchased FROM credit_purchases WHERE api_key = ?"
+    ).get(key) as { total_purchased: number | null } | undefined;
+
+    const totalPurchased = purchaseRow?.total_purchased ?? 0;
+    const usageTotal = totalPurchased - credits;
+
+    return reply.send({
+      credits,
+      usageTotal: Math.max(0, usageTotal),
+      usageToday: 0,
+      keyType,
+      email: row?.email ?? null,
+      memberSince: row?.created_at ?? null,
+      lastUsed: row?.last_used ?? null,
+    });
+  });
+
   // ── Stripe: POST /webhook ──────────────────────────────────────────
   // Stripe sends events here. Must be registered with raw body.
   app.post("/webhook", async (req, reply) => {
@@ -1200,9 +1645,23 @@ a:hover{text-decoration:underline}
 
       // Credit pack webhook handling — parse event ourselves for credit purchases
       try {
-        const { stripe: subsStripe, STRIPE_WEBHOOK_SECRET: webhookSecret } = await import("./stripe-subscriptions.js");
+        const { stripe: subsStripe } = await import("./stripe-subscriptions.js");
         if (subsStripe) {
           const event = subsStripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
+
+          // ── Webhook event deduplication ──────────────────────────────────
+          // Prevents double-processing if Stripe retries a webhook event.
+          const eventId = event.id;
+          db.exec(`CREATE TABLE IF NOT EXISTS processed_webhooks (
+            event_id TEXT PRIMARY KEY,
+            processed_at INTEGER NOT NULL
+          )`);
+          const existingEvent = db.prepare('SELECT event_id FROM processed_webhooks WHERE event_id = ?').get(eventId);
+          if (existingEvent) {
+            console.log('[webhook] Duplicate event ignored:', eventId);
+            return reply.status(200).send({ received: true, duplicate: true });
+          }
+          db.prepare('INSERT INTO processed_webhooks (event_id, processed_at) VALUES (?, ?)').run(eventId, Date.now());
           if (event.type === "checkout.session.completed") {
             const session = event.data.object as any;
             if (session.metadata?.type === "credit_pack" && session.metadata?.pack_id && session.metadata?.credits) {
@@ -1212,6 +1671,11 @@ a:hover{text-decoration:underline}
               const apiKey = generateCreditApiKey();
               addCredits(apiKey, email, credits, packId, session.id);
               console.log(`[credits] Issued API key ${apiKey.slice(0, 14)}... with ${credits} credits to ${email}`);
+              trackEvent('payment_completed', {
+                pack: packId,
+                credits,
+                amount: session.amount_total,
+              }, email || 'anonymous');
 
               // Send confirmation email with API key
               if (isMailerEnabled() && email) {
@@ -1573,7 +2037,7 @@ a:hover{text-decoration:underline}
 
 - Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)
 - Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)
-- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)
+- Search: POST /serp/search - Multi-engine search results (Google, Bing, DuckDuckGo) as structured JSON ($0.002 USDC)
 
 ## MCP Server
 
@@ -1624,6 +2088,75 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
   });
 
   // Admin endpoint to reload/restart nginx
+  // ── Admin: POST /admin/issue-key — manually issue a credit API key ──
+  app.post("/admin/issue-key", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const providedKey = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined;
+    if (!ownerKey || !providedKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    const { email, credits, packId, sessionId, sendRecoveryEmail, resendApiKey, customEmailBody, customEmailSubject } = req.body as any;
+    if (!email || !credits || !packId) {
+      return reply.status(400).send({ error: "email, credits, packId required" });
+    }
+    const apiKey = generateCreditApiKey();
+    addCredits(apiKey, email, parseInt(credits), packId, sessionId || `admin-issued-${Date.now()}`);
+
+    let emailResult: string | null = null;
+    if (sendRecoveryEmail) {
+      const emailBody = customEmailBody || `Hi,\n\nHere is your anybrowse API key: ${apiKey}\n\nThis gives you ${parseInt(credits).toLocaleString()} scrapes.\n\ncurl -X POST https://anybrowse.dev/scrape \\\n  -H "Authorization: Bearer ${apiKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"url": "https://example.com"}'\n\nCheck balance: https://anybrowse.dev/credits/balance?key=${apiKey}\n\nKC\nanybrowse.dev`;
+      const emailSubject = customEmailSubject || `Your anybrowse API key is ready`;
+      const smtpUser = process.env.SMTP_USER || (req.body as any).smtpUser || "aikingyouknow@gmail.com";
+      const smtpPass = process.env.SMTP_PASS || (req.body as any).smtpPass || "";
+      if (smtpPass) {
+        // Send via nodemailer SMTP
+        try {
+          const nodemailerMod = await import("nodemailer") as any;
+          const nodemailer = nodemailerMod.default || nodemailerMod;
+          // Try port 587 (STARTTLS) first, fallback to 465 (SSL)
+          const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 587,
+            secure: false,
+            requireTLS: true,
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+            auth: { user: smtpUser, pass: smtpPass }
+          });
+          const info = await transporter.sendMail({
+            from: `"anybrowse" <${smtpUser}>`,
+            to: email,
+            replyTo: "hello@anybrowse.dev",
+            subject: emailSubject,
+            text: emailBody
+          });
+          emailResult = `sent:smtp:${info.messageId}`;
+        } catch (err: any) {
+          emailResult = `failed:smtp:${err.message}`;
+        }
+      } else if (resendApiKey) {
+        try {
+          const resp = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ from: "hello@anybrowse.dev", to: [email], subject: emailSubject, text: emailBody, reply_to: "hello@anybrowse.dev" })
+          });
+          const data = await resp.json() as any;
+          emailResult = resp.ok ? `sent:resend:${data.id}` : `failed:resend:${JSON.stringify(data)}`;
+        } catch (err: any) {
+          emailResult = `error:${err.message}`;
+        }
+      } else {
+        const sent = await sendApiKeyEmail(email, apiKey, parseInt(credits));
+        emailResult = sent ? "sent:mailer" : "failed:mailer_not_configured";
+      }
+    }
+
+    return reply.send({ apiKey, email, credits: parseInt(credits), packId, emailResult });
+  });
+
   app.get("/admin/reload-nginx", async (req, reply) => {
     const adminToken = process.env.ADMIN_SECRET_TOKEN;
     if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
@@ -1651,6 +2184,55 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
   });
 
   // Admin endpoint to fix llms.txt pricing - tries multiple locations
+  // ── Admin: GET/POST /admin/user — look up user by email, adjust credits ──
+  app.get("/admin/user", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const adminToken = req.headers["x-admin-token"] as string | undefined;
+    const providedKey = adminToken || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined);
+    if (!ownerKey || !providedKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    const email = (req.query as any).email as string | undefined;
+    if (!email) return reply.status(400).send({ error: "email query param required" });
+    const rows = db.prepare(
+      "SELECT api_key, email, credits_remaining, credits_purchased, created_at, last_used FROM api_credits WHERE email LIKE ?"
+    ).all(`%${email}%`) as any[];
+    return reply.send({ users: rows });
+  });
+
+  app.post("/admin/adjust-credits", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY || process.env.ADMIN_SECRET_TOKEN;
+    const authHeader = req.headers["authorization"] as string | undefined;
+    const adminToken = req.headers["x-admin-token"] as string | undefined;
+    const providedKey = adminToken || (authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : undefined);
+    if (!ownerKey || !providedKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+    const { email, api_key, amount } = req.body as any;
+    if (amount === undefined) return reply.status(400).send({ error: "amount required" });
+    let result: any;
+    let rows: any[];
+    if (api_key) {
+      result = db.prepare(
+        "UPDATE api_credits SET credits_remaining = credits_remaining + ? WHERE api_key = ?"
+      ).run(amount, api_key);
+      rows = db.prepare(
+        "SELECT api_key, email, credits_remaining FROM api_credits WHERE api_key = ?"
+      ).all(api_key) as any[];
+    } else if (email) {
+      result = db.prepare(
+        "UPDATE api_credits SET credits_remaining = credits_remaining + ? WHERE email LIKE ?"
+      ).run(amount, `%${email}%`);
+      rows = db.prepare(
+        "SELECT api_key, email, credits_remaining FROM api_credits WHERE email LIKE ?"
+      ).all(`%${email}%`) as any[];
+    } else {
+      return reply.status(400).send({ error: "email or api_key required" });
+    }
+    return reply.send({ updated: result.changes, users: rows });
+  });
+
   app.get("/admin/fix-llms", async (req, reply) => {
     const adminToken = process.env.ADMIN_SECRET_TOKEN;
     if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
@@ -1665,7 +2247,7 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
       "",
       "- Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)",
       "- Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)",
-      "- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)",
+      "- Search: POST /serp/search - Multi-engine search results (Google, Bing, DuckDuckGo) as structured JSON ($0.002 USDC)",
       "",
       "## MCP Server",
       "",
@@ -1766,7 +2348,7 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
   }
 
   app.post("/capture-email", async (req, reply) => {
-    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+    const clientIp = getClientIp(req);
     if (!emailCaptureRateLimit(clientIp)) {
       return reply.status(429).send({ error: "Too many requests. Please try again later." });
     }
@@ -1804,6 +2386,7 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
       }
       appendFileSync(leadsFile, line, "utf-8");
       console.log(`[capture-email] Saved: ${cleanEmail} (${cleanSource}) ip=${ipHash}`);
+      trackEvent('email_captured', { source: cleanSource }, ipHash);
     } catch (err: any) {
       console.error("[capture-email] Failed to save lead:", err.message);
       // Return ok anyway — don't break UX for file write failures
@@ -1952,6 +2535,61 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
     }
   });
 
+  // ─── Agent comms endpoints ───────────────────────────────────────────────────
+
+  // ── Simple in-memory rate limiter for /agent/message (max 10/IP/minute) ──
+  const agentMessageRateMap = new Map<string, { count: number; resetAt: number }>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, entry] of agentMessageRateMap.entries()) {
+      if (now >= entry.resetAt) agentMessageRateMap.delete(ip);
+    }
+  }, 60_000);
+
+  function agentMessageRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = agentMessageRateMap.get(ip);
+    if (!entry || now >= entry.resetAt) {
+      agentMessageRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
+      return true;
+    }
+    if (entry.count >= 10) return false;
+    entry.count++;
+    return true;
+  }
+
+  // POST /agent/message — agents post messages here
+  app.post("/agent/message", async (req, reply) => {
+    const clientIp = getClientIp(req);
+    if (!agentMessageRateLimit(clientIp)) {
+      return reply.status(429).send({ error: "rate_limit_exceeded" });
+    }
+    const { from, message, secret } = req.body as { from?: string; message?: string; secret?: string };
+    if (secret !== (process.env.AGENT_COMMS_SECRET || "relay-agent-2026")) {
+      return reply.status(403).send({ error: "forbidden" });
+    }
+    if (!from || !message) {
+      return reply.status(400).send({ error: "from and message required" });
+    }
+    db.prepare("INSERT INTO agent_messages (from_agent, message) VALUES (?, ?)").run(from, message);
+    return reply.send({ ok: true });
+  });
+
+  // GET /agent/messages — CIPHER polls for new messages
+  app.get("/agent/messages", async (req, reply) => {
+    const auth = (req.headers as Record<string, string>)["authorization"] || "";
+    if (auth !== "Bearer ab_owner_018b73cd5702ade0f97e5855e7c80661feae22822639752e") {
+      return reply.status(401).send({ error: "unauthorized" });
+    }
+    const messages = db.prepare("SELECT * FROM agent_messages WHERE read = 0 ORDER BY created_at ASC").all();
+    if (messages.length > 0) {
+      const ids = (messages as { id: number }[]).map((m) => m.id);
+      db.prepare(`UPDATE agent_messages SET read = 1 WHERE id IN (${ids.map(() => "?").join(",")})`)
+        .run(...ids);
+    }
+    return reply.send({ messages });
+  });
+
   // 404 handler
   app.setNotFoundHandler((req, reply) => {
     return reply.status(404).send({ error: "not_found" });
@@ -1975,6 +2613,7 @@ async function main() {
   startPromoter();
   startAdvertiser();
   startWatchPoller();
+  startWarmer();
 
   // Seed scrape-log.jsonl with known historical data (idempotent -- only writes if empty)
   try {
@@ -2059,7 +2698,7 @@ async function main() {
       "",
       "- Scrape: POST /scrape - Convert a single URL to clean Markdown ($0.002 USDC)",
       "- Crawl: POST /crawl - Search Google and scrape top results to Markdown ($0.01 USDC)",
-      "- Search: POST /serp/search - Google SERP results as structured JSON ($0.002 USDC)",
+      "- Search: POST /serp/search - Multi-engine search results (Google, Bing, DuckDuckGo) as structured JSON ($0.002 USDC)",
       "",
       "## MCP Server",
       "",
@@ -2119,6 +2758,13 @@ async function main() {
   console.log("[anybrowse] Agent card: https://anybrowse.dev/.well-known/agent-card.json");
   console.log("[anybrowse] MCP server: https://anybrowse.dev/mcp");
 
+  // Run email drip every hour
+  setInterval(() => {
+    runDrip().catch(err => console.error('[drip] error:', err));
+  }, 60 * 60 * 1000);
+  // Also run on startup (after 10s to let server settle)
+  setTimeout(() => runDrip().catch(console.error), 10_000);
+
   // Graceful shutdown
   const shutdown = async () => {
     console.log("[anybrowse] Shutting down...");
@@ -2126,6 +2772,7 @@ async function main() {
     stopOptimizer();
     stopPromoter();
     stopAdvertiser();
+    stopWarmer();
     intelligence.shutdown();
     stats.shutdown();
     await app.close();
@@ -2137,8 +2784,21 @@ async function main() {
   process.on("SIGINT", shutdown);
 }
 
+// Global safety net — prevent unhandled rejections/exceptions from crashing pm2
+process.on('unhandledRejection', (reason, _promise) => {
+  const msg = reason instanceof Error ? reason.stack || reason.message : String(reason);
+  console.error('[anybrowse] [unhandledRejection] caught and suppressed:', msg);
+  // Do NOT exit — just log. pm2 restart loop is worse than a logged error.
+});
+
+process.on('uncaughtException', (err, origin) => {
+  console.error(`[anybrowse] [uncaughtException] origin=${origin}:`, err.stack || err.message);
+  // Only exit on truly unrecoverable situations (e.g. not EADDRINUSE at startup)
+  // For now: log and continue to prevent crash loops.
+});
+
 main().catch((err) => {
-  console.error("[anybrowse] Fatal error:", err);
+  console.error("[anybrowse] Fatal error in main():", err instanceof Error ? err.stack : err);
   process.exit(1);
 });
-// Deployed: Mon Feb 23 22:41:45 UTC 2026
+// Deployed: Sun Mar  8 2026 — added global unhandledRejection/uncaughtException handlers

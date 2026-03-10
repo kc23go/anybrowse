@@ -12,9 +12,9 @@ anybrowse.dev converts any URL to LLM-ready Markdown. Built for AI agents, MCP c
 ## Why anybrowse?
 
 - **84% scrape success rate** — including Cloudflare-protected sites, JavaScript SPAs, government portals
-- **Real-time web search** — powered by Brave Search API, not browser-based scraping
+- **Real-time web search** — powered by multi-engine search (Google, Bing, DuckDuckGo) via SearXNG, not browser-based scraping
 - **MCP-native** — works directly in Claude Code, Cursor, Windsurf with zero config
-- **Pay as you go** — 10 free scrapes/day. Credit packs from $5. No subscription required.
+- **Pay as you go** — 10 free scrapes per day. Get 50 per day free at anybrowse.dev/upgrade-free. Credit packs from $5. No subscription required.
 - **CAPTCHA solving** — automatic reCAPTCHA and Cloudflare Turnstile solving
 
 ## Quick Start
