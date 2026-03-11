@@ -2443,6 +2443,33 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
     return reply.send({ updated: result.changes, users: rows });
   });
 
+  // Admin: write a file to public/shared/ directory (owner key required)
+  app.put("/admin/write-shared", async (req, reply) => {
+    const ownerKey = process.env.OWNER_API_KEY;
+    const providedKey = req.headers["x-admin-token"] as string | undefined
+      || (req.headers["authorization"] as string | undefined)?.replace("Bearer ", "");
+    if (!ownerKey || providedKey !== ownerKey) {
+      return reply.status(401).send({ error: "unauthorized" });
+    }
+    const { filename, content } = req.body as { filename?: string; content?: string };
+    if (!filename || !content) {
+      return reply.status(400).send({ error: "filename and content required" });
+    }
+    if (!/^[\w\-\.]+$/.test(filename) || filename.includes("..")) {
+      return reply.status(400).send({ error: "invalid_filename" });
+    }
+    const dir = join(__dirname, "public", "shared");
+    const filePath = join(dir, filename);
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(filePath, content, "utf-8");
+      const size = content.length;
+      return reply.send({ success: true, path: filePath, bytes: size });
+    } catch (err) {
+      return reply.status(500).send({ error: String(err) });
+    }
+  });
+
   app.get("/admin/fix-llms", async (req, reply) => {
     const adminToken = process.env.ADMIN_SECRET_TOKEN;
     if (!adminToken || req.headers['x-admin-token'] !== adminToken) {
