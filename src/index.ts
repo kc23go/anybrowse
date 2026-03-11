@@ -2458,16 +2458,28 @@ No API keys or subscriptions needed. Send a request without payment, receive a 4
     if (!/^[\w\-\.]+$/.test(filename) || filename.includes("..")) {
       return reply.status(400).send({ error: "invalid_filename" });
     }
-    const dir = join(__dirname, "public", "shared");
-    const filePath = join(dir, filename);
-    try {
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(filePath, content, "utf-8");
-      const size = content.length;
-      return reply.send({ success: true, path: filePath, bytes: size });
-    } catch (err) {
-      return reply.status(500).send({ error: String(err) });
+    const writtenPaths: string[] = [];
+    const errors: string[] = [];
+    // Write to all candidate shared directories
+    const candidateDirs = [
+      join(__dirname, "public", "shared"),           // dist/public/shared (app static)
+      join(__dirname, "..", "public", "shared"),      // /agent/app/public/shared (nginx static)
+      join(__dirname, "..", "src", "public", "shared"), // /agent/app/src/public/shared (source)
+    ];
+    for (const dir of candidateDirs) {
+      try {
+        mkdirSync(dir, { recursive: true });
+        const filePath = join(dir, filename);
+        writeFileSync(filePath, content, "utf-8");
+        writtenPaths.push(filePath);
+      } catch (err) {
+        errors.push(`${dir}: ${String(err)}`);
+      }
     }
+    if (writtenPaths.length === 0) {
+      return reply.status(500).send({ error: "all write attempts failed", errors });
+    }
+    return reply.send({ success: true, paths: writtenPaths, bytes: content.length, errors });
   });
 
   app.get("/admin/fix-llms", async (req, reply) => {
