@@ -31,7 +31,7 @@ import { registerExtractRoutes } from "./extract.js";
 import { registerAggregateRoutes } from "./aggregate.js";
 import { registerAggregateStreamRoutes } from "./aggregate-stream.js";
 import { logRequest, buildLogEntry, getClientBreakdown, computeInsights, shouldExcludeFromStats, addExcludedIp, getDynamicExclusions, hashIp, getCleanRequestCount } from "./request-log.js";
-import { db, addEmailSubscriber } from "./db.js";
+import { db, addEmailSubscriber, createFreeApiKey } from "./db.js";
 import { runDrip } from "./drip.js";
 import {
   createCheckoutSession,
@@ -53,6 +53,14 @@ import {
 } from "./stripe-credits.js";
 import { sendEmail, isMailerEnabled, sendApiKeyEmail } from "./mailer.js";
 import { trackEvent, shutdownAnalytics } from "./analytics.js";
+import {
+  COINBASE_CREDIT_PACKS,
+  createCoinbaseCharge,
+  verifyCoinbaseWebhook,
+  getCoinbaseEventType,
+  getCoinbaseChargeMetadata,
+} from "./coinbase-commerce.js";
+import { createPayPalOrder, capturePayPalOrder } from "./paypal.js";
 import { readFileSync, writeFileSync, existsSync, appendFileSync, mkdirSync } from "fs";
 import { createHash } from "crypto";
 import { execSync } from "child_process";
@@ -73,6 +81,8 @@ const KNOWN_PATHS = new Set([
   "/capture-email", "/upgrade-free", "/insights", "/data-export",
   "/tos", "/privacy", "/integrations", "/checkout",
   "/credits", "/credits/checkout", "/credits/success", "/credits/balance",
+  "/credits/coinbase/checkout", "/credits/coinbase/webhook",
+  "/credits/paypal/checkout", "/credits/paypal-success",
   "/benchmark", "/vs/firecrawl", "/vs/jina", "/vs/diffbot",
   "/blog/benchmarking-web-scraping-apis",
   "/.well-known/agent-card.json",
@@ -757,7 +767,9 @@ async function buildServer() {
     }
 
     const insights = computeInsights();
-    return insights;
+    const { computeMcpInsights } = await import("./request-log.js");
+    const mcpInsights = computeMcpInsights();
+    return { ...insights, mcp: mcpInsights };
   });
 
   // Admin: add IP to exclusion list (owner key only)
@@ -1479,6 +1491,48 @@ document.getElementById('form').addEventListener('submit', async function(e) {
     });
   });
 
+  // ── Bot signup: POST /bot/signup ──────────────────────────────────
+  // Body: { email: string, source?: string, telegram_id?: string }
+  // Returns: { apiKey: string, plan: 'free', dailyLimit: 50 }
+  // Used by the Telegram bot to create free API keys in-chat.
+  app.post("/bot/signup", async (req, reply) => {
+    const { email, telegram_id, source } = req.body as any;
+
+    if (!email || typeof email !== "string") {
+      return reply.status(400).send({ error: "Missing email" });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return reply.status(400).send({ error: "Invalid email format" });
+    }
+
+    try {
+      const apiKey = createFreeApiKey(email.trim(), telegram_id ? String(telegram_id) : undefined);
+
+      // Also add to email subscribers for drip sequence
+      try {
+        addEmailSubscriber(email.trim(), "telegram");
+      } catch { /* ignore duplicate */ }
+
+      trackEvent("bot_signup", {
+        source: source || "telegram",
+        email: email.replace(/(.{2}).*(@.*)/, "$1***$2"),
+      });
+
+      console.log(`[bot/signup] Created free API key for ${email.replace(/(.{2}).*(@.*)/, "$1***$2")} (telegram_id=${telegram_id || "none"})`);
+
+      return reply.send({
+        apiKey,
+        plan: "free",
+        dailyLimit: 50,
+        message: "50 scrapes/day, resets at midnight UTC.",
+      });
+    } catch (err: any) {
+      console.error("[bot/signup] Error:", err.message);
+      return reply.status(500).send({ error: "Failed to create API key. Please try again." });
+    }
+  });
+
   // ── Credit packs: POST /credits/checkout ──────────────────────────
   // Body: { pack: 'starter'|'growth'|'scale', email?: string }
   app.post("/credits/checkout", async (req, reply) => {
@@ -1547,6 +1601,142 @@ document.getElementById('form').addEventListener('submit', async function(e) {
     }
     const credits = getCredits(key);
     return reply.send({ credits, key: key.slice(0, 12) + "..." });
+  });
+
+  // ── Coinbase Commerce: POST /credits/coinbase/checkout ──────────────
+  // Body: { packId: 'starter'|'growth'|'scale', apiKey?: string }
+  // Returns redirect to Coinbase hosted checkout
+  app.post("/credits/coinbase/checkout", async (req, reply) => {
+    const { packId, apiKey } = req.body as { packId?: string; apiKey?: string };
+    if (!packId) return reply.status(400).send({ error: "Missing packId" });
+    const pack = COINBASE_CREDIT_PACKS.find(p => p.id === packId);
+    if (!pack) return reply.status(400).send({ error: `Unknown packId: ${packId}` });
+    const resolvedApiKey = apiKey || generateCreditApiKey();
+    try {
+      const charge = await createCoinbaseCharge(pack, resolvedApiKey);
+      trackEvent('checkout_started', {
+        pack: packId,
+        price: pack.price_usd * 100,
+        credits: pack.credits,
+        method: 'crypto',
+      }, resolvedApiKey);
+      reply.send({ url: charge.hosted_url, chargeId: charge.id, chargeCode: charge.code });
+    } catch (err: any) {
+      console.error("[coinbase] Checkout error:", err.message);
+      reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // ── Coinbase Commerce: POST /credits/coinbase/webhook ────────────────
+  // Coinbase sends events here — must verify X-CC-Webhook-Signature header
+  app.post("/credits/coinbase/webhook", async (req, reply) => {
+    const signature = req.headers["x-cc-webhook-signature"] as string | undefined;
+    const rawBody = (req as any).rawBody as Buffer | undefined;
+
+    if (!signature || !rawBody) {
+      return reply.status(400).send({ error: "Missing signature or body" });
+    }
+
+    const rawStr = rawBody.toString("utf-8");
+    if (!verifyCoinbaseWebhook(rawStr, signature)) {
+      console.warn("[coinbase-webhook] Invalid signature — rejected");
+      return reply.status(401).send({ error: "Invalid webhook signature" });
+    }
+
+    let event: any;
+    try {
+      event = JSON.parse(rawStr);
+    } catch {
+      return reply.status(400).send({ error: "Invalid JSON body" });
+    }
+
+    const eventType = getCoinbaseEventType(event);
+    console.log(`[coinbase-webhook] Event: ${eventType}`);
+
+    if (eventType === "charge:confirmed" || eventType === "charge:resolved") {
+      const meta = getCoinbaseChargeMetadata(event);
+      if (meta) {
+        const { api_key, pack_id, credits } = meta;
+        // If the api_key already exists in DB it will top-up; otherwise create new key
+        addCredits(api_key, "", credits, pack_id, `coinbase-${event.data?.id || Date.now()}`);
+        console.log(`[coinbase-webhook] Credited ${credits} credits to ${api_key.slice(0, 14)}...`);
+        trackEvent("payment_completed", {
+          pack: pack_id,
+          credits,
+          method: "crypto",
+        }, api_key);
+      } else {
+        console.warn("[coinbase-webhook] charge:confirmed but no metadata — cannot credit");
+      }
+    }
+
+    reply.status(200).send({ received: true });
+  });
+
+  // ── PayPal: POST /credits/paypal/checkout ────────────────────────────
+  // Body: { packId: 'starter'|'growth'|'scale', apiKey?: string }
+  // Returns { approveUrl } — redirect user there to complete payment
+  app.post("/credits/paypal/checkout", async (req, reply) => {
+    const { packId, apiKey } = req.body as { packId?: string; apiKey?: string };
+    if (!packId) return reply.status(400).send({ error: "Missing packId" });
+    const pack = COINBASE_CREDIT_PACKS.find(p => p.id === packId);
+    if (!pack) return reply.status(400).send({ error: `Unknown packId: ${packId}` });
+    const resolvedApiKey = apiKey || generateCreditApiKey();
+    try {
+      const { id, approveUrl } = await createPayPalOrder(
+        { id: pack.id, credits: pack.credits, price_usd: pack.price_usd, label: pack.label },
+        resolvedApiKey,
+      );
+      trackEvent("checkout_started", {
+        pack: packId,
+        price: pack.price_usd * 100,
+        credits: pack.credits,
+        method: "paypal",
+      }, resolvedApiKey);
+      reply.send({ approveUrl, orderId: id });
+    } catch (err: any) {
+      console.error("[paypal] Checkout error:", err.message);
+      reply.status(500).send({ error: err.message });
+    }
+  });
+
+  // ── PayPal: GET /credits/paypal-success ──────────────────────────────
+  // PayPal redirects here with ?token=ORDER_ID after user approves
+  app.get("/credits/paypal-success", async (req, reply) => {
+    const { token: orderId } = req.query as { token?: string };
+    if (!orderId) {
+      return reply.status(400).send({ error: "Missing PayPal order token" });
+    }
+    try {
+      const { success, customId } = await capturePayPalOrder(orderId);
+      if (!success || !customId) {
+        console.error(`[paypal] Capture failed for order ${orderId}`);
+        return reply.redirect("/credits?paypal=failed");
+      }
+      // customId format: apiKey|||packId|||credits
+      const parts = customId.split("|||");
+      if (parts.length < 3) {
+        console.error(`[paypal] Invalid customId format: ${customId}`);
+        return reply.redirect("/credits?paypal=failed");
+      }
+      const [apiKey, packId, creditsStr] = parts;
+      const credits = parseInt(creditsStr, 10);
+      if (!apiKey || !credits || isNaN(credits)) {
+        console.error(`[paypal] Could not parse customId: ${customId}`);
+        return reply.redirect("/credits?paypal=failed");
+      }
+      addCredits(apiKey, "", credits, packId, `paypal-${orderId}`);
+      console.log(`[paypal] Credited ${credits} credits to ${apiKey.slice(0, 14)}...`);
+      trackEvent("payment_completed", {
+        pack: packId,
+        credits,
+        method: "paypal",
+      }, apiKey);
+      reply.redirect(`/credits/success?method=paypal&key=${encodeURIComponent(apiKey)}&credits=${credits}`);
+    } catch (err: any) {
+      console.error("[paypal] Capture error:", err.message);
+      reply.redirect("/credits?paypal=error");
+    }
   });
 
   // ── Stripe Customer Portal: GET /manage ──────────────────────────
@@ -1932,6 +2122,26 @@ document.getElementById('form').addEventListener('submit', async function(e) {
       reply.type("text/html").send(html);
     } catch (err) {
       reply.status(500).send({ error: "Failed to load blog post" });
+    }
+  });
+
+  // Shared files — static content served from public/shared/
+  app.get("/shared/:filename", async (req, reply) => {
+    const { filename } = req.params as { filename: string };
+    // Security: only allow safe filenames (alphanumeric, hyphens, dots)
+    if (!/^[\w\-\.]+$/.test(filename) || filename.includes("..")) {
+      return reply.status(400).send({ error: "invalid_filename" });
+    }
+    const filePath = join(__dirname, "public", "shared", filename);
+    try {
+      const content = readFileSync(filePath, "utf-8");
+      // Serve markdown as plain text
+      if (filename.endsWith(".md")) {
+        return reply.type("text/plain; charset=utf-8").send(content);
+      }
+      return reply.send(content);
+    } catch (err) {
+      return reply.status(404).send({ error: "not_found" });
     }
   });
 

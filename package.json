@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc -p tsconfig.json",
-    "postbuild": "node dist/patch-playwright.js 2>/dev/null || true",
+    "postbuild": "node dist/patch-playwright.js 2>/dev/null || true && cp src/proxies.json dist/proxies.json 2>/dev/null || true && (cp -r src/public dist/public 2>/dev/null || true)",
     "typecheck": "tsc --noEmit",
     "postinstall": "node dist/patch-playwright.js 2>/dev/null || true"
   },
