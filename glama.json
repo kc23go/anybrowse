@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "anybrowse",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "URL → Markdown scraping API with MCP support. Works on Cloudflare-protected sites, JavaScript SPAs, and paywalls.",
   "homepage": "https://anybrowse.dev",
   "repository": "https://github.com/kc23go/anybrowse",
