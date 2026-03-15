@@ -14,21 +14,34 @@ anybrowse.dev converts any URL to LLM-ready Markdown. Built for AI agents, MCP c
 - **84% scrape success rate** — including Cloudflare-protected sites, JavaScript SPAs, government portals
 - **Real-time web search** — powered by multi-engine search (Google, Bing, DuckDuckGo) via SearXNG, not browser-based scraping
 - **MCP-native** — works directly in Claude Code, Cursor, Windsurf with zero config
-- **Pay as you go** — 10 free scrapes per day. Get 50 per day free at anybrowse.dev/upgrade-free. Credit packs from $5. No subscription required.
+- **Free tier** — 50 scrapes/day with a free API key. Sign up in 10 seconds at [anybrowse.dev/signup](https://anybrowse.dev/signup) — no credit card needed.
 - **CAPTCHA solving** — automatic reCAPTCHA and Cloudflare Turnstile solving
 
 ## Quick Start
 
 ### MCP (Claude Code, Cursor, Windsurf)
 
-Add to your MCP config:
+**Step 1:** Get your free API key (50 scrapes/day):
+
+```bash
+# Option A: Terminal signup
+npx anybrowse-signup
+
+# Option B: Browser signup
+open https://anybrowse.dev/signup
+```
+
+**Step 2:** Add to your MCP config with your key:
 
 ```json
 {
   "mcpServers": {
     "anybrowse": {
       "type": "streamable-http",
-      "url": "https://anybrowse.dev/mcp"
+      "url": "https://anybrowse.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
@@ -91,7 +104,7 @@ Free: 10 scrapes/day · [Full API](https://anybrowse.dev)
 
 ## Pricing
 
-- **Free**: 10 scrapes/day, no API key needed
+- **Free**: 50 scrapes/day with free API key — [sign up here](https://anybrowse.dev/signup)
 - **Credit packs**: $5 (3k scrapes) / $20 (15k scrapes) / $50 (50k scrapes)
 - **Pro**: $4.99/month, unlimited
 - **x402**: Pay per request with USDC on Base (AI agents with wallets)

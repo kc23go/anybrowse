@@ -1,6 +1,9 @@
 {
   "name": "anybrowse",
-  "version": "1.0.3",
+  "version": "1.0.4",
+  "bin": {
+    "anybrowse-signup": "bin/signup.mjs"
+  },
   "description": "Autonomous web browsing agent — converts any URL to clean, LLM-ready Markdown via x402 micropayments",
   "type": "module",
   "scripts": {
