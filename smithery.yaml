@@ -11,7 +11,7 @@ startCommand:
   commandFunction: |-
     (config) => ({
       command: "npx",
-      args: ["-y", "@anybrowse/mcp-server"],
+      args: ["-y", "@anybrowse/mcp"],
       env: {
         ANYBROWSE_API_KEY: config.apiKey || ""
       }
