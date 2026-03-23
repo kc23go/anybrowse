@@ -1,5 +1,7 @@
 # anybrowse
 
+[![Glama](https://glama.ai/mcp/servers/kc23go/anybrowse/badges/score.svg)](https://glama.ai/mcp/servers/kc23go/anybrowse)
+
 **Convert any URL to clean, LLM-ready Markdown.**
 
 Real Chrome browsers with full JavaScript rendering. 84% success rate including JavaScript-heavy sites, Cloudflare-protected pages, and government sites.
