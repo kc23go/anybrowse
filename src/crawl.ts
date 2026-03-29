@@ -245,6 +245,18 @@ export async function registerCrawlRoutes(app: FastifyInstance): Promise<void> {
 
     perf.event('Scrape request', { url });
 
+    // ── Memory circuit breaker — reject if heap > 85% to prevent crash loops ─
+    const memUsage = process.memoryUsage();
+    const heapPct = memUsage.heapUsed / memUsage.heapTotal;
+    if (heapPct > 0.85) {
+      console.warn(`[scrape] Memory circuit breaker triggered: heap ${(heapPct * 100).toFixed(1)}% — rejecting request for ${url}`);
+      return reply.status(503).send({
+        error: 'server_busy',
+        message: 'Server is under memory pressure. Please retry in a moment.',
+        retryAfter: 30,
+      });
+    }
+
     if (!url || !/^https?:\/\//i.test(url)) {
       return reply.status(400).send({ error: 'valid_url_required' });
     }
