@@ -2237,6 +2237,31 @@ document.getElementById('form').addEventListener('submit', async function(e) {
     reply.type("application/xml").send(sitemap);
   });
 
+  // robots.txt - AI crawler access
+  app.get("/robots.txt", async (req, reply) => {
+    const robotsContent = `User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://anybrowse.dev/sitemap.xml
+`;
+    reply.type("text/plain").send(robotsContent);
+  });
+
   // llms.txt - LLM-friendly documentation
   app.get("/llms.txt", async (req, reply) => {
     const llmsContent = `# anybrowse
