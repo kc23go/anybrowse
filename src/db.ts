@@ -293,4 +293,11 @@ export function markEmailSent(id: number, emailNumber: 1 | 2 | 3): void {
   db.prepare(`UPDATE email_subscribers SET ${col} = ? WHERE id = ?`).run(Date.now(), id);
 }
 
+export function createFreeApiKey(email: string, telegramId?: string): string {
+  // Generate a free API key for the given email (10 free scrapes/day)
+  const crypto = require('crypto');
+  const key = 'ab_free_' + crypto.createHash('sha256').update(email + (telegramId || '') + Date.now()).digest('hex').slice(0, 24);
+  return key;
+}
+
 console.log('[db] SQLite database ready at', DB_PATH);

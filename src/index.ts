@@ -767,8 +767,7 @@ async function buildServer() {
     }
 
     const insights = computeInsights();
-    const { computeMcpInsights } = await import("./request-log.js");
-    const mcpInsights = computeMcpInsights();
+    const mcpInsights = computeInsights();
     return { ...insights, mcp: mcpInsights };
   });
 
