@@ -1,5 +1,7 @@
 # anybrowse
 
+[![SafeSkill 57/100](https://img.shields.io/badge/SafeSkill-57%2F100_Use%20with%20Caution-orange)](https://safeskill.dev/scan/kc23go-anybrowse)
+
 [![Glama](https://glama.ai/mcp/servers/kc23go/anybrowse/badges/score.svg)](https://glama.ai/mcp/servers/kc23go/anybrowse)
 
 **Convert any URL to clean, LLM-ready Markdown.**
